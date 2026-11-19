@@ -54,9 +54,22 @@ DESIGN.md           the design language every surface follows
 
 ## Deploy
 
-Cloudflare Workers Builds, connected to this repository. Every push to `main`
-builds and deploys. Bindings come from `wrangler.jsonc`, so the D1 database is
-attached on deploy and needs no dashboard step.
+GitHub Actions (`.github/workflows/deploy.yml`) on every push to `main`, and by
+hand from the Actions tab. It installs, runs `wrangler deploy --dry-run` to
+catch config and bundling errors, then deploys. Bindings come from
+`wrangler.jsonc`, so the D1 database attaches on deploy with no dashboard step.
+
+Two repository secrets are required: `CLOUDFLARE_API_TOKEN` (Workers Scripts
+Edit, D1 Edit, Account Settings Read) and `CLOUDFLARE_ACCOUNT_ID`.
+
+Cloudflare's own git integration is not used: it stopped delivering push events
+for this repository and produced no builds, successful or failed.
+
+Before pushing a change, the same check runs locally without credentials:
+
+```bash
+npm run verify
+```
 
 Schema and seed changes do not travel with a push. Apply those against the
 remote database:
