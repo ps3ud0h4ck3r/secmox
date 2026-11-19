@@ -245,6 +245,13 @@ app.get('/api/coverage', async (c) => {
 /* -------------------------------------------------------- static */
 
 app.all('/api/*', (c) => fail(c, 404, 'No such endpoint.'));
-app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
+
+// Static files are normally served before the Worker is reached, so this only
+// runs for paths with no matching file. Works with or without the ASSETS
+// binding, so a change to how the project is deployed cannot break routing.
+app.all('*', (c) => {
+  if (c.env.ASSETS) return c.env.ASSETS.fetch(c.req.raw);
+  return c.text('Not found', 404);
+});
 
 export default app;
