@@ -1,0 +1,19 @@
+{
+  "name": "secmox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "schema": "wrangler d1 execute secmox --remote --file=schema.sql",
+    "seed": "wrangler d1 execute secmox --remote --file=seed.sql",
+    "check": "npx -y impeccable@latest detect public/"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

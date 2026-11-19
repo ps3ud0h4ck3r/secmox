@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecMox practice</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0B1622; --steel:#16222F; --raise:#1E2D3D;
+    --text:#E6EDF4; --dim:#9DB1C4;
+    --alarm:#FF5A4D; --amber:#FFB341; --mint:#5FD6A4;
+    --lite-ink:#15202C;
+    --sans:'Archivo',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:var(--sans);font-size:17px;line-height:1.6;color:var(--text);
+    background:
+      radial-gradient(1100px 620px at 15% -10%, #22384F 0%, transparent 62%),
+      radial-gradient(900px 520px at 92% 4%, #1B2F46 0%, transparent 58%),
+      var(--deep);
+    background-attachment:fixed;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 22px}
+  :focus-visible{outline:2px solid #8FB6FF;outline-offset:3px;border-radius:4px}
+  [hidden]{display:none !important}
+
+  /* inflated */
+  .inf{
+    border:0;cursor:pointer;font:inherit;font-weight:600;font-size:15.5px;color:#fff;
+    display:inline-block;padding:13px 24px;border-radius:999px;text-decoration:none;
+    background:linear-gradient(180deg,#3570E2 0%,#2A5FD6 42%,#1C45B4 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.62), inset 0 10px 16px rgba(255,255,255,.20),
+      inset 0 -12px 20px rgba(3,14,32,.42), 0 14px 24px -10px rgba(0,0,0,.70),
+      0 3px 0 rgba(4,16,34,.55);
+    transition:transform .12s ease;
+  }
+  .inf:active{transform:translateY(3px)}
+  .inf[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  .inf.ghost{background:linear-gradient(180deg,#2B3E53 0%,#1B2938 100%);color:var(--text);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -10px 18px rgba(0,0,0,.42),
+      0 12px 22px -12px rgba(0,0,0,.7),0 3px 0 rgba(0,0,0,.5)}
+  .inf.small{padding:9px 16px;font-size:14px}
+
+  /* device */
+  .device{border-radius:18px;padding:11px;
+    background:linear-gradient(180deg,#3A4E64 0%,#22313F 22%,#182533 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -2px 0 rgba(0,0,0,.55),
+      0 32px 60px -24px rgba(0,0,0,.85),0 2px 0 rgba(0,0,0,.6)}
+  .screen{position:relative;border-radius:10px;overflow:hidden;
+    background:linear-gradient(180deg,#0C1824 0%,#0A141F 60%,#0C1A28 100%);
+    box-shadow:inset 0 2px 10px rgba(0,0,0,.95),inset 0 0 0 1px rgba(0,0,0,.6),
+      inset 0 0 40px rgba(0,0,0,.55)}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(118deg,rgba(255,255,255,.085) 0%,rgba(255,255,255,.03) 26%,transparent 46%)}
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:14px;
+    padding:12px 18px;border-bottom:1px solid rgba(160,190,220,.14);
+    font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.03em;
+    background:linear-gradient(180deg,rgba(255,255,255,.05),transparent)}
+  .pad{padding:20px 18px;position:relative;z-index:1}
+
+  /* top */
+  header{padding:20px 0;border-bottom:1px solid rgba(160,190,220,.14);margin-bottom:28px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700;
+    letter-spacing:-.025em;font-stretch:112%;text-decoration:none;color:var(--text)}
+  .bead{width:13px;height:13px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 32% 28%,#FFB0A7 0%,var(--alarm) 46%,#A32319 100%);
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.5),0 3px 9px rgba(255,90,77,.38)}
+  .who{display:flex;align-items:center;gap:14px;font-size:14.5px;color:var(--dim);flex-wrap:wrap}
+
+  h1{font-size:clamp(28px,4.4vw,40px);line-height:1.08;letter-spacing:-.035em;
+    font-weight:700;font-stretch:114%;margin:0 0 14px}
+  h2{font-size:21px;font-weight:700;font-stretch:108%;letter-spacing:-.02em;margin:0 0 10px}
+  p.sub{color:var(--dim);margin:0 0 26px;max-width:52ch}
+
+  /* fields */
+  label{display:block;font-size:14px;color:var(--dim);margin:0 0 6px}
+  input,select,textarea{
+    font:inherit;font-size:16px;width:100%;padding:13px 15px;border-radius:12px;border:0;
+    color:var(--lite-ink);background:linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    box-shadow:inset 0 2px 5px rgba(40,60,82,.30),inset 0 -2px 0 rgba(255,255,255,.9),
+      0 2px 0 rgba(0,0,0,.35);
+    -webkit-appearance:none;appearance:none;
+  }
+  input::placeholder,textarea::placeholder{color:#4A5E72}
+  textarea{min-height:150px;resize:vertical;line-height:1.55;border-radius:14px}
+  select{padding-right:40px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' fill='none' stroke='%232F3F52' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+      linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    background-position:calc(100% - 16px) center,0 0;background-size:11px 7px,100% 100%;
+    background-repeat:no-repeat}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{margin-bottom:14px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+
+  .msg{font-family:var(--mono);font-size:13px;color:var(--dim);margin:14px 0 0;min-height:1.3em}
+  .msg.err{color:#FFA79E}
+  .msg.ok{color:var(--mint)}
+
+  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .switch{background:none;border:0;color:var(--dim);font:inherit;font-size:15px;
+    cursor:pointer;padding:6px 2px;border-bottom:2px solid transparent}
+  .switch[aria-selected="true"]{color:var(--text);border-bottom-color:var(--alarm)}
+
+  /* practice */
+  .controls{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-bottom:24px}
+  @media(max-width:660px){.controls{grid-template-columns:1fr 1fr}.controls .inf{grid-column:1/-1}}
+
+  .qmeta{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .prompt{font-size:19.5px;line-height:1.45;margin:0;color:#fff}
+  .answer-block{margin-top:18px;padding-top:18px;border-top:1px solid rgba(160,190,220,.16)}
+  .answer-block h3{margin:0 0 8px;font-size:15px;color:var(--mint);font-weight:600}
+  .answer-block p{margin:0;color:var(--text);font-size:16.5px}
+  .followup{margin-top:16px;padding:16px 18px;border-radius:10px;
+    border:1px solid rgba(255,179,65,.38);
+    background:linear-gradient(180deg,rgba(255,179,65,.11),rgba(255,179,65,.04))}
+  .followup .tag{font-family:var(--mono);font-size:12px;color:var(--amber);display:block;margin-bottom:6px}
+  .followup p{margin:0;font-size:16.5px}
+  .followup .model{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,179,65,.28);color:var(--dim);font-size:15.5px}
+
+  .rate{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  .acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+
+  .cov{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:30px}
+  .cov-item{border-radius:14px;padding:14px 16px;
+    background:linear-gradient(180deg,#243445 0%,#172331 100%);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 16px 30px -22px rgba(0,0,0,.8)}
+  .cov-item .r{font-family:var(--mono);font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  .cov-item .n{font-size:25px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:4px}
+  .cov-item .d{font-size:13.5px;color:var(--dim)}
+
+  footer{margin:50px 0 40px;font-size:13.5px;color:var(--dim)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap top">
+    <a class="brand" href="/"><span class="bead"></span>SecMox</a>
+    <div class="who" id="who" hidden>
+      <span id="whoEmail"></span>
+      <button class="inf ghost small" id="signOut" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ------------------------------------------------ signed out -->
+  <section id="authView" hidden>
+    <h1>Practice the round you keep failing</h1>
+    <p class="sub">Sign in to work through the question bank. Every question carries the follow-up an interviewer asks next.</p>
+
+    <div class="device" style="max-width:520px">
+      <div class="screen">
+        <div class="bar">
+          <span id="authMode">sign in</span>
+          <span>secmox</span>
+        </div>
+        <div class="pad">
+          <div class="tabs" role="tablist">
+            <button class="switch" id="tabIn" role="tab" aria-selected="true" type="button">Sign in</button>
+            <button class="switch" id="tabUp" role="tab" aria-selected="false" type="button">Create account</button>
+          </div>
+
+          <form id="authForm" novalidate>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" autocomplete="email" placeholder="you@email.com" required>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" type="password" autocomplete="current-password" placeholder="At least 10 characters" required>
+            </div>
+            <div class="field" id="trackField" hidden>
+              <label for="track">Which fits you</label>
+              <select id="track">
+                <option value="fresher">Fresher, 0 to 2 years</option>
+                <option value="mid">Mid-level, 2 to 7 years</option>
+                <option value="exploring">Just exploring</option>
+              </select>
+            </div>
+            <button class="inf" type="submit" id="authGo" style="width:100%;text-align:center">Sign in</button>
+            <p class="msg" id="authMsg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- signed in -->
+  <section id="practiceView" hidden>
+    <div class="controls">
+      <div>
+        <label for="fRole">Role</label>
+        <select id="fRole">
+          <option value="">Every role</option>
+          <option value="soc">SOC analyst</option>
+          <option value="pentest">Penetration testing</option>
+          <option value="network">Network security</option>
+          <option value="cloud">Cloud security</option>
+          <option value="grc">GRC</option>
+        </select>
+      </div>
+      <div>
+        <label for="fLevel">Level</label>
+        <select id="fLevel">
+          <option value="">Both levels</option>
+          <option value="fresher">Fresher</option>
+          <option value="mid">Mid-level</option>
+        </select>
+      </div>
+      <button class="inf ghost" id="skip" type="button">Skip</button>
+    </div>
+
+    <div class="device" id="qCard">
+      <div class="screen">
+        <div class="bar">
+          <span id="qMeta">loading</span>
+          <span id="qDepth"></span>
+        </div>
+        <div class="pad">
+          <p class="prompt" id="qPrompt">Loading a question.</p>
+
+          <div class="field" style="margin-top:18px">
+            <label for="qAnswer">Your answer, before you look</label>
+            <textarea id="qAnswer" placeholder="Say it the way you would say it out loud in the room."></textarea>
+          </div>
+
+          <div class="acts">
+            <button class="inf" id="reveal" type="button">Show the answer</button>
+          </div>
+
+          <div id="answerArea" hidden></div>
+
+          <div class="rate" id="rateRow" hidden>
+            <button class="inf ghost small" data-rate="got_it" type="button">Got it</button>
+            <button class="inf ghost small" data-rate="shaky" type="button">Shaky</button>
+            <button class="inf ghost small" data-rate="missed" type="button">Missed it</button>
+          </div>
+
+          <p class="msg" id="qMsg"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cov" id="coverage"></div>
+  </section>
+
+</main>
+
+<footer class="wrap">SecMox practice. Answers are yours; nothing here is shared.</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { user:null, question:null, followUps:[], shown:0, revealed:false, mode:'in' };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    ...options,
+  });
+  let body = null;
+  try { body = await res.json(); } catch (_) { /* no body */ }
+  if (!res.ok) throw new Error(body?.error || 'Something went wrong. Try again.');
+  return body;
+}
+
+function say(el, text, kind) {
+  el.textContent = text || '';
+  el.className = 'msg' + (kind ? ' ' + kind : '');
+}
+
+/* ------------------------------------------------------ auth */
+
+function setMode(mode) {
+  state.mode = mode;
+  const up = mode === 'up';
+  $('tabIn').setAttribute('aria-selected', String(!up));
+  $('tabUp').setAttribute('aria-selected', String(up));
+  $('trackField').hidden = !up;
+  $('authGo').textContent = up ? 'Create account' : 'Sign in';
+  $('authMode').textContent = up ? 'create account' : 'sign in';
+  $('password').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  say($('authMsg'), '');
+}
+
+$('tabIn').addEventListener('click', () => setMode('in'));
+$('tabUp').addEventListener('click', () => setMode('up'));
+
+$('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('email').value.trim();
+  const password = $('password').value;
+  const up = state.mode === 'up';
+
+  $('authGo').disabled = true;
+  say($('authMsg'), up ? 'Creating your account.' : 'Signing in.');
+  try {
+    const payload = up ? { email, password, track: $('track').value } : { email, password };
+    const out = await api(up ? '/api/auth/signup' : '/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    state.user = out.user;
+    showPractice();
+  } catch (err) {
+    say($('authMsg'), err.message, 'err');
+  }
+  $('authGo').disabled = false;
+});
+
+$('signOut').addEventListener('click', async () => {
+  await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  state.user = null;
+  $('who').hidden = true;
+  $('practiceView').hidden = true;
+  $('authView').hidden = false;
+});
+
+/* -------------------------------------------------- practice */
+
+function showPractice() {
+  $('authView').hidden = true;
+  $('practiceView').hidden = false;
+  $('who').hidden = false;
+  $('whoEmail').textContent = state.user.email;
+  if (state.user.track === 'mid') $('fLevel').value = 'mid';
+  else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
+  loadQuestion();
+  loadCoverage();
+}
+
+const ROLE_LABEL = {
+  soc:'SOC analyst', pentest:'Penetration testing', network:'Network security',
+  cloud:'Cloud security', grc:'GRC',
+};
+
+function resetCard() {
+  state.followUps = [];
+  state.shown = 0;
+  state.revealed = false;
+  $('qAnswer').value = '';
+  $('answerArea').hidden = true;
+  $('answerArea').innerHTML = '';
+  $('rateRow').hidden = true;
+  $('reveal').hidden = false;
+  $('reveal').disabled = false;
+  $('reveal').textContent = 'Show the answer';
+  $('qDepth').textContent = '';
+  say($('qMsg'), '');
+}
+
+async function loadQuestion() {
+  resetCard();
+  $('qPrompt').textContent = 'Loading a question.';
+  $('qMeta').textContent = 'loading';
+  const params = new URLSearchParams();
+  if ($('fRole').value) params.set('role', $('fRole').value);
+  if ($('fLevel').value) params.set('level', $('fLevel').value);
+
+  try {
+    const out = await api('/api/next?' + params.toString());
+    if (!out.question) {
+      state.question = null;
+      $('qMeta').textContent = 'empty';
+      $('qPrompt').textContent = 'No questions here yet. Change the filters, or seed the bank.';
+      $('reveal').hidden = true;
+      return;
+    }
+    state.question = out.question;
+    const q = out.question;
+    $('qMeta').textContent = `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}`;
+    $('qPrompt').textContent = q.prompt;
+    $('qDepth').textContent = q.follow_up_count
+      ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
+      : 'no follow-ups';
+    if (!out.fresh) say($('qMsg'), 'Seen before. It came back because it went badly or it has been a while.');
+  } catch (err) {
+    if (/sign in/i.test(err.message)) return needsAuth();
+    say($('qMsg'), err.message, 'err');
+  }
+}
+
+function needsAuth() {
+  state.user = null;
+  $('practiceView').hidden = true;
+  $('who').hidden = true;
+  $('authView').hidden = false;
+}
+
+$('reveal').addEventListener('click', async () => {
+  if (!state.question) return;
+
+  if (!state.revealed) {
+    $('reveal').disabled = true;
+    try {
+      const out = await api(`/api/questions/${state.question.id}/answer`);
+      state.revealed = true;
+      state.followUps = out.follow_ups || [];
+      const area = $('answerArea');
+      area.hidden = false;
+      area.innerHTML = '';
+      const block = document.createElement('div');
+      block.className = 'answer-block';
+      const h = document.createElement('h3');
+      h.textContent = 'What a strong answer covers';
+      const p = document.createElement('p');
+      p.textContent = out.model_answer;
+      block.append(h, p);
+      area.append(block);
+      $('rateRow').hidden = false;
+      $('reveal').disabled = false;
+      $('reveal').textContent = state.followUps.length ? 'Next follow-up' : 'No follow-ups';
+      $('reveal').hidden = state.followUps.length === 0;
+    } catch (err) {
+      $('reveal').disabled = false;
+      if (/sign in/i.test(err.message)) return needsAuth();
+      say($('qMsg'), err.message, 'err');
+    }
+    return;
+  }
+
+  // Follow-ups, one at a time: this is the part interviews actually turn on.
+  const next = state.followUps[state.shown];
+  if (!next) return;
+  state.shown += 1;
+
+  const box = document.createElement('div');
+  box.className = 'followup';
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = `follow-up ${state.shown}`;
+  const q = document.createElement('p');
+  q.textContent = next.prompt;
+  const a = document.createElement('div');
+  a.className = 'model';
+  a.textContent = next.model_answer;
+  box.append(tag, q, a);
+  $('answerArea').append(box);
+
+  $('qDepth').textContent = `depth ${state.shown} of ${state.followUps.length}`;
+  if (state.shown >= state.followUps.length) $('reveal').hidden = true;
+});
+
+$('rateRow').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-rate]');
+  if (!btn || !state.question) return;
+  const buttons = $('rateRow').querySelectorAll('button');
+  buttons.forEach((b) => (b.disabled = true));
+  say($('qMsg'), 'Saving.');
+  try {
+    await api('/api/attempts', {
+      method: 'POST',
+      body: JSON.stringify({
+        question_id: state.question.id,
+        answer: $('qAnswer').value.trim() || null,
+        self_rating: btn.dataset.rate,
+        depth_reached: state.shown,
+      }),
+    });
+    buttons.forEach((b) => (b.disabled = false));
+    await loadQuestion();
+    loadCoverage();
+  } catch (err) {
+    buttons.forEach((b) => (b.disabled = false));
+    if (/sign in/i.test(err.message)) return needsAuth();
+    say($('qMsg'), err.message, 'err');
+  }
+});
+
+$('skip').addEventListener('click', loadQuestion);
+$('fRole').addEventListener('change', loadQuestion);
+$('fLevel').addEventListener('change', loadQuestion);
+
+async function loadCoverage() {
+  try {
+    const out = await api('/api/coverage');
+    const box = $('coverage');
+    box.innerHTML = '';
+    for (const row of out.coverage || []) {
+      const item = document.createElement('div');
+      item.className = 'cov-item';
+      const r = document.createElement('div');
+      r.className = 'r';
+      r.textContent = ROLE_LABEL[row.role] || row.role;
+      const n = document.createElement('div');
+      n.className = 'n';
+      const pct = row.total ? Math.round((row.seen / row.total) * 100) : 0;
+      n.textContent = pct + '%';
+      const d = document.createElement('div');
+      d.className = 'd';
+      d.textContent = `${row.seen} of ${row.total} seen` + (row.missed ? `, ${row.missed} missed` : '');
+      item.append(r, n, d);
+      box.append(item);
+    }
+  } catch (_) { /* coverage is a nicety, never a blocker */ }
+}
+
+/* ----------------------------------------------------- start */
+
+(async () => {
+  setMode('in');
+  try {
+    const out = await api('/api/me');
+    state.user = out.user;
+    showPractice();
+  } catch (_) {
+    $('authView').hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

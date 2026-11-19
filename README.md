@@ -25,25 +25,54 @@ actually fail: the practical, the scenario, and the live grilling.
 - Pro, 699 INR a month — full bank, every lab, unlimited mocks, scored scenarios
 - Live round, 999 INR a mock — 45 minutes one-on-one, company-specific, written report
 
-## Repository layout
+## Stack
+
+Cloudflare Worker (Hono) in front of D1, serving static files from `public/`.
+No build step beyond `npm install`, and nothing to run locally to ship a change.
 
 ```
-public/           static landing page, deployed as-is
-DESIGN.md         the design language every surface follows
+src/index.js        routes: /api/* on the Worker, everything else from public/
+src/auth.js         password hashing and sessions
+public/index.html   landing page
+public/app/         the practice app
+schema.sql          D1 tables
+seed.sql            generated; edit tools/questions.js instead
+tools/questions.js  the question bank, with each question's follow-up chain
+tools/seed.js       regenerates seed.sql
+DESIGN.md           the design language every surface follows
 ```
 
-The Next.js application will be added alongside `public/` once the data model is
-settled.
+## Data model
+
+| Table | Holds |
+| --- | --- |
+| `users` | email, PBKDF2 hash with per-row salt and iteration count, track |
+| `sessions` | SHA-256 of the cookie token, so a table dump grants nothing |
+| `questions` | prompt and model answer, by role, level and topic |
+| `follow_ups` | the ordered chain an interviewer walks after the first answer |
+| `attempts` | what the candidate wrote, their self-rating, how deep they got |
 
 ## Deploy
 
-Cloudflare Pages, connected to this repository.
+Cloudflare Workers Builds, connected to this repository. Every push to `main`
+builds and deploys. Bindings come from `wrangler.jsonc`, so the D1 database is
+attached on deploy and needs no dashboard step.
 
-- Build command: none (static)
-- Build output directory: `public`
-- Production branch: `main`
+Schema and seed changes do not travel with a push. Apply those against the
+remote database:
 
-Every push to `main` redeploys.
+```bash
+node tools/seed.js                                        # regenerate seed.sql
+npx wrangler d1 execute secmox --remote --file=schema.sql
+npx wrangler d1 execute secmox --remote --file=seed.sql
+```
+
+## Auth note
+
+Passwords use PBKDF2-SHA256 at 100,000 iterations, which exceeds the 10ms CPU
+budget on the Workers Free plan. On that plan, either lower
+`PBKDF2_ITERATIONS` in `src/auth.js` or move to the paid plan. The iteration
+count is stored per user, so changing it does not lock anyone out.
 
 ## Waitlist
 
