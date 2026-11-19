@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecMox</title>
+<meta name="description" content="Interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, the live grilling.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0B1622;
+    --steel:#16222F;
+    --raise:#1E2D3D;
+    --rim:#2C3E52;
+    --text:#E6EDF4;
+    --dim:#9DB1C4;
+    --blue:#3B7BFF;
+    --blue-deep:#1E4FD0;
+    --alarm:#FF5A4D;
+    --amber:#FFB341;
+    --mint:#5FD6A4;
+    --lite:#EDF2F7;
+    --lite-ink:#15202C;
+    --sans:'Archivo',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    --wrap:1120px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    font-size:17px;line-height:1.6;
+    color:var(--text);
+    background:
+      radial-gradient(1100px 620px at 15% -10%, #22384F 0%, transparent 62%),
+      radial-gradient(900px 520px at 92% 4%, #1B2F46 0%, transparent 58%),
+      var(--deep);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 26px}
+  a{color:#8FB6FF}
+  :focus-visible{outline:2px solid #8FB6FF;outline-offset:3px;border-radius:4px}
+
+  /* ============ liquid chrome: brand only ============ */
+  .chrome{
+    background-image:linear-gradient(168deg,
+      #FFFFFF 0%, #CBD8E6 9%, #76889C 20%, #FDFEFF 30%,
+      #A9BACC 42%, #3E5268 54%, #E8F0F8 66%, #8295A9 78%,
+      #F6FAFF 90%, #B6C6D6 100%);
+    background-size:100% 320%;
+    background-position:0 0;
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;
+    animation:flow 9s linear infinite;
+  }
+  @keyframes flow{to{background-position:0 320%}}
+
+  /* ============ 3d inflated ============ */
+  .inf{
+    position:relative;border:0;cursor:pointer;
+    font:inherit;font-weight:600;font-size:15.5px;
+    color:#fff;text-decoration:none;display:inline-block;
+    padding:14px 26px;border-radius:999px;
+    background:linear-gradient(180deg,#3570E2 0%,#2A5FD6 42%,#1C45B4 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.62),
+      inset 0 10px 16px rgba(255,255,255,.20),
+      inset 0 -12px 20px rgba(3,14,32,.42),
+      0 14px 24px -10px rgba(0,0,0,.70),
+      0 3px 0 rgba(4,16,34,.55);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .inf:active{
+    transform:translateY(3px);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.45),
+      inset 0 -8px 16px rgba(3,14,32,.46),
+      0 6px 12px -8px rgba(0,0,0,.6),
+      0 0 0 rgba(4,16,34,.55);
+  }
+  .inf.pale{
+    background:linear-gradient(180deg,#FFFFFF 0%,#E2EAF3 44%,#B9C8D8 100%);
+    color:var(--lite-ink);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.95),
+      inset 0 -12px 20px rgba(60,80,104,.30),
+      0 14px 24px -10px rgba(0,0,0,.62),
+      0 3px 0 rgba(90,110,132,.45);
+  }
+  .inf.ghost{
+    background:linear-gradient(180deg,#2B3E53 0%,#1B2938 100%);
+    color:var(--text);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -10px 18px rgba(0,0,0,.42),
+      0 12px 22px -12px rgba(0,0,0,.7),
+      0 3px 0 rgba(0,0,0,.5);
+  }
+
+  /* ============ skeuomorphic device ============ */
+  .device{
+    border-radius:18px;padding:11px;
+    background:linear-gradient(180deg,#3A4E64 0%,#22313F 22%,#182533 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.30),
+      inset 0 -2px 0 rgba(0,0,0,.55),
+      0 32px 60px -24px rgba(0,0,0,.85),
+      0 2px 0 rgba(0,0,0,.6);
+  }
+  .screen{
+    position:relative;border-radius:10px;overflow:hidden;
+    background:linear-gradient(180deg,#0C1824 0%,#0A141F 60%,#0C1A28 100%);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,.95),
+      inset 0 0 0 1px rgba(0,0,0,.6),
+      inset 0 0 40px rgba(0,0,0,.55);
+  }
+  .screen::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(118deg,rgba(255,255,255,.085) 0%,rgba(255,255,255,.03) 26%,transparent 46%);
+  }
+  .screen-bar{
+    display:flex;justify-content:space-between;align-items:center;gap:14px;
+    padding:12px 18px;border-bottom:1px solid rgba(160,190,220,.14);
+    font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.03em;
+    background:linear-gradient(180deg,rgba(255,255,255,.05),transparent);
+  }
+  .clock{color:var(--alarm);font-variant-numeric:tabular-nums;font-weight:500}
+  .screen-body{padding:18px;overflow-x:auto}
+  .screen-body pre{margin:0;font-family:var(--mono);font-size:13.5px;line-height:1.78;white-space:pre;color:#CFE0EE}
+  .screen-body .cmd{color:#7FA8CC}
+  .screen-body .hit{color:#FFA79E}
+  .ask{
+    margin:16px;padding:16px 18px;border-radius:9px;
+    border:1px solid rgba(255,90,77,.42);
+    background:linear-gradient(180deg,rgba(255,90,77,.13),rgba(255,90,77,.05));
+    font-size:16.5px;line-height:1.5;color:#fff;
+  }
+  .ask b{display:block;font-family:var(--mono);font-size:12px;color:#FFA79E;font-weight:500;margin-bottom:6px;letter-spacing:.04em}
+
+  /* ============ header ============ */
+  .top{position:relative;z-index:5}
+  .top-in{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 0}
+  .logo{display:flex;align-items:center;gap:11px;font-size:25px;font-weight:700;letter-spacing:-.025em;font-stretch:112%}
+  .bead{
+    width:15px;height:15px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 32% 28%,#FFB0A7 0%,var(--alarm) 46%,#A32319 100%);
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.5),0 3px 9px rgba(255,90,77,.38),0 2px 4px rgba(0,0,0,.5);
+  }
+
+  /* ============ hero ============ */
+  .hero{padding:58px 0 70px}
+  h1{
+    font-size:clamp(36px,5.6vw,66px);line-height:1.02;letter-spacing:-.04em;
+    font-weight:700;font-stretch:116%;margin:0 0 24px;max-width:17ch;
+  }
+  .lede{font-size:19.5px;color:var(--dim);max-width:56ch;margin:0 0 32px}
+  .cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:54px}
+  .cta-note{font-size:14.5px;color:var(--dim)}
+
+  /* ============ sections ============ */
+  .sec{padding:72px 0}
+  .sec h2{
+    font-size:clamp(27px,3.6vw,42px);line-height:1.1;letter-spacing:-.03em;
+    font-weight:700;font-stretch:110%;margin:0 0 18px;max-width:24ch;
+  }
+  .sec p.intro{font-size:18.5px;color:var(--dim);max-width:60ch;margin:0 0 42px}
+
+  /* ============ gap rows ============ */
+  .gap-head{display:grid;grid-template-columns:1fr 1.3fr;gap:30px;padding-bottom:12px}
+  .gap-head span{font-size:14.5px;font-weight:600;color:var(--dim)}
+  .gap-row{
+    display:grid;grid-template-columns:1fr 1.3fr;gap:30px;align-items:start;
+    padding:17px 0;border-top:1px solid rgba(160,190,220,.16);
+  }
+  .gap-row .a{color:var(--dim)}
+  .gap-row .b{font-weight:500}
+  @media(max-width:780px){
+    .gap-head{display:none}
+    .gap-row{grid-template-columns:1fr;gap:9px}
+    .gap-row .b{padding-left:14px;border-left:3px solid var(--alarm)}
+  }
+
+  /* ============ isometric ============ */
+  .iso-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .iso-cell{
+    border-radius:20px;padding:30px 28px 26px;
+    background:linear-gradient(170deg,rgba(255,255,255,.075) 0%,rgba(255,255,255,.018) 46%,rgba(0,0,0,.14) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -1px 0 rgba(0,0,0,.4),
+      0 22px 44px -26px rgba(0,0,0,.8);
+  }
+  .stage{
+    height:188px;margin-bottom:22px;
+    perspective:1000px;display:flex;align-items:center;justify-content:center;
+  }
+  .iso{transform-style:preserve-3d;transform:rotateX(56deg) rotateZ(-45deg)}
+  .plate{
+    position:absolute;width:132px;height:132px;border-radius:14px;
+    left:-66px;top:-66px;
+    box-shadow:0 22px 30px -16px rgba(0,0,0,.85);
+  }
+  .iso-wrap{position:relative;width:0;height:0}
+  .p-lite{background:linear-gradient(140deg,#FFFFFF,#C4D2E0);border:1px solid rgba(255,255,255,.6)}
+  .p-blue{background:linear-gradient(140deg,#6EA0FF,var(--blue-deep));border:1px solid rgba(190,215,255,.45)}
+  .p-dark{background:linear-gradient(140deg,#35495F,#1A2634);border:1px solid rgba(160,190,220,.28)}
+  .p-alarm{background:linear-gradient(140deg,#FF8B81,#C2362B);border:1px solid rgba(255,190,184,.45)}
+  .p-amber{background:linear-gradient(140deg,#FFD08A,#D1801B);border:1px solid rgba(255,225,185,.45)}
+  .p-mint{background:linear-gradient(140deg,#9BE9C6,#2C9E6E);border:1px solid rgba(190,245,220,.45)}
+  .face{position:absolute;inset:14px;border-radius:7px;overflow:hidden;opacity:.9}
+  .bars{display:flex;flex-direction:column;gap:7px;padding:12px}
+  .bars i{display:block;height:6px;border-radius:3px;background:rgba(18,32,48,.5)}
+  .p-dark .bars i,.p-blue .bars i{background:rgba(230,240,250,.55)}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:12px}
+  .grid4 i{display:block;height:17px;border-radius:3px;background:rgba(18,32,48,.42)}
+  .p-dark .grid4 i{background:rgba(230,240,250,.42)}
+
+  .iso-cell h3{font-size:24px;font-weight:700;font-stretch:108%;letter-spacing:-.025em;margin:0 0 5px}
+  .iso-cell .sub{color:#8FB6FF;font-size:15px;font-weight:500;margin:0 0 11px}
+  .iso-cell p{margin:0;color:var(--dim);font-size:16.5px}
+  @media(max-width:860px){.iso-grid{grid-template-columns:1fr}}
+
+  /* ============ tracks ============ */
+  .tracks{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .track{
+    border-radius:22px;padding:28px 28px 30px;
+    background:linear-gradient(180deg,#243445 0%,#172331 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.22),
+      inset 0 -14px 26px rgba(0,0,0,.4),
+      0 24px 44px -24px rgba(0,0,0,.85),
+      0 3px 0 rgba(0,0,0,.5);
+  }
+  .track h3{margin:0 0 3px;font-size:23px;font-weight:700;font-stretch:108%;letter-spacing:-.025em}
+  .track .yrs{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin:0 0 18px}
+  .track ul{margin:0;padding:0;list-style:none}
+  .track li{padding:11px 0;border-top:1px solid rgba(160,190,220,.15);font-size:16.5px}
+  @media(max-width:780px){.tracks{grid-template-columns:1fr}}
+
+  /* ============ pricing ============ */
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
+  .tier{
+    border-radius:24px;padding:30px 26px;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#243445 0%,#172331 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.2),
+      inset 0 -14px 26px rgba(0,0,0,.4),
+      0 24px 44px -26px rgba(0,0,0,.8),
+      0 3px 0 rgba(0,0,0,.5);
+  }
+  .tier.lead{
+    background:linear-gradient(180deg,#2F63D8 0%,#2450C0 44%,#16379C 100%);
+    box-shadow:
+      inset 0 3px 0 rgba(255,255,255,.55),
+      inset 0 16px 26px rgba(255,255,255,.15),
+      inset 0 -18px 30px rgba(3,14,32,.42),
+      0 30px 52px -22px rgba(0,0,0,.75),
+      0 4px 0 rgba(8,22,62,.7);
+  }
+  .tier.lead h3,.tier.lead .price,.tier.lead li{color:#FFFFFF}
+  .tier h3{margin:0 0 12px;font-size:20px;font-weight:700;font-stretch:106%}
+  .tier .price{font-size:38px;font-weight:700;letter-spacing:-.04em;margin:0 0 3px;font-variant-numeric:tabular-nums}
+  .tier .per{font-size:14.5px;color:var(--dim);margin:0 0 22px}
+  .tier.lead .per{color:#EDF3FF}
+  .tier ul{margin:0 0 26px;padding:0;list-style:none;flex:1}
+  .tier li{font-size:16px;padding:9px 0;border-top:1px solid rgba(160,190,220,.16)}
+  .tier.lead li{border-color:rgba(255,255,255,.28)}
+  .tier .inf{width:100%;text-align:center}
+  @media(max-width:880px){.tiers{grid-template-columns:1fr}}
+
+  /* ============ waitlist ============ */
+  .form-shell{max-width:660px}
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px}
+  .fields input,.fields select{
+    font:inherit;font-size:16px;width:100%;padding:14px 16px;
+    border-radius:999px;border:0;color:var(--lite-ink);
+    background:linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    box-shadow:
+      inset 0 2px 5px rgba(40,60,82,.30),
+      inset 0 -2px 0 rgba(255,255,255,.9),
+      0 2px 0 rgba(0,0,0,.35);
+    -webkit-appearance:none;appearance:none;
+  }
+  .fields select{
+    padding-right:42px;
+    background-image:
+      url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' fill='none' stroke='%232F3F52' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+      linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    background-position:calc(100% - 18px) center,0 0;
+    background-size:11px 7px,100% 100%;
+    background-repeat:no-repeat;
+  }
+  .fields input::placeholder{color:#4A5E72}
+  .fields .inf{grid-column:1/-1;text-align:center}
+  .form-msg{margin:0 18px 20px;font-family:var(--mono);font-size:13px;color:var(--dim);min-height:1.4em}
+  .form-msg.ok{color:var(--mint)}
+  .form-msg.err{color:#FFA79E}
+  @media(max-width:580px){.fields{grid-template-columns:1fr}}
+
+  footer{padding:30px 0 50px;margin-top:40px;border-top:1px solid rgba(160,190,220,.14);font-size:14.5px;color:var(--dim)}
+  footer .fin{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+
+  @media(prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important}
+    .chrome{background-position:0 42%}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="logo"><span class="bead" data-impeccable-ignore="dark-glow"></span><span class="chrome" data-impeccable-ignore="gradient-text">SecMox</span></div>
+    <a class="inf" href="#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <h1>You can explain the OSI model. Can you read this log?</h1>
+      <p class="lede">SecMox is interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.</p>
+      <div class="cta-row">
+        <a class="inf" href="#waitlist">Join the waitlist</a>
+        <a class="inf ghost" href="#practice">See what you practice</a>
+        <span class="cta-note">Free labs for the first 200 people on the list.</span>
+      </div>
+
+      <div class="device">
+        <div class="screen" data-impeccable-ignore="nested-cards">
+          <div class="screen-bar">
+            <span>round 2 / practical</span>
+            <span class="clock" id="clock">02:41</span>
+          </div>
+          <div class="screen-body"><pre id="log"></pre></div>
+          <div class="ask" id="ask" hidden>
+            <b>interviewer</b>
+            Three failures, then a success on a different account, then sudo. Is this a breach? Tell me what you do in the next ten minutes.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      <h2>Most prep stops at the theory round</h2>
+      <p class="intro">Question banks and playlists get you through screening. Then someone slides a packet capture across the table, or asks how you would contain a compromised host at 2am, and there is no playlist for that. That is the round SecMox is built for.</p>
+
+      <div class="gap-head">
+        <span>What candidates practice</span>
+        <span>What interviewers actually ask</span>
+      </div>
+      <div class="gap-row"><div class="a">Define the CIA triad</div><div class="b">Here is an alert queue. What do you pick up first, and why that one?</div></div>
+      <div class="gap-row"><div class="a">List the OWASP Top 10</div><div class="b">This login endpoint is vulnerable. Show me on the screen.</div></div>
+      <div class="gap-row"><div class="a">Explain the TCP handshake</div><div class="b">Read this capture. What is this host doing, and for how long?</div></div>
+      <div class="gap-row"><div class="a">Name the phases of incident response</div><div class="b">Your EDR flagged a signed binary. Walk me through the next hour.</div></div>
+      <div class="gap-row"><div class="a">Say you are a fast learner</div><div class="b">Tell me about a time you were wrong about a finding.</div></div>
+    </div>
+  </section>
+
+  <section class="sec" id="practice">
+    <div class="wrap">
+      <h2>Four things you practice here</h2>
+      <p class="intro">Each one targets a round that candidates lose. None of them is a video you watch.</p>
+
+      <div class="iso-grid">
+
+        <div class="iso-cell">
+          <div class="stage"><div class="iso"><div class="iso-wrap">
+            <div class="plate p-dark" style="transform:translateZ(0)"><div class="face bars"><i></i><i style="width:72%"></i><i style="width:88%"></i><i style="width:54%"></i></div></div>
+            <div class="plate p-lite" style="transform:translateZ(16px)"><div class="face bars"><i></i><i style="width:64%"></i><i style="width:82%"></i></div></div>
+            <div class="plate p-blue" style="transform:translateZ(32px)"><div class="face bars"><i style="width:80%"></i><i style="width:58%"></i></div></div>
+          </div></div></div>
+          <h3>Question bank</h3>
+          <p class="sub">With the follow-up attached</p>
+          <p>Every question carries the question that comes after it, because that is where candidates lose the room. Filter by role: SOC, pentest, GRC, cloud, network.</p>
+        </div>
+
+        <div class="iso-cell">
+          <div class="stage"><div class="iso"><div class="iso-wrap">
+            <div class="plate p-dark" style="transform:translateZ(0)"><div class="face grid4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="plate p-alarm" style="transform:translateZ(26px) translate(14px,14px);width:84px;height:84px;left:-42px;top:-42px"><div class="face bars"><i style="width:70%"></i><i style="width:46%"></i></div></div>
+          </div></div></div>
+          <h3>Browser labs</h3>
+          <p class="sub">Real artifacts, no VM setup</p>
+          <p>Packet captures, auth logs, memory strings, alert queues, phishing headers. They open in the browser and you answer what you see. Nothing to install.</p>
+        </div>
+
+        <div class="iso-cell">
+          <div class="stage"><div class="iso"><div class="iso-wrap">
+            <div class="plate p-dark" style="transform:translateZ(0);width:150px;height:150px;left:-75px;top:-75px"><div class="face bars"><i style="width:90%"></i><i style="width:62%"></i><i style="width:76%"></i><i style="width:40%"></i><i style="width:84%"></i></div></div>
+            <div class="plate p-mint" style="transform:translateZ(30px) translate(-22px,-22px);width:62px;height:62px;left:-31px;top:-31px"></div>
+          </div></div></div>
+          <h3>Mock interviews</h3>
+          <p class="sub">Timed, graded, on the record</p>
+          <p>Pick a role and a company pattern. Get grilled for 30 minutes, then get a transcript that marks where your answer went thin and what the interviewer was fishing for.</p>
+        </div>
+
+        <div class="iso-cell">
+          <div class="stage"><div class="iso"><div class="iso-wrap">
+            <div class="plate p-lite" style="transform:translateZ(0)"><div class="face bars"><i style="width:86%"></i><i style="width:58%"></i><i style="width:72%"></i><i style="width:44%"></i></div></div>
+            <div class="plate p-amber" style="transform:translateZ(22px) translate(20px,-18px);width:70px;height:70px;left:-35px;top:-35px"></div>
+          </div></div></div>
+          <h3>Scenario writing</h3>
+          <p class="sub">Where judgment shows up</p>
+          <p>Write out how you would handle an incident end to end. Scored against the same rubric a hiring panel uses, so you find out whether your reasoning holds before it costs you an offer.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      <h2>Two tracks, because the rounds are different</h2>
+      <p class="intro">A fresher gets tested on whether the fundamentals are real. Someone with four years gets tested on judgment under pressure. Same product, different drills.</p>
+      <div class="tracks">
+        <div class="track">
+          <h3>Fresher</h3>
+          <p class="yrs">0 to 2 years</p>
+          <ul>
+            <li>Fundamentals that survive a follow-up</li>
+            <li>Explain it in two minutes, out loud</li>
+            <li>First five labs, guided</li>
+            <li>HR and behavioural rounds</li>
+            <li>Resume read, line by line</li>
+          </ul>
+        </div>
+        <div class="track">
+          <h3>Mid-level</h3>
+          <p class="yrs">2 to 7 years</p>
+          <ul>
+            <li>Incident response, start to handover</li>
+            <li>Architecture and trade-off calls</li>
+            <li>Tool depth: SIEM queries, EDR tuning</li>
+            <li>Defending decisions you already made</li>
+            <li>Leading a call you did not plan for</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      <h2>Pricing</h2>
+      <p class="intro">Start free. Pay when you want the full bank and unlimited mocks. Book a live round when you have a real interview coming.</p>
+      <div class="tiers">
+        <div class="tier">
+          <h3>Free</h3>
+          <p class="price">&#8377;0</p>
+          <p class="per">no card</p>
+          <ul>
+            <li>50 questions with follow-ups</li>
+            <li>2 browser labs</li>
+            <li>1 AI mock a month</li>
+            <li>Coverage score</li>
+          </ul>
+          <a class="inf ghost" href="#waitlist">Join the waitlist</a>
+        </div>
+        <div class="tier lead">
+          <h3>Pro</h3>
+          <p class="price">&#8377;699</p>
+          <p class="per">per month</p>
+          <ul>
+            <li>Full question bank, all roles</li>
+            <li>Every lab, new ones weekly</li>
+            <li>Unlimited AI mocks with transcripts</li>
+            <li>Scenario writing, scored</li>
+            <li>Weak-area drills</li>
+          </ul>
+          <a class="inf pale" href="#waitlist">Join the waitlist</a>
+        </div>
+        <div class="tier">
+          <h3>Live round</h3>
+          <p class="price">&#8377;999</p>
+          <p class="per">per mock</p>
+          <ul>
+            <li>One-on-one, 45 minutes</li>
+            <li>Run by someone who has interviewed</li>
+            <li>Company-specific pattern</li>
+            <li>Written report in 24 hours</li>
+          </ul>
+          <a class="inf ghost" href="#waitlist">Join the waitlist</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="waitlist">
+    <div class="wrap">
+      <h2>Get in before launch</h2>
+      <p class="intro">Launching December. People on the list get the first labs free and a say in which roles get built first.</p>
+
+      <form class="device form-shell" id="wl" novalidate>
+        <div class="screen" data-impeccable-ignore="nested-cards">
+          <div class="screen-bar">
+            <span>waitlist</span>
+            <span id="count"></span>
+          </div>
+          <div class="fields">
+            <input id="email" type="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email address">
+            <select id="track" name="track" aria-label="Which track fits you">
+              <option value="fresher">Fresher, 0 to 2 years</option>
+              <option value="mid">Mid-level, 2 to 7 years</option>
+              <option value="exploring">Just exploring</option>
+            </select>
+            <button class="inf" type="submit" id="go">Join the waitlist</button>
+          </div>
+          <p class="form-msg" id="msg">One email when it opens. Nothing else.</p>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap fin">
+    <span>SecMox &#8212; interview practice for IT and security roles</span>
+    <span>Built in Delhi</span>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DEPLOY NOTE
+   Set FORM_ENDPOINT to your form URL (Formspree, Tally, Getform,
+   Google Forms) and the waitlist posts there. Leave it empty and
+   the page falls back to the artifact store when one is available.
+   ============================================================ */
+const FORM_ENDPOINT = "";
+
+const LOG = [
+  {t:'cmd', s:'$ tail -f /var/log/auth.log'},
+  {t:'n',   s:'Nov 19 02:14:07 web-03 sshd[20481]: Failed password for root from 103.84.22.17 port 59122 ssh2'},
+  {t:'n',   s:'Nov 19 02:14:09 web-03 sshd[20483]: Failed password for root from 103.84.22.17 port 59130 ssh2'},
+  {t:'n',   s:'Nov 19 02:14:11 web-03 sshd[20486]: Failed password for admin from 103.84.22.17 port 59141 ssh2'},
+  {t:'hit', s:'Nov 19 02:14:14 web-03 sshd[20490]: Accepted password for deploy from 103.84.22.17 port 59158 ssh2'},
+  {t:'hit', s:'Nov 19 02:14:15 web-03 sudo: deploy : TTY=pts/0 ; USER=root ; COMMAND=/usr/bin/curl'}
+];
+const logEl = document.getElementById('log');
+const askEl = document.getElementById('ask');
+const clockEl = document.getElementById('clock');
+const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function line(item){
+  const span = document.createElement('span');
+  if(item.t === 'cmd') span.className = 'cmd';
+  if(item.t === 'hit') span.className = 'hit';
+  span.textContent = item.s + '\n';
+  logEl.appendChild(span);
+}
+function startClock(){
+  let left = 161;
+  const tick = () => {
+    const m = Math.floor(left/60), s = left % 60;
+    clockEl.textContent = m + ':' + String(s).padStart(2,'0');
+    if(left > 0){ left--; setTimeout(tick, 1000); }
+  };
+  tick();
+}
+if(calm){
+  LOG.forEach(line);
+  askEl.hidden = false;
+}else{
+  let i = 0;
+  const next = () => {
+    if(i < LOG.length){
+      line(LOG[i]); i++;
+      setTimeout(next, i === 1 ? 420 : 260);
+    }else{
+      askEl.hidden = false;
+      startClock();
+    }
+  };
+  setTimeout(next, 450);
+}
+
+/* ---- waitlist ---- */
+const form = document.getElementById('wl');
+const msg  = document.getElementById('msg');
+const go   = document.getElementById('go');
+const countEl = document.getElementById('count');
+let store = null;
+
+function say(text, kind){
+  msg.textContent = text;
+  msg.className = 'form-msg' + (kind ? ' ' + kind : '');
+}
+
+(async () => {
+  if(FORM_ENDPOINT) return;
+  if(!window.claude || !claude.use) return;
+  try{
+    const db = await claude.use('db');
+    const user = await claude.use('user');
+    if(!db || !user) return;
+    store = {db, user};
+    try{
+      const rows = await db.collection('signups').get();
+      if(rows && rows.length) countEl.textContent = rows.length + ' on the list';
+    }catch(e){ /* reads are owner-only by design */ }
+  }catch(e){ /* no store in this view */ }
+})();
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const track = document.getElementById('track').value;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    say('That email does not look right. Check it and try again.', 'err');
+    return;
+  }
+  go.disabled = true;
+  say('Sending.');
+
+  if(FORM_ENDPOINT){
+    try{
+      const r = await fetch(FORM_ENDPOINT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({email, track})
+      });
+      if(!r.ok) throw new Error('bad status');
+      form.reset();
+      say('You are on the list. Watch for one email in December.', 'ok');
+    }catch(err){
+      say('That did not go through. Try again in a moment.', 'err');
+    }
+    go.disabled = false;
+    return;
+  }
+
+  if(store){
+    try{
+      const id = await store.user.id();
+      await store.db.collection('signups').doc(id).set({email, track, at:new Date().toISOString()});
+      form.reset();
+      say('You are on the list. Watch for one email in December.', 'ok');
+    }catch(err){
+      say('Could not save that. Try again in a moment.', 'err');
+    }
+    go.disabled = false;
+    return;
+  }
+
+  say('The list is not wired up on this preview yet. Set FORM_ENDPOINT to collect signups.', 'err');
+  go.disabled = false;
+});
+</script>
+</body>
+</html>
