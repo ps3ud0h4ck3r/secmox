@@ -10,7 +10,10 @@
 
 import { writeFileSync } from 'node:fs';
 import { QUESTIONS, questionId } from './questions.js';
-import { LABS } from './bank/labs.js';
+import { LABS as LABS_1 } from './bank/labs.js';
+import { LABS_2 } from './bank/labs-2.js';
+
+const LABS = [...LABS_1, ...LABS_2];
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const now = new Date().toISOString();
