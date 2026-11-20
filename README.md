@@ -149,5 +149,6 @@ Read `DESIGN.md` before changing any UI. Before shipping a page:
 npx -y impeccable@latest detect public/
 ```
 
-Fix every contrast finding. Four rules are waived inline on purpose and are
-documented in `DESIGN.md`; anything else the detector reports is a regression.
+Fix every contrast finding. The glow findings are the look itself and the
+baseline is documented in `DESIGN.md`; anything else the detector reports is a
+regression.

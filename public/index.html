@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SecMox</title>
 <meta name="description" content="Interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, the live grilling.">
+<meta name="theme-color" content="#05070B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/secmox.css">
 <link rel="stylesheet" href="/css/landing.css">
 </head>
@@ -15,34 +16,59 @@
 
 <header class="site-head">
   <div class="wrap head-row">
-    <div class="brand"><span class="bead" data-impeccable-ignore="dark-glow"></span><span class="chrome" data-impeccable-ignore="gradient-text">SecMox</span></div>
-    <nav class="head-actions">
+    <a class="brand" href="/" aria-label="SecMox home">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
+      <span class="wordmark">SecMox</span>
+    </a>
+    <nav class="head-nav" aria-label="Sections">
+      <a href="#round">The practical</a>
+      <a href="#practice">What you practise</a>
+      <a href="#tracks">Tracks</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="head-actions">
       <a class="inf ghost" href="/app/">Sign in</a>
       <a class="inf" href="/app/?new=1">Create account</a>
-    </nav>
+    </div>
   </div>
 </header>
 
 <main>
   <section class="sec">
-    <div class="wrap">
-      <h1 class="hero">You can explain the OSI model. Can you read this log?</h1>
-      <p class="lede">SecMox is interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.</p>
-      <div class="cta-row">
-        <a class="inf" href="/app/?new=1">Start practising, free</a>
-        <a class="inf ghost" href="#practice">See what you practice</a>
-        <span class="cta-note">No card. 50 questions and two labs on the free tier.</span>
+    <div class="wrap hero-grid">
+      <div>
+        <p class="prompt-line">&gt; ./start --round=practical<span class="cursor" aria-hidden="true">_</span></p>
+        <h1 class="hero">You can explain the OSI model. <span class="glow">Can you read this log?</span></h1>
+        <p class="lede">SecMox is interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.</p>
+        <div class="cta-row">
+          <a class="inf" href="/app/?new=1">Start practising, free</a>
+          <a class="inf ghost" href="#practice">See what you practise</a>
+        </div>
+        <p class="cta-note">No card. 50 questions and two labs on the free tier.</p>
       </div>
+      <div class="iso-stage" aria-hidden="true">
+        <div class="iso">
+          <div class="plate p1">capture.pcap</div>
+          <div class="plate p2">auth.log</div>
+          <div class="plate p3"><b>alert_queue</b><span>3 open</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-      <div class="device" id="heroDevice" data-impeccable-ignore="nested-cards">
-        <div class="screen" data-impeccable-ignore="nested-cards">
+  <section class="sec" id="round">
+    <div class="wrap">
+      <h2>This is where most candidates lose the room</h2>
+      <p class="intro">No slides, no definitions. A log on the screen, a clock running, and an interviewer waiting for your call.</p>
+      <div class="device" id="heroDevice">
+        <div class="screen">
           <div class="screen-bar">
             <span>round 2 / practical</span>
             <span class="clock" id="clock">02:41</span>
           </div>
           <div class="log-body"><pre id="log"></pre></div>
           <div class="ask" id="ask" hidden>
-            <b>interviewer</b>
+            <b>INTERVIEWER</b>
             Three failures, then a success on a different account, then sudo. Is this a breach? Tell me what you do in the next ten minutes.
           </div>
         </div>
@@ -55,78 +81,62 @@
       <h2>Most prep stops at the theory round</h2>
       <p class="intro">Question banks and playlists get you through screening. Then someone slides a packet capture across the table, or asks how you would contain a compromised host at 2am, and there is no playlist for that. That is the round SecMox is built for.</p>
 
-      <div class="gap-head">
-        <span>What candidates practice</span>
-        <span>What interviewers actually ask</span>
+      <div class="gap">
+        <div class="gap-head">
+          <span>WHAT CANDIDATES PRACTISE</span>
+          <span>WHAT INTERVIEWERS ACTUALLY ASK</span>
+        </div>
+        <div class="gap-row"><div class="a">Define the CIA triad</div><div class="b">Here is an alert queue. What do you pick up first, and why that one?</div></div>
+        <div class="gap-row"><div class="a">List the OWASP Top 10</div><div class="b">This login endpoint is vulnerable. Show me on the screen.</div></div>
+        <div class="gap-row"><div class="a">Explain the TCP handshake</div><div class="b">Read this capture. What is this host doing, and for how long?</div></div>
+        <div class="gap-row"><div class="a">Name the phases of incident response</div><div class="b">Your EDR flagged a signed binary. Walk me through the next hour.</div></div>
+        <div class="gap-row"><div class="a">Say you are a fast learner</div><div class="b">Tell me about a time you were wrong about a finding.</div></div>
       </div>
-      <div class="gap-row"><div class="a">Define the CIA triad</div><div class="b">Here is an alert queue. What do you pick up first, and why that one?</div></div>
-      <div class="gap-row"><div class="a">List the OWASP Top 10</div><div class="b">This login endpoint is vulnerable. Show me on the screen.</div></div>
-      <div class="gap-row"><div class="a">Explain the TCP handshake</div><div class="b">Read this capture. What is this host doing, and for how long?</div></div>
-      <div class="gap-row"><div class="a">Name the phases of incident response</div><div class="b">Your EDR flagged a signed binary. Walk me through the next hour.</div></div>
-      <div class="gap-row"><div class="a">Say you are a fast learner</div><div class="b">Tell me about a time you were wrong about a finding.</div></div>
     </div>
   </section>
 
   <section class="sec" id="practice">
     <div class="wrap">
-      <h2>Four things you practice here</h2>
-      <p class="intro">Each one targets a round that candidates lose. None of them is a video you watch.</p>
+      <h2>Four modes, one for each round you lose</h2>
+      <p class="intro">None of them is a video you watch.</p>
 
-      <div class="iso-grid">
-
-        <div class="iso-cell">
-          <div class="stage"><div class="iso"><div class="iso-wrap">
-            <div class="plate p-dark z0"><div class="face bars"><i></i><i class="w72"></i><i class="w88"></i><i class="w54"></i></div></div>
-            <div class="plate p-lite z16"><div class="face bars"><i></i><i class="w64"></i><i class="w82"></i></div></div>
-            <div class="plate p-blue z32"><div class="face bars"><i class="w80"></i><i class="w58"></i></div></div>
-          </div></div></div>
+      <div class="modes">
+        <article class="mode">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
           <h3>Question bank</h3>
-          <p class="kicker">With the follow-up attached</p>
+          <p class="tagline">with the follow-up attached</p>
           <p>Every question carries the question that comes after it, because that is where candidates lose the room. Filter by role: SOC, pentest, GRC, cloud, network.</p>
-        </div>
-
-        <div class="iso-cell">
-          <div class="stage"><div class="iso"><div class="iso-wrap">
-            <div class="plate p-dark z0"><div class="face grid4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-            <div class="plate p-alarm small off-a"><div class="face bars"><i class="w70"></i><i class="w46"></i></div></div>
-          </div></div></div>
+        </article>
+        <article class="mode">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>
           <h3>Browser labs</h3>
-          <p class="kicker">Real artifacts, no VM setup</p>
+          <p class="tagline">real artifacts, no VM setup</p>
           <p>Packet captures, auth logs, memory strings, alert queues, phishing headers. They open in the browser and you answer what you see. Nothing to install.</p>
-        </div>
-
-        <div class="iso-cell">
-          <div class="stage"><div class="iso"><div class="iso-wrap">
-            <div class="plate p-dark wide z0"><div class="face bars"><i class="w90"></i><i class="w62"></i><i class="w76"></i><i class="w40"></i><i class="w84"></i></div></div>
-            <div class="plate p-mint tiny off-b"></div>
-          </div></div></div>
+        </article>
+        <article class="mode">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
           <h3>Mock interviews</h3>
-          <p class="kicker">Timed, graded, on the record</p>
+          <p class="tagline">timed, graded, on the record</p>
           <p>Pick a role and a company pattern. Get grilled for 30 minutes, then get a transcript that marks where your answer went thin and what the interviewer was fishing for.</p>
-        </div>
-
-        <div class="iso-cell">
-          <div class="stage"><div class="iso"><div class="iso-wrap">
-            <div class="plate p-lite z0"><div class="face bars"><i class="w86"></i><i class="w58"></i><i class="w72"></i><i class="w44"></i></div></div>
-            <div class="plate p-amber mid off-c"></div>
-          </div></div></div>
+        </article>
+        <article class="mode">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg>
           <h3>Scenario writing</h3>
-          <p class="kicker">Where judgment shows up</p>
+          <p class="tagline">where judgment shows up</p>
           <p>Write out how you would handle an incident end to end. Scored against the same rubric a hiring panel uses, so you find out whether your reasoning holds before it costs you an offer.</p>
-        </div>
-
+        </article>
       </div>
     </div>
   </section>
 
-  <section class="sec">
+  <section class="sec" id="tracks">
     <div class="wrap">
       <h2>Two tracks, because the rounds are different</h2>
       <p class="intro">A fresher gets tested on whether the fundamentals are real. Someone with four years gets tested on judgment under pressure. Same product, different drills.</p>
       <div class="tracks">
         <div class="track">
+          <p class="yrs">TRACK 01 / 0 TO 2 YEARS</p>
           <h3>Fresher</h3>
-          <p class="yrs">0 to 2 years</p>
           <ul>
             <li>Fundamentals that survive a follow-up</li>
             <li>Explain it in two minutes, out loud</li>
@@ -135,9 +145,9 @@
             <li>Resume read, line by line</li>
           </ul>
         </div>
-        <div class="track">
+        <div class="track lead">
+          <p class="yrs">TRACK 02 / 2 TO 7 YEARS</p>
           <h3>Mid-level</h3>
-          <p class="yrs">2 to 7 years</p>
           <ul>
             <li>Incident response, start to handover</li>
             <li>Architecture and trade-off calls</li>
@@ -150,10 +160,10 @@
     </div>
   </section>
 
-  <section class="sec">
+  <section class="sec" id="pricing">
     <div class="wrap">
-      <h2>Pricing</h2>
-      <p class="intro">Start free. Pay when you want the full bank and unlimited mocks. Book a live round when you have a real interview coming.</p>
+      <h2>Start free, pay when it counts</h2>
+      <p class="intro">Pay when you want the full bank and unlimited mocks. Book a live round when you have a real interview coming.</p>
       <div class="tiers">
         <div class="tier">
           <h3>Free</h3>
@@ -168,7 +178,7 @@
           <a class="inf ghost" href="/app/?new=1">Start free</a>
         </div>
         <div class="tier lead">
-          <h3>Pro</h3>
+          <h3>Pro <span class="flag">MOST PICKED</span></h3>
           <p class="price">&#8377;699</p>
           <p class="per">per month</p>
           <ul>
@@ -178,7 +188,7 @@
             <li>Scenario writing, scored</li>
             <li>Weak-area drills</li>
           </ul>
-          <a class="inf pale" href="/app/?new=1">Create your account</a>
+          <a class="inf" href="/app/?new=1">Create your account</a>
         </div>
         <div class="tier">
           <h3>Live round</h3>
@@ -198,11 +208,13 @@
 
   <section class="sec">
     <div class="wrap">
-      <h2>Start with the free tier</h2>
-      <p class="intro">Fifty questions with their follow-ups, two browser labs and one mock interview a month. No card, nothing to install, and you are practising within a minute.</p>
-      <div class="cta-row">
-        <a class="inf" href="/app/?new=1">Create your account</a>
-        <a class="inf ghost" href="/app/">I already have one</a>
+      <div class="band">
+        <h2>Your next interview is a lab away</h2>
+        <p class="intro">Fifty questions with their follow-ups, two browser labs and one mock interview a month. No card, nothing to install, and you are practising within a minute.</p>
+        <div class="cta-row">
+          <a class="inf" href="/app/?new=1">Create your account</a>
+          <a class="inf ghost" href="/app/">I already have one</a>
+        </div>
       </div>
     </div>
   </section>
@@ -210,8 +222,8 @@
 
 <footer class="site-foot">
   <div class="wrap foot-row">
-    <span>SecMox &#8212; interview practice for IT and security roles</span>
-    <span>Built in Delhi</span>
+    <span class="wordmark">SecMox</span>
+    <span>Interview practice for IT and security roles. Built in Delhi.</span>
   </div>
 </footer>
 

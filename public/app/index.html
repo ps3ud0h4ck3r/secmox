@@ -7,38 +7,56 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/secmox.css">
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
 
-<header class="site-head">
-  <div class="wrap head-row">
-    <a class="brand" href="/"><span class="bead" data-impeccable-ignore="dark-glow"></span>SecMox</a>
-    <div class="head-actions" id="headActions" hidden>
-      <span class="whoami" id="whoEmail"></span>
-      <button class="inf ghost small" id="signOut" type="button">Sign out</button>
-    </div>
+<header class="site-head" id="topHead">
+  <div class="head-row">
+    <a class="brand" href="/" aria-label="SecMox home">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
+      <span class="wordmark">SecMox</span>
+    </a>
+    <a class="inf ghost small" href="/">Back to the site</a>
   </div>
 </header>
 
-<nav class="wrap tabs-nav" id="tabsNav" aria-label="Sections" hidden>
-  <button class="tab" type="button" data-view="practiceView" aria-current="page">Practice</button>
-  <button class="tab" type="button" data-view="labsView">Labs</button>
-  <button class="tab" type="button" data-view="accountView">Account</button>
-  <a class="tab" href="/admin/" id="tabAdmin" hidden>Admin</a>
+<div class="shell">
+
+<nav class="side" id="tabsNav" aria-label="Sections" hidden>
+  <a class="brand" href="/" aria-label="SecMox home">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
+    <span class="wordmark">SecMox</span>
+  </a>
+  <div class="side-links">
+    <button class="side-link" type="button" data-view="practiceView" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Practice</button>
+    <button class="side-link" type="button" data-view="labsView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>Labs</button>
+    <button class="side-link" type="button" data-view="accountView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</button>
+    <a class="side-link" href="/admin/" id="tabAdmin" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>Admin</a>
+  </div>
+  <div class="side-foot" id="headActions" hidden>
+    <span class="side-label">SIGNED IN AS</span>
+    <span class="whoami" id="whoEmail"></span>
+    <button class="inf ghost small" id="signOut" type="button">Sign out</button>
+  </div>
 </nav>
 
-<main class="wrap">
+<div class="main">
+<main>
 
   <!-- ------------------------------------------------ signed out -->
   <section id="authView" class="view" hidden>
     <h1 class="hero">Practice the round you keep failing</h1>
     <p class="lede">Every question carries the follow-up an interviewer asks next. That is the part candidates lose the room on.</p>
 
-    <div class="device slim" data-impeccable-ignore="nested-cards">
-      <div class="screen" data-impeccable-ignore="nested-cards">
+    <div class="device slim">
+      <div class="screen">
         <div class="screen-bar"><span id="authMode">sign in</span><span>secmox</span></div>
         <div class="screen-body">
           <div class="tabs-nav" role="tablist">
@@ -80,8 +98,8 @@
   <section id="forgotView" class="view" hidden>
     <h1>Reset your password</h1>
     <p class="lede">Give the address on the account. If it exists, a single-use link arrives that works for an hour.</p>
-    <div class="device slim" data-impeccable-ignore="nested-cards">
-      <div class="screen" data-impeccable-ignore="nested-cards">
+    <div class="device slim">
+      <div class="screen">
         <div class="screen-bar"><span>password reset</span><span>secmox</span></div>
         <div class="screen-body">
           <form id="forgotForm" novalidate>
@@ -104,8 +122,8 @@
   <section id="resetView" class="view" hidden>
     <h1>Set a new password</h1>
     <p class="lede">This signs out every other device, because a reset means the old password may not be yours alone any more.</p>
-    <div class="device slim" data-impeccable-ignore="nested-cards">
-      <div class="screen" data-impeccable-ignore="nested-cards">
+    <div class="device slim">
+      <div class="screen">
         <div class="screen-bar"><span>new password</span><span>secmox</span></div>
         <div class="screen-body">
           <form id="resetForm" novalidate>
@@ -127,6 +145,9 @@
 
   <!-- ------------------------------------------------- signed in -->
   <section id="practiceView" class="view" hidden>
+    <p class="kicker">&gt; question bank</p>
+    <h1>Practice</h1>
+    <p class="sub">Answer it the way you would in the room, then see what the interviewer asks next.</p>
     <div class="controls">
       <div>
         <label for="fRole">Role</label>
@@ -150,8 +171,8 @@
       <button class="inf ghost" id="skip" type="button">Skip</button>
     </div>
 
-    <div class="device" data-impeccable-ignore="nested-cards">
-      <div class="screen" data-impeccable-ignore="nested-cards">
+    <div class="device">
+      <div class="screen">
         <div class="screen-bar"><span id="qMeta">loading</span><span id="qDepth"></span></div>
         <div class="screen-body">
           <p class="prompt" id="qPrompt">Loading a question.</p>
@@ -185,6 +206,7 @@
 
   <!-- ------------------------------------------------------ labs -->
   <section id="labsView" class="view" hidden>
+    <p class="kicker">&gt; labs</p>
     <h1>Browser labs</h1>
     <p class="sub">A real artifact and the questions somebody would ask you about it. Read the evidence first; the answers are behind a button for a reason.</p>
     <div class="lab-list" id="labList"></div>
@@ -200,8 +222,8 @@
     </div>
     <p class="lab-brief" id="labBrief"></p>
 
-    <div class="device artifact" data-impeccable-ignore="nested-cards">
-      <div class="screen" data-impeccable-ignore="nested-cards">
+    <div class="device artifact">
+      <div class="screen">
         <div class="artifact-tools">
           <span id="artName">artifact</span>
           <input id="artFilter" placeholder="Filter lines" aria-label="Filter the artifact">
@@ -229,6 +251,7 @@
 
   <!-- --------------------------------------------------- account -->
   <section id="accountView" class="view" hidden>
+    <p class="kicker">&gt; account</p>
     <h1>Account</h1>
     <p class="sub" id="accountWho"></p>
 
@@ -296,11 +319,13 @@
 </main>
 
 <footer class="site-foot">
-  <div class="wrap foot-row">
+  <div class="foot-row">
     <span>Your answers are yours. Nothing here is shared or shown to anyone else.</span>
     <a href="/">Back to the site</a>
   </div>
 </footer>
+</div>
+</div>
 
 <script type="module" src="/js/app.js"></script>
 </body>

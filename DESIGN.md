@@ -5,99 +5,94 @@ screens, lab UI, mock interview view, emails, decks.
 
 ## The concept
 
-The page is the exam paper. The machine speaks in dark recessed panels;
-everything the candidate reads sits on calm, legible surfaces. Hold that split.
-Never put body copy inside a glossy, chrome or inflated treatment.
-
-## Four visual languages, one job each
-
-Never apply more than one to the same element.
-
-**Skeuomorphism** is for machine panels only: log viewers, lab artifact readers,
-transcript panes, the waitlist form. Build them as physical devices with a raised
-bezel, a recessed screen, inner shadow, and one diagonal glare pass.
-
-**3D inflated** is for interactive elements only: buttons, pricing tiers, form
-fields, toggles, badges. Soft body, rim light along the top, inner shade at the
-bottom, contact shadow below, and 3px of press travel on `:active`.
-
-**Liquid chrome** is for the brand only: the SecMox wordmark, and at most one
-hero element per page. Animated gradient with `background-clip: text`. Never on
-headings, metrics or body copy.
-
-**Isometric** is for explanatory diagrams only: `rotateX(56deg) rotateZ(-45deg)`
-with `transform-style: preserve-3d`, plates stacked on `translateZ`. Never
-behind text.
+A security console you train in. The page is almost black, one neon blue
+accent glows, a faint grid sits under everything, and the machine speaks in a
+terminal voice. Think lab platform, a little cyberpunk, a little terminal, a
+little game: ranks, levels, progress. Everything the candidate has to read
+still sits on calm, legible panels. Glow is for the accent, never for body copy.
 
 ## Tokens
 
 ```css
---deep:#0B1622; --steel:#16222F; --raise:#1E2D3D; --rim:#2C3E52;
---text:#E6EDF4; --dim:#9DB1C4;
---blue:#3B7BFF; --blue-deep:#1E4FD0;
---alarm:#FF5A4D; --amber:#FFB341; --mint:#5FD6A4;
---lite:#EDF2F7; --lite-ink:#15202C;
+--bg:#05070B; --panel:#0A0F16; --panel-2:#0C131C; --raise:#101A26;
+--text:#E6EEF7; --dim:#A9B8C9; --faint:#8798AC;
+--neon:#29B6FF; --neon-hi:#7FD3FF; --neon-ink:#02121C;
+--line:rgba(41,182,255,.18); --line-soft:rgba(41,182,255,.1);
+--alarm:#FF6B5E; --amber:#FFC24D; --mint:#5FE3A1; --violet:#C38BFF;
 ```
 
-Background is two radial washes over `--deep`, fixed attachment.
+Background: `--bg`, one soft blue wash at the top, and a 48px grid of
+hairlines at 5% neon, fixed attachment.
 
-Colour carries meaning and nothing else: `--alarm` is severity and failure,
-`--amber` is warning, `--mint` is pass. None of the three is ever decoration.
+One accent. `--neon` is the brand, the primary button, the active nav item
+and anything the eye should land on. Text on a neon fill is always
+`--neon-ink`, never white (white on `#29B6FF` fails contrast).
+
+Colour still carries meaning: `--alarm` is failure and severity, `--amber` is
+warning, `--mint` is pass or solved. `--violet` marks the mid-level badge so the
+two levels differ in more than hue alone. None of these is decoration.
 
 ## Type
 
-**Archivo** (variable, width axis) for everything a human says. Display at
-`font-stretch: 110-116%`, `letter-spacing: -.03em` to `-.04em`, weight 700.
+- **Chakra Petch** (500 to 700) for headings, prices and big numbers. It is
+  the gaming, console edge of the system.
+- **IBM Plex Sans** for everything a person reads: body, buttons, labels.
+- **JetBrains Mono** for everything a machine says: logs, prompts like
+  `> ./start`, timers, panel bars, badges, table heads.
 
-**IBM Plex Mono** for everything a machine says: logs, transcripts, timers,
-panel chrome, field labels inside devices.
+## Surfaces
 
-Two voices, two faces. Mono is not a decorative label style.
+- **Panel**: `--panel` or a `--panel-2` to `#080C12` fade, 1px `--line`
+  border, 12px radius. The default for cards, settings, tasks, lab cards.
+- **Terminal** (`.device` + `.screen`): a panel with a mono title bar led by a
+  glowing dot. For logs, artifacts, auth forms and transcripts.
+- **Lead**: one element per section may take a full `--neon` border and a
+  soft blue halo (the Pro tier, the mid-level track, the next mock).
 
-## The contrast trap
+## Controls
 
-On a gradient, a contrast checker samples the lightest stop, not the average. An
-inflated blue button needs its lightest stop at `#3570E2` or darker to hold
-4.5:1 against white text. Check the top of every gradient. This is the most
-common regression in this design language.
+Primary button: solid `--neon`, `--neon-ink` text, 8px radius, a blue glow
+that strengthens on hover. Ghost: 6% neon fill, 50% neon border, light text.
+Minimum height 44px. Inputs are near black with a neon border that brightens
+and rings on focus.
 
-## Detector findings that are intentional
+## App shell
 
-Run before shipping:
+Signed in, the app is a left sidebar (brand, icon nav, signed-in card at the
+bottom) and a fluid main column. The active nav item gets a neon tinted fill
+and border. Below 900px the sidebar becomes a top bar and the links wrap.
+
+Lab cards: a mono file-type tag (LOG, PCAP, EML), title, mono meta line, a
+level badge (Fresher in neon, Mid-level in violet), Solved in mint, and the
+action on the right.
+
+## Isometric
+
+For the one diagram in the landing hero only: `rotateX(56deg) rotateZ(-45deg)`
+with `transform-style: preserve-3d`, glowing plates stacked on `translateZ`,
+labelled with real artifact names. Never behind text.
+
+## Detector baseline
 
 ```bash
-npx -y impeccable@latest detect public/
+npx -y impeccable@latest detect --no-advisory public/
 ```
 
-These are part of the design language, not mistakes. Waive them inline with
-`data-impeccable-ignore="<rule>"` on the element rather than removing the
-treatment:
-
-- `gradient-text` on the chrome wordmark
-- `dark-glow` on the brand LED bead
-- `hard-offset-shadow` on inflated bottom edges (advisory only)
-
-`nested-cards` fires on every bezel-plus-screen panel and the inline waiver
-does not suppress it. Two more appeared once the CSS moved out of the pages
-into files, where the detector can resolve it fully: `radial-halo` on the
-body's two background washes, and `dark-glow` on the raised rim of the device
-bezel. Both are the dimensional language itself rather than decoration added
-on top, so they stay.
-
-The clean baseline is therefore **7 findings**: five `nested-cards` (four in
-`public/app/`, one in `public/index.html`), one `radial-halo`, one
-`dark-glow`. An eighth is new. Every other finding, contrast above all, is a
-regression: fix it rather than waiving it.
+The clean baseline is **30 `dark-glow` findings and nothing else**. The glow
+on buttons, the logo, the lead cards and the terminal dot is the look itself,
+so those stay. Any other finding is a regression, contrast above all: fix it
+rather than waiving it. The advisory `codex-grid-background` note is the grid
+by design.
 
 ## Copy voice
 
 Plain, direct, specific to security work. Name the real thing: a pcap, an alert
 queue, an EDR verdict, a 2am containment call. No "unlock your potential", no
-exclamation marks, no em dashes. Buttons say what happens ("Join the waitlist",
+exclamation marks, no em dashes. Buttons say what happens ("Create account",
 never "Submit"), and an action keeps the same name through the whole flow.
 
 ## Quality floor
 
 Responsive to mobile, visible keyboard focus, `prefers-reduced-motion`
-respected (kill the log typing and the chrome animation), and at most one
-orchestrated motion moment per page.
+respected (the log typing, the cursor blink and the floating plates all stop),
+and at most one orchestrated motion moment per page.

@@ -29,14 +29,20 @@ export async function loadLabs() {
       card.type = 'button';
       card.className = 'lab-card';
 
-      const left = document.createElement('div');
+      const top = document.createElement('div');
+      top.className = 'lab-top';
+      const tag = document.createElement('span');
+      tag.className = 'lab-tag';
+      tag.setAttribute('aria-hidden', 'true');
+      const ext = String(lab.artifact_name || '').split('.').pop();
+      tag.textContent = (ext && ext !== lab.artifact_name ? ext : 'lab').slice(0, 4).toUpperCase();
+      const head = document.createElement('div');
       const h = document.createElement('h3');
       h.textContent = lab.title;
       const meta = document.createElement('div');
       meta.className = 'meta';
       for (const bit of [
         ROLE_LABEL[lab.role] || lab.role,
-        lab.level,
         lab.artifact_name,
         `${lab.tasks} task${lab.tasks === 1 ? '' : 's'}`,
       ]) {
@@ -44,13 +50,27 @@ export async function loadLabs() {
         s.textContent = bit;
         meta.append(s);
       }
-      left.append(h, meta);
+      head.append(h, meta);
+      top.append(tag, head);
 
-      const right = document.createElement('span');
-      right.className = 'done';
-      right.textContent = lab.done ? 'done' : '';
+      const foot = document.createElement('div');
+      foot.className = 'lab-foot';
+      const lvl = document.createElement('span');
+      lvl.className = 'lvl' + (lab.level === 'mid' ? ' mid' : '');
+      lvl.textContent = lab.level === 'mid' ? 'Mid-level' : lab.level === 'fresher' ? 'Fresher' : lab.level;
+      foot.append(lvl);
+      if (lab.done) {
+        const done = document.createElement('span');
+        done.className = 'done';
+        done.textContent = 'Solved';
+        foot.append(done);
+      }
+      const go = document.createElement('span');
+      go.className = 'go';
+      go.textContent = lab.done ? 'Review lab' : 'Open lab';
+      foot.append(go);
 
-      card.append(left, right);
+      card.append(top, foot);
       card.addEventListener('click', () => onOpenLab(lab.id));
       return card;
     });

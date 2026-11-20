@@ -26,6 +26,7 @@ function show(view) {
   const chromeOn = Boolean(state.user) && !SIGNED_OUT.has(view);
   $('headActions').hidden = !chromeOn;
   $('tabsNav').hidden = !chromeOn;
+  $('topHead').hidden = chromeOn;
   const marked = view === 'labView' ? 'labsView' : view;
   for (const tab of $('tabsNav').querySelectorAll('[data-view]')) {
     if (tab.dataset.view === marked) tab.setAttribute('aria-current', 'page');
