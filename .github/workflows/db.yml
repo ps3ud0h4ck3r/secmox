@@ -1,0 +1,54 @@
+name: Database
+
+# Schema and seed are applied by hand, never on a push.
+#
+# Deliberate: once questions are edited from the admin page, the files under
+# tools/bank/ are a baseline rather than the live truth, and seeding again
+# overwrites those rows with the file versions. Running it should be a
+# decision, not a side effect of deploying.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: What to apply
+        required: true
+        default: schema
+        type: choice
+        options:
+          - schema
+          - seed
+          - schema-and-seed
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Rebuild seed.sql from tools/bank
+        run: node tools/seed.js
+
+      - name: Apply schema
+        if: inputs.apply == 'schema' || inputs.apply == 'schema-and-seed'
+        run: npx wrangler d1 execute secmox --remote --yes --file=schema.sql
+
+      - name: Apply seed
+        if: inputs.apply == 'seed' || inputs.apply == 'schema-and-seed'
+        run: npx wrangler d1 execute secmox --remote --yes --file=seed.sql
+
+      - name: Report what is in there now
+        run: |
+          npx wrangler d1 execute secmox --remote --yes --json --command \
+            "SELECT role, level, COUNT(*) AS questions FROM questions GROUP BY role, level ORDER BY role, level"

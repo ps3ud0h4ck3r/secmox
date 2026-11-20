@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecMox admin</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0B1622; --text:#E6EDF4; --dim:#9DB1C4;
+    --alarm:#FF5A4D; --amber:#FFB341; --mint:#5FD6A4; --lite-ink:#15202C;
+    --sans:'Archivo',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:var(--sans);font-size:16px;line-height:1.55;color:var(--text);
+    background:radial-gradient(1100px 620px at 15% -10%, #22384F 0%, transparent 62%), var(--deep);
+    background-attachment:fixed;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:0 22px}
+  :focus-visible{outline:2px solid #8FB6FF;outline-offset:3px;border-radius:4px}
+  [hidden]{display:none !important}
+
+  .inf{border:0;cursor:pointer;font:inherit;font-weight:600;font-size:15px;color:#fff;
+    display:inline-block;padding:11px 20px;border-radius:999px;text-decoration:none;
+    background:linear-gradient(180deg,#3570E2 0%,#2A5FD6 42%,#1C45B4 100%);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.6),inset 0 -12px 20px rgba(3,14,32,.42),
+      0 12px 22px -10px rgba(0,0,0,.7),0 3px 0 rgba(4,16,34,.55);transition:transform .12s ease}
+  .inf:active{transform:translateY(3px)}
+  .inf[disabled]{opacity:.55;cursor:not-allowed}
+  .inf.ghost{background:linear-gradient(180deg,#2B3E53 0%,#1B2938 100%);color:var(--text);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 10px 20px -12px rgba(0,0,0,.7),0 3px 0 rgba(0,0,0,.5)}
+  .inf.small{padding:7px 14px;font-size:13.5px}
+  .inf.danger{background:linear-gradient(180deg,#C2382C 0%,#9E2A20 100%)}
+
+  header{padding:18px 0;border-bottom:1px solid rgba(160,190,220,.14);margin-bottom:24px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;
+    letter-spacing:-.025em;font-stretch:112%;text-decoration:none;color:var(--text)}
+  .bead{width:12px;height:12px;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#FFB0A7 0%,var(--alarm) 46%,#A32319 100%);
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.5),0 3px 9px rgba(255,90,77,.38)}
+  .tag{font-family:var(--mono);font-size:11.5px;color:var(--amber);border:1px solid rgba(255,179,65,.4);
+    padding:2px 8px;border-radius:999px}
+
+  h1{font-size:30px;line-height:1.1;letter-spacing:-.03em;font-weight:700;font-stretch:112%;margin:0 0 8px}
+  h2{font-size:19px;font-weight:700;font-stretch:108%;letter-spacing:-.02em;margin:0 0 12px}
+  p.sub{color:var(--dim);margin:0 0 22px;max-width:60ch}
+
+  label{display:block;font-size:13.5px;color:var(--dim);margin:0 0 5px}
+  input,select,textarea{font:inherit;font-size:15.5px;width:100%;padding:11px 13px;border-radius:10px;
+    border:0;color:var(--lite-ink);background:linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    box-shadow:inset 0 2px 5px rgba(40,60,82,.30);-webkit-appearance:none;appearance:none}
+  textarea{min-height:92px;resize:vertical;line-height:1.5}
+  select{padding-right:38px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' fill='none' stroke='%232F3F52' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+      linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
+    background-position:calc(100% - 14px) center,0 0;background-size:11px 7px,100% 100%;background-repeat:no-repeat}
+  .field{margin-bottom:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:700px){.row3{grid-template-columns:1fr}}
+
+  .panel{border-radius:16px;padding:22px;margin-bottom:16px;
+    background:linear-gradient(180deg,#243445 0%,#172331 100%);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 18px 36px -26px rgba(0,0,0,.8)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px}
+  .stat{border-radius:12px;padding:12px 14px;background:rgba(255,255,255,.04);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+  .stat .k{font-family:var(--mono);font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  .stat .v{font-size:24px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+
+  .fu{border:1px solid rgba(255,179,65,.3);border-radius:12px;padding:14px;margin-bottom:12px;
+    background:rgba(255,179,65,.05)}
+  .fu-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .fu-head span{font-family:var(--mono);font-size:12px;color:var(--amber)}
+
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th{text-align:left;font-size:12.5px;color:var(--dim);font-weight:600;padding:8px 10px;
+    border-bottom:1px solid rgba(160,190,220,.2)}
+  td{padding:10px;border-bottom:1px solid rgba(160,190,220,.1);vertical-align:top}
+  td.meta{font-family:var(--mono);font-size:12.5px;color:var(--dim);white-space:nowrap}
+  tr:hover td{background:rgba(255,255,255,.025)}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+  .msg{font-family:var(--mono);font-size:13px;color:var(--dim);margin:12px 0 0;min-height:1.3em}
+  .msg.err{color:#FFA79E}
+  .msg.ok{color:var(--mint)}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  footer{margin:40px 0 36px;font-size:13px;color:var(--dim)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap top">
+    <a class="brand" href="/app/"><span class="bead" data-impeccable-ignore="dark-glow"></span>SecMox <span class="tag">admin</span></a>
+    <a class="inf ghost small" href="/app/">Back to practice</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="denied" hidden>
+    <h1>Not your area</h1>
+    <p class="sub">This page is for accounts marked as admin. If that should be you, sign in with the right account.</p>
+    <a class="inf" href="/app/">Go to practice</a>
+  </section>
+
+  <section id="main" hidden>
+    <h1>Question bank</h1>
+    <p class="sub">Every question carries the follow-ups an interviewer asks next. A question with no follow-up chain is a flashcard, not practice.</p>
+
+    <div class="stats" id="stats"></div>
+    <p class="msg" id="mailWarn" hidden></p>
+
+    <div class="panel">
+      <h2 id="formTitle">Add a question</h2>
+      <form id="qForm" novalidate>
+        <input type="hidden" id="qId">
+        <div class="row3">
+          <div class="field">
+            <label for="qRole">Role</label>
+            <select id="qRole">
+              <option value="soc">SOC analyst</option>
+              <option value="pentest">Penetration testing</option>
+              <option value="network">Network security</option>
+              <option value="cloud">Cloud security</option>
+              <option value="grc">GRC</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="qLevel">Level</label>
+            <select id="qLevel">
+              <option value="fresher">Fresher, 0 to 2 years</option>
+              <option value="mid">Mid-level, 2 to 7 years</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="qTopic">Topic</label>
+            <input id="qTopic" placeholder="triage, dns, iam, reporting" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="qPrompt">The question, as an interviewer would say it</label>
+          <textarea id="qPrompt" placeholder="An alert fires: several failed SSH logins from one IP, then a successful one. What do you do first?" required></textarea>
+        </div>
+
+        <div class="field">
+          <label for="qAnswer">What a strong answer covers</label>
+          <textarea id="qAnswer" placeholder="Not the textbook definition. What separates a candidate who has done the job from one who has read about it." required></textarea>
+        </div>
+
+        <h2 style="margin-top:22px">Follow-ups</h2>
+        <div id="fuList"></div>
+        <div class="bar">
+          <button class="inf ghost small" type="button" id="addFu">Add a follow-up</button>
+          <span style="font-size:13.5px;color:var(--dim)">Two is usually right. Six is more than anyone asks.</span>
+        </div>
+
+        <div class="bar" style="margin-top:14px;margin-bottom:0">
+          <button class="inf" type="submit" id="saveBtn">Save question</button>
+          <button class="inf ghost" type="button" id="clearBtn">Clear the form</button>
+        </div>
+        <p class="msg" id="formMsg"></p>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="bar" style="justify-content:space-between">
+        <h2 style="margin:0">In the bank</h2>
+        <input id="filter" placeholder="Filter by role, level, topic or words in the question" style="max-width:420px">
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr><th>Question</th><th>Role</th><th>Level</th><th>Topic</th><th>Chain</th><th>Seen</th><th></th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="listMsg"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">Changes here are live the moment they save. There is no draft state.</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let questions = [];
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    ...options,
+  });
+  let body = null;
+  try { body = await res.json(); } catch (_) {}
+  if (!res.ok) {
+    const err = new Error(body?.error || 'Something went wrong.');
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
+
+function say(el, text, kind) {
+  el.textContent = text || '';
+  el.className = 'msg' + (kind ? ' ' + kind : '');
+}
+
+/* ------------------------------------------------- follow-ups */
+
+function addFollowUp(value = { prompt: '', model_answer: '' }) {
+  const list = $('fuList');
+  if (list.children.length >= 6) return;
+  const n = list.children.length + 1;
+
+  const box = document.createElement('div');
+  box.className = 'fu';
+
+  const head = document.createElement('div');
+  head.className = 'fu-head';
+  const label = document.createElement('span');
+  label.textContent = `follow-up ${n}`;
+  const drop = document.createElement('button');
+  drop.type = 'button';
+  drop.className = 'inf ghost small';
+  drop.textContent = 'Remove';
+  drop.addEventListener('click', () => { box.remove(); renumber(); });
+  head.append(label, drop);
+
+  const f1 = document.createElement('div');
+  f1.className = 'field';
+  const l1 = document.createElement('label');
+  l1.textContent = 'What the interviewer asks next';
+  const t1 = document.createElement('textarea');
+  t1.className = 'fu-prompt';
+  t1.style.minHeight = '64px';
+  t1.placeholder = 'The successful login was a different account from the failed ones. Does that change your read?';
+  t1.value = value.prompt || '';
+  f1.append(l1, t1);
+
+  const f2 = document.createElement('div');
+  f2.className = 'field';
+  f2.style.marginBottom = '0';
+  const l2 = document.createElement('label');
+  l2.textContent = 'What a strong answer covers';
+  const t2 = document.createElement('textarea');
+  t2.className = 'fu-answer';
+  t2.style.minHeight = '64px';
+  t2.value = value.model_answer || '';
+  f2.append(l2, t2);
+
+  box.append(head, f1, f2);
+  list.append(box);
+}
+
+function renumber() {
+  [...$('fuList').children].forEach((box, i) => {
+    box.querySelector('.fu-head span').textContent = `follow-up ${i + 1}`;
+  });
+}
+
+function readFollowUps() {
+  return [...$('fuList').children].map((box) => ({
+    prompt: box.querySelector('.fu-prompt').value.trim(),
+    model_answer: box.querySelector('.fu-answer').value.trim(),
+  }));
+}
+
+$('addFu').addEventListener('click', () => addFollowUp());
+
+/* ------------------------------------------------------- form */
+
+function clearForm() {
+  $('qId').value = '';
+  $('qTopic').value = '';
+  $('qPrompt').value = '';
+  $('qAnswer').value = '';
+  $('fuList').innerHTML = '';
+  addFollowUp();
+  addFollowUp();
+  $('formTitle').textContent = 'Add a question';
+  $('saveBtn').textContent = 'Save question';
+  say($('formMsg'), '');
+}
+
+$('clearBtn').addEventListener('click', () => {
+  clearForm();
+  window.scrollTo({ top: 0 });
+});
+
+$('qForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    id: $('qId').value || undefined,
+    role: $('qRole').value,
+    level: $('qLevel').value,
+    topic: $('qTopic').value.trim(),
+    prompt: $('qPrompt').value.trim(),
+    model_answer: $('qAnswer').value.trim(),
+    follow_ups: readFollowUps().filter((f) => f.prompt || f.model_answer),
+  };
+
+  $('saveBtn').disabled = true;
+  say($('formMsg'), 'Saving.');
+  try {
+    const out = await api('/api/admin/questions', { method: 'POST', body: JSON.stringify(payload) });
+    say($('formMsg'), `Saved as ${out.id}. It is live now.`, 'ok');
+    clearForm();
+    await load();
+  } catch (err) {
+    say($('formMsg'), err.message, 'err');
+  }
+  $('saveBtn').disabled = false;
+});
+
+async function edit(id) {
+  try {
+    const out = await api(`/api/admin/questions/${id}`);
+    $('qId').value = out.question.id;
+    $('qRole').value = out.question.role;
+    $('qLevel').value = out.question.level;
+    $('qTopic').value = out.question.topic;
+    $('qPrompt').value = out.question.prompt;
+    $('qAnswer').value = out.question.model_answer;
+    $('fuList').innerHTML = '';
+    (out.follow_ups.length ? out.follow_ups : [{}, {}]).forEach((f) => addFollowUp(f));
+    $('formTitle').textContent = `Editing ${out.question.id}`;
+    $('saveBtn').textContent = 'Save changes';
+    say($('formMsg'), '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    say($('listMsg'), err.message, 'err');
+  }
+}
+
+async function remove(id, attempts) {
+  const extra = attempts ? ` ${attempts} recorded attempt${attempts > 1 ? 's' : ''} go with it.` : '';
+  if (!window.confirm(`Delete ${id}?${extra} This cannot be undone.`)) return;
+  try {
+    await api(`/api/admin/questions/${id}/delete`, { method: 'POST' });
+    say($('listMsg'), `${id} deleted.`, 'ok');
+    await load();
+  } catch (err) {
+    say($('listMsg'), err.message, 'err');
+  }
+}
+
+/* ------------------------------------------------------- list */
+
+function render() {
+  const needle = $('filter').value.trim().toLowerCase();
+  const rows = $('rows');
+  rows.innerHTML = '';
+
+  const shown = questions.filter((q) =>
+    !needle ||
+    [q.role, q.level, q.topic, q.prompt, q.id].join(' ').toLowerCase().includes(needle));
+
+  if (!shown.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    td.style.color = 'var(--dim)';
+    td.textContent = questions.length ? 'Nothing matches that filter.' : 'The bank is empty. Add the first question above.';
+    tr.append(td);
+    rows.append(tr);
+    return;
+  }
+
+  for (const q of shown) {
+    const tr = document.createElement('tr');
+
+    const prompt = document.createElement('td');
+    prompt.textContent = q.prompt;
+    prompt.style.minWidth = '280px';
+
+    const role = document.createElement('td');
+    role.className = 'meta';
+    role.textContent = q.role;
+
+    const level = document.createElement('td');
+    level.className = 'meta';
+    level.textContent = q.level;
+
+    const topic = document.createElement('td');
+    topic.className = 'meta';
+    topic.textContent = q.topic;
+
+    const chain = document.createElement('td');
+    chain.className = 'meta';
+    chain.textContent = q.follow_ups;
+    if (!q.follow_ups) chain.style.color = 'var(--alarm)';
+
+    const seen = document.createElement('td');
+    seen.className = 'meta';
+    seen.textContent = q.attempts;
+
+    const acts = document.createElement('td');
+    const wrap = document.createElement('div');
+    wrap.className = 'acts';
+    const e = document.createElement('button');
+    e.type = 'button';
+    e.className = 'inf ghost small';
+    e.textContent = 'Edit';
+    e.addEventListener('click', () => edit(q.id));
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'inf danger small';
+    d.textContent = 'Delete';
+    d.addEventListener('click', () => remove(q.id, q.attempts));
+    wrap.append(e, d);
+    acts.append(wrap);
+
+    tr.append(prompt, role, level, topic, chain, seen, acts);
+    rows.append(tr);
+  }
+}
+
+$('filter').addEventListener('input', render);
+
+async function load() {
+  const [list, stats] = await Promise.all([
+    api('/api/admin/questions'),
+    api('/api/admin/stats'),
+  ]);
+  questions = list.questions;
+  render();
+
+  const box = $('stats');
+  box.innerHTML = '';
+  const pairs = [
+    ['Questions', stats.stats.questions],
+    ['Follow-ups', stats.stats.follow_ups],
+    ['Accounts', stats.stats.users],
+    ['Attempts', stats.stats.attempts],
+  ];
+  for (const [k, v] of pairs) {
+    const el = document.createElement('div');
+    el.className = 'stat';
+    const kk = document.createElement('div');
+    kk.className = 'k';
+    kk.textContent = k;
+    const vv = document.createElement('div');
+    vv.className = 'v';
+    vv.textContent = v;
+    el.append(kk, vv);
+    box.append(el);
+  }
+
+  const warn = $('mailWarn');
+  if (!stats.mail) {
+    warn.hidden = false;
+    say(warn, 'Password reset email is not configured: set RESEND_API_KEY and MAIL_FROM on the Worker.', 'err');
+  } else {
+    warn.hidden = true;
+  }
+}
+
+(async () => {
+  try {
+    await load();
+    $('main').hidden = false;
+    clearForm();
+  } catch (err) {
+    if (err.status === 401) { window.location.href = '/app/'; return; }
+    $('denied').hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

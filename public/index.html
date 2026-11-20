@@ -145,6 +145,7 @@
   /* ============ header ============ */
   .top{position:relative;z-index:5}
   .top-in{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 0}
+  .top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .logo{display:flex;align-items:center;gap:11px;font-size:25px;font-weight:700;letter-spacing:-.025em;font-stretch:112%}
   .bead{
     width:15px;height:15px;border-radius:50%;flex:none;
@@ -273,34 +274,6 @@
   .tier .inf{width:100%;text-align:center}
   @media(max-width:880px){.tiers{grid-template-columns:1fr}}
 
-  /* ============ waitlist ============ */
-  .form-shell{max-width:660px}
-  .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px}
-  .fields input,.fields select{
-    font:inherit;font-size:16px;width:100%;padding:14px 16px;
-    border-radius:999px;border:0;color:var(--lite-ink);
-    background:linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
-    box-shadow:
-      inset 0 2px 5px rgba(40,60,82,.30),
-      inset 0 -2px 0 rgba(255,255,255,.9),
-      0 2px 0 rgba(0,0,0,.35);
-    -webkit-appearance:none;appearance:none;
-  }
-  .fields select{
-    padding-right:42px;
-    background-image:
-      url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' fill='none' stroke='%232F3F52' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
-      linear-gradient(180deg,#FFFFFF 0%,#E4EBF3 100%);
-    background-position:calc(100% - 18px) center,0 0;
-    background-size:11px 7px,100% 100%;
-    background-repeat:no-repeat;
-  }
-  .fields input::placeholder{color:#4A5E72}
-  .fields .inf{grid-column:1/-1;text-align:center}
-  .form-msg{margin:0 18px 20px;font-family:var(--mono);font-size:13px;color:var(--dim);min-height:1.4em}
-  .form-msg.ok{color:var(--mint)}
-  .form-msg.err{color:#FFA79E}
-  @media(max-width:580px){.fields{grid-template-columns:1fr}}
 
   footer{padding:30px 0 50px;margin-top:40px;border-top:1px solid rgba(160,190,220,.14);font-size:14.5px;color:var(--dim)}
   footer .fin{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
@@ -316,7 +289,10 @@
 <header class="top">
   <div class="wrap top-in">
     <div class="logo"><span class="bead" data-impeccable-ignore="dark-glow"></span><span class="chrome" data-impeccable-ignore="gradient-text">SecMox</span></div>
-    <a class="inf" href="#waitlist">Join the waitlist</a>
+    <nav class="top-actions">
+      <a class="inf ghost" href="/app/">Sign in</a>
+      <a class="inf" href="/app/?new=1">Create account</a>
+    </nav>
   </div>
 </header>
 
@@ -326,12 +302,12 @@
       <h1>You can explain the OSI model. Can you read this log?</h1>
       <p class="lede">SecMox is interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.</p>
       <div class="cta-row">
-        <a class="inf" href="#waitlist">Join the waitlist</a>
+        <a class="inf" href="/app/?new=1">Start practising, free</a>
         <a class="inf ghost" href="#practice">See what you practice</a>
-        <span class="cta-note">Free labs for the first 200 people on the list.</span>
+        <span class="cta-note">No card. 50 questions and two labs on the free tier.</span>
       </div>
 
-      <div class="device">
+      <div class="device" data-impeccable-ignore="nested-cards">
         <div class="screen" data-impeccable-ignore="nested-cards">
           <div class="screen-bar">
             <span>round 2 / practical</span>
@@ -462,7 +438,7 @@
             <li>1 AI mock a month</li>
             <li>Coverage score</li>
           </ul>
-          <a class="inf ghost" href="#waitlist">Join the waitlist</a>
+          <a class="inf ghost" href="/app/?new=1">Start free</a>
         </div>
         <div class="tier lead">
           <h3>Pro</h3>
@@ -475,7 +451,7 @@
             <li>Scenario writing, scored</li>
             <li>Weak-area drills</li>
           </ul>
-          <a class="inf pale" href="#waitlist">Join the waitlist</a>
+          <a class="inf pale" href="/app/?new=1">Create your account</a>
         </div>
         <div class="tier">
           <h3>Live round</h3>
@@ -487,35 +463,20 @@
             <li>Company-specific pattern</li>
             <li>Written report in 24 hours</li>
           </ul>
-          <a class="inf ghost" href="#waitlist">Join the waitlist</a>
+          <a class="inf ghost" href="/app/?new=1">Create your account</a>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="sec" id="waitlist">
+  <section class="sec" id="start">
     <div class="wrap">
-      <h2>Get in before launch</h2>
-      <p class="intro">Launching December. People on the list get the first labs free and a say in which roles get built first.</p>
-
-      <form class="device form-shell" id="wl" novalidate>
-        <div class="screen" data-impeccable-ignore="nested-cards">
-          <div class="screen-bar">
-            <span>waitlist</span>
-            <span id="count"></span>
-          </div>
-          <div class="fields">
-            <input id="email" type="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email address">
-            <select id="track" name="track" aria-label="Which track fits you">
-              <option value="fresher">Fresher, 0 to 2 years</option>
-              <option value="mid">Mid-level, 2 to 7 years</option>
-              <option value="exploring">Just exploring</option>
-            </select>
-            <button class="inf" type="submit" id="go">Join the waitlist</button>
-          </div>
-          <p class="form-msg" id="msg">One email when it opens. Nothing else.</p>
-        </div>
-      </form>
+      <h2>Start with the free tier</h2>
+      <p class="intro">Fifty questions with their follow-ups, two browser labs and one mock interview a month. No card, nothing to install, and you are practising within a minute.</p>
+      <div class="cta-row" style="margin-bottom:0">
+        <a class="inf" href="/app/?new=1">Create your account</a>
+        <a class="inf ghost" href="/app/">I already have one</a>
+      </div>
     </div>
   </section>
 </main>
@@ -528,14 +489,8 @@
 </footer>
 
 <script>
-/* ============================================================
-   DEPLOY NOTE
-   Set FORM_ENDPOINT to your form URL (Formspree, Tally, Getform,
-   Google Forms) and the waitlist posts there. Leave it empty and
-   the page falls back to the artifact store when one is available.
-   ============================================================ */
-const FORM_ENDPOINT = "";
-
+/* The one orchestrated moment on the page: the log types itself out,
+   then the interviewer asks. */
 const LOG = [
   {t:'cmd', s:'$ tail -f /var/log/auth.log'},
   {t:'n',   s:'Nov 19 02:14:07 web-03 sshd[20481]: Failed password for root from 103.84.22.17 port 59122 ssh2'},
@@ -581,78 +536,6 @@ if(calm){
   };
   setTimeout(next, 450);
 }
-
-/* ---- waitlist ---- */
-const form = document.getElementById('wl');
-const msg  = document.getElementById('msg');
-const go   = document.getElementById('go');
-const countEl = document.getElementById('count');
-let store = null;
-
-function say(text, kind){
-  msg.textContent = text;
-  msg.className = 'form-msg' + (kind ? ' ' + kind : '');
-}
-
-(async () => {
-  if(FORM_ENDPOINT) return;
-  if(!window.claude || !claude.use) return;
-  try{
-    const db = await claude.use('db');
-    const user = await claude.use('user');
-    if(!db || !user) return;
-    store = {db, user};
-    try{
-      const rows = await db.collection('signups').get();
-      if(rows && rows.length) countEl.textContent = rows.length + ' on the list';
-    }catch(e){ /* reads are owner-only by design */ }
-  }catch(e){ /* no store in this view */ }
-})();
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  const track = document.getElementById('track').value;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    say('That email does not look right. Check it and try again.', 'err');
-    return;
-  }
-  go.disabled = true;
-  say('Sending.');
-
-  if(FORM_ENDPOINT){
-    try{
-      const r = await fetch(FORM_ENDPOINT, {
-        method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
-        body:JSON.stringify({email, track})
-      });
-      if(!r.ok) throw new Error('bad status');
-      form.reset();
-      say('You are on the list. Watch for one email in December.', 'ok');
-    }catch(err){
-      say('That did not go through. Try again in a moment.', 'err');
-    }
-    go.disabled = false;
-    return;
-  }
-
-  if(store){
-    try{
-      const id = await store.user.id();
-      await store.db.collection('signups').doc(id).set({email, track, at:new Date().toISOString()});
-      form.reset();
-      say('You are on the list. Watch for one email in December.', 'ok');
-    }catch(err){
-      say('Could not save that. Try again in a moment.', 'err');
-    }
-    go.disabled = false;
-    return;
-  }
-
-  say('The list is not wired up on this preview yet. Set FORM_ENDPOINT to collect signups.', 'err');
-  go.disabled = false;
-});
 </script>
 </body>
 </html>

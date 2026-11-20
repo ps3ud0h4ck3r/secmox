@@ -69,16 +69,19 @@ Run before shipping:
 npx -y impeccable@latest detect public/
 ```
 
-These four are part of the design language. Waive them inline with
+These are part of the design language, not mistakes. Waive them inline with
 `data-impeccable-ignore="<rule>"` on the element rather than removing the
 treatment:
 
 - `gradient-text` on the chrome wordmark
-- `nested-cards` on bezel-plus-screen panels
 - `dark-glow` on the brand LED bead
 - `hard-offset-shadow` on inflated bottom edges (advisory only)
 
-Anything else the detector reports is a regression. Fix it; do not waive it.
+`nested-cards` fires on every bezel-plus-screen panel and the inline waiver
+does not suppress it, so the clean baseline is **5 findings, all
+`nested-cards`**: four in `public/app/` and one in `public/index.html`. Treat a
+sixth as new. Every other finding, contrast above all, is a regression: fix it
+rather than waiving it.
 
 ## Copy voice
 

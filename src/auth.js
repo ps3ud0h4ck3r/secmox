@@ -1,19 +1,26 @@
-// Passwords and sessions.
+// Passwords, sessions, reset tokens and sign-in throttling.
 //
 // Passwords: PBKDF2-SHA256 over WebCrypto, 16-byte random salt per user, and
 // the iteration count stored per row so it can be raised later without
 // invalidating anyone.
 //
-// Sessions: the cookie carries a 32-byte random token. What is stored in D1 is
-// the SHA-256 of that token, so a dump of the sessions table hands out nothing.
+// Sessions and reset tokens: the client holds a random token; what is stored
+// is its SHA-256. A dump of either table hands out nothing.
 
 export const SESSION_COOKIE = 'sm_session';
 export const SESSION_DAYS = 30;
+export const RESET_MINUTES = 60;
 
-// Workers Free caps CPU at 10ms per request, which this exceeds. On that plan
-// lower it (anything you set is recorded per user, so existing logins keep
-// working) or move to the paid plan, which is the right home for a paid product.
+// Workers Free caps CPU at 10ms per request. If sign-in starts failing with a
+// CPU error, lower this: the count is recorded per user, so existing logins
+// keep working at whatever they were created with.
 export const PBKDF2_ITERATIONS = 100_000;
+
+// Sign-in throttle: this many failures inside the window locks further
+// attempts for the cooldown.
+const MAX_FAILS = 8;
+const WINDOW_MINUTES = 15;
+const COOLDOWN_MINUTES = 15;
 
 const enc = new TextEncoder();
 
@@ -28,6 +35,12 @@ function randomHex(bytes) {
 export function newId(prefix) {
   return `${prefix}_${randomHex(12)}`;
 }
+
+export async function sha256Hex(value) {
+  return toHex(await crypto.subtle.digest('SHA-256', enc.encode(value)));
+}
+
+/* ----------------------------------------------------------- passwords */
 
 export async function derivePasswordHash(password, saltHex, iterations) {
   const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
@@ -63,9 +76,7 @@ export async function verifyPassword(password, user) {
   return constantTimeEqual(candidate, user.password_hash);
 }
 
-async function sha256Hex(value) {
-  return toHex(await crypto.subtle.digest('SHA-256', enc.encode(value)));
-}
+/* ------------------------------------------------------------ sessions */
 
 export async function createSession(db, userId) {
   const token = randomHex(32);
@@ -84,7 +95,7 @@ export async function userForToken(db, token) {
   const id = await sha256Hex(token);
   const row = await db
     .prepare(
-      `SELECT u.id, u.email, u.track, u.created_at, s.expires_at
+      `SELECT u.id, u.email, u.track, u.is_admin, u.created_at, s.expires_at
          FROM sessions s JOIN users u ON u.id = s.user_id
         WHERE s.id = ?`,
     )
@@ -95,7 +106,13 @@ export async function userForToken(db, token) {
     await db.prepare('DELETE FROM sessions WHERE id = ?').bind(id).run();
     return null;
   }
-  return { id: row.id, email: row.email, track: row.track, created_at: row.created_at };
+  return {
+    id: row.id,
+    email: row.email,
+    track: row.track,
+    is_admin: row.is_admin === 1,
+    created_at: row.created_at,
+  };
 }
 
 export async function destroySession(db, token) {
@@ -103,16 +120,19 @@ export async function destroySession(db, token) {
   await db.prepare('DELETE FROM sessions WHERE id = ?').bind(await sha256Hex(token)).run();
 }
 
+export async function destroyAllSessions(db, userId) {
+  await db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run();
+}
+
 export function sessionCookie(token, maxAgeSeconds) {
-  const parts = [
+  return [
     `${SESSION_COOKIE}=${token}`,
     'Path=/',
     'HttpOnly',
     'Secure',
     'SameSite=Lax',
     `Max-Age=${maxAgeSeconds}`,
-  ];
-  return parts.join('; ');
+  ].join('; ');
 }
 
 export function readCookie(header, name) {
@@ -124,7 +144,97 @@ export function readCookie(header, name) {
   return null;
 }
 
-// Deliberately permissive: the point is to catch typos, not to police addresses.
+/* -------------------------------------------------------- reset tokens */
+
+export async function createResetToken(db, userId) {
+  // One live token per account: asking again invalidates the last link.
+  await db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(userId).run();
+  const token = randomHex(32);
+  const now = new Date();
+  const expires = new Date(now.getTime() + RESET_MINUTES * 60_000);
+  await db
+    .prepare(
+      'INSERT INTO password_resets (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
+    )
+    .bind(await sha256Hex(token), userId, now.toISOString(), expires.toISOString())
+    .run();
+  return { token, expires };
+}
+
+export async function consumeResetToken(db, token) {
+  if (!token) return null;
+  const id = await sha256Hex(token);
+  const row = await db
+    .prepare('SELECT id, user_id, expires_at, used_at FROM password_resets WHERE id = ?')
+    .bind(id)
+    .first();
+  if (!row || row.used_at) return null;
+  if (new Date(row.expires_at) < new Date()) {
+    await db.prepare('DELETE FROM password_resets WHERE id = ?').bind(id).run();
+    return null;
+  }
+  await db
+    .prepare('UPDATE password_resets SET used_at = ? WHERE id = ?')
+    .bind(new Date().toISOString(), id)
+    .run();
+  return row.user_id;
+}
+
+/* ----------------------------------------------------------- throttling */
+
+export async function throttleCheck(db, keys) {
+  const now = new Date();
+  for (const key of keys) {
+    const row = await db
+      .prepare('SELECT fails, first_fail, locked_until FROM auth_throttle WHERE key = ?')
+      .bind(key)
+      .first();
+    if (row?.locked_until && new Date(row.locked_until) > now) {
+      const seconds = Math.ceil((new Date(row.locked_until) - now) / 1000);
+      return Math.max(seconds, 1);
+    }
+  }
+  return 0;
+}
+
+export async function throttleFail(db, keys) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - WINDOW_MINUTES * 60_000);
+  for (const key of keys) {
+    const row = await db
+      .prepare('SELECT fails, first_fail FROM auth_throttle WHERE key = ?')
+      .bind(key)
+      .first();
+
+    if (!row || new Date(row.first_fail) < windowStart) {
+      await db
+        .prepare(
+          `INSERT INTO auth_throttle (key, fails, first_fail, locked_until) VALUES (?, 1, ?, NULL)
+           ON CONFLICT(key) DO UPDATE SET fails = 1, first_fail = excluded.first_fail, locked_until = NULL`,
+        )
+        .bind(key, now.toISOString())
+        .run();
+      continue;
+    }
+
+    const fails = row.fails + 1;
+    const locked =
+      fails >= MAX_FAILS ? new Date(now.getTime() + COOLDOWN_MINUTES * 60_000).toISOString() : null;
+    await db
+      .prepare('UPDATE auth_throttle SET fails = ?, locked_until = ? WHERE key = ?')
+      .bind(fails, locked, key)
+      .run();
+  }
+}
+
+export async function throttleClear(db, keys) {
+  for (const key of keys) {
+    await db.prepare('DELETE FROM auth_throttle WHERE key = ?').bind(key).run();
+  }
+}
+
+/* ----------------------------------------------------------- validation */
+
 export function normalizeEmail(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
@@ -133,10 +243,16 @@ export function emailLooksValid(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
 }
 
+// Length beats composition rules: a long passphrase is stronger than a short
+// string with a symbol bolted on, and composition rules push people to reuse.
 export function passwordProblem(password) {
   if (typeof password !== 'string' || password.length < 10) {
     return 'Password needs at least 10 characters.';
   }
   if (password.length > 200) return 'Password is too long.';
+  const weak = ['password', '1234567890', 'qwertyuiop', 'letmeinnow'];
+  if (weak.some((w) => password.toLowerCase().includes(w))) {
+    return 'That password is too easy to guess. Try a phrase instead.';
+  }
   return null;
 }

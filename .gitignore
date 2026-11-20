@@ -16,3 +16,6 @@ out/
 npm-debug.log*
 .vscode/
 .idea/
+
+# generated chunk files
+seed.[0-9]*.sql
