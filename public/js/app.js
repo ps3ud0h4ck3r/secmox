@@ -414,22 +414,28 @@ async function loadCoverage() {
   if (wantsNew) window.history.replaceState({}, '', window.location.pathname);
   setMode(wantsNew ? 'up' : 'in');
 
+  // Ask first, then decide whether to show anything. Wrapping the session
+  // check itself would make every signed-out visitor sit through a logo on
+  // the way to a sign in form.
+  let me;
   try {
-    await splash({
-      note: 'restoring your session',
-      work: (async () => {
-        const out = await api('/api/me');
-        state.user = out.user;
-        if (params.get('view') === 'account') {
-          $('whoEmail').textContent = state.user.email;
-          $('tabAdmin').hidden = !state.user.is_admin;
-          openAccount();
-        } else {
-          await enterApp();
-        }
-      })(),
-    });
+    me = await api('/api/me');
   } catch (_) {
     show('authView');
+    return;
   }
+
+  state.user = me.user;
+  await splash({
+    note: 'restoring your session',
+    work: (async () => {
+      if (params.get('view') === 'account') {
+        $('whoEmail').textContent = state.user.email;
+        $('tabAdmin').hidden = !state.user.is_admin;
+        openAccount();
+      } else {
+        await enterApp();
+      }
+    })(),
+  });
 })();

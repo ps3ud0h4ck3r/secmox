@@ -75,9 +75,21 @@ labelled with real artifact names. Never behind text.
 ## Transition screen
 
 Signing in, creating an account, restoring a session, opening a lab and
-opening a practical all go through `splash()` in `public/js/splash.js`. The
-mark draws its own outline, the core pops in, then a neon rule sweeps right
-and pulls the wordmark out behind it.
+opening a practical all go through `splash()` in `public/js/splash.js`.
+
+The mark travels. It draws its own outline at the left, then runs right along
+the baseline like a nib, dragging the rule and pulling SECMOX out behind it.
+At the far edge it turns, arcs back over the wordmark, and settles into the
+lockup. Every resting angle is a multiple of 60deg, so a hexagon always lands
+on itself and the settle is never crooked.
+
+The travel is `left` against the row, not a measured pixel value, so
+`calc(100% - var(--mark))` reaches the far edge whatever the wordmark measures
+and the sequence survives a font loading late or a narrow screen.
+
+Page load is the exception: the session check runs bare and the screen only
+goes up once a session comes back. Wrapping the check itself would make every
+signed-out visitor sit through a logo on the way to a sign in form.
 
 Two rules it must keep:
 
@@ -97,8 +109,8 @@ element rather than keeping its own copy. Never shorten the screen by
 shortening the wait alone: that cuts the drawing off mid-sweep and the
 wordmark never arrives.
 
-Full: 1.9s draw, 0.45s hold, 0.38s fade, for auth and session restore. Short:
-1.15s, 0.2s, 0.3s, for opening a lab or a practical. Repeat actions inside a
+Full: 1.9s travel, 0.45s hold, 0.38s fade, for auth and session restore.
+Short: 1.35s, 0.22s, 0.3s, for opening a lab or a practical. Repeat actions inside a
 view, skipping a question or changing a filter, get no screen at all: those
 have to stay instant.
 
