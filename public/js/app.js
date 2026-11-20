@@ -1,5 +1,6 @@
 import { $, api, say, wirePasswordToggles, ROLE_LABEL } from './common.js';
 import { loadLabs, openLab, setLabHandlers } from './labs.js';
+import { splash } from './splash.js';
 
 const state = { user: null, question: null, followUps: [], shown: 0, revealed: false, mode: 'in' };
 let resetToken = null;
@@ -42,13 +43,27 @@ $('tabsNav').addEventListener('click', (e) => {
   else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();
-  } else show('practiceView');
+  } else startPractice();
 });
+
+// Only when arriving from another view. Skipping a question or changing a
+// filter reloads the same view and must stay instant.
+async function startPractice() {
+  if (!$('practiceView').hidden) return;
+  show('practiceView');
+  await splash({ work: loadQuestion(), quick: true, note: 'opening the practical' });
+}
 
 setLabHandlers({
   needsAuth,
   openLab: async (id) => {
-    if (await openLab(id)) show('labView');
+    await splash({
+      quick: true,
+      note: 'opening the lab',
+      work: (async () => {
+        if (await openLab(id)) show('labView');
+      })(),
+    });
   },
 });
 
@@ -96,15 +111,22 @@ $('authForm').addEventListener('submit', async (e) => {
   };
 
   $('authGo').disabled = true;
-  say($('authMsg'), up ? 'Creating your account.' : 'Signing in.');
+  say($('authMsg'), '');
   try {
-    const out = await api(up ? '/api/auth/signup' : '/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(payload),
+    // The form stays mounted underneath, so a rejection lands back on a
+    // visible field instead of an empty screen.
+    await splash({
+      note: up ? 'creating your account' : 'signing you in',
+      work: (async () => {
+        const out = await api(up ? '/api/auth/signup' : '/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        $('password').value = '';
+        state.user = out.user;
+        await enterApp();
+      })(),
     });
-    $('password').value = '';
-    state.user = out.user;
-    enterApp();
   } catch (err) {
     say($('authMsg'), err.message, 'err');
   }
@@ -206,14 +228,14 @@ $('delForm').addEventListener('submit', async (e) => {
 
 /* ---------------------------------------------------------- practice */
 
-function enterApp() {
+async function enterApp() {
   $('whoEmail').textContent = state.user.email;
   $('tabAdmin').hidden = !state.user.is_admin;
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
   show('practiceView');
-  loadQuestion();
-  loadCoverage();
+  // Neither rejects: both report their own failure in place.
+  await Promise.all([loadQuestion(), loadCoverage()]);
 }
 
 function resetCard() {
@@ -393,15 +415,20 @@ async function loadCoverage() {
   setMode(wantsNew ? 'up' : 'in');
 
   try {
-    const out = await api('/api/me');
-    state.user = out.user;
-    if (params.get('view') === 'account') {
-      $('whoEmail').textContent = state.user.email;
-      $('tabAdmin').hidden = !state.user.is_admin;
-      openAccount();
-    } else {
-      enterApp();
-    }
+    await splash({
+      note: 'restoring your session',
+      work: (async () => {
+        const out = await api('/api/me');
+        state.user = out.user;
+        if (params.get('view') === 'account') {
+          $('whoEmail').textContent = state.user.email;
+          $('tabAdmin').hidden = !state.user.is_admin;
+          openAccount();
+        } else {
+          await enterApp();
+        }
+      })(),
+    });
   } catch (_) {
     show('authView');
   }

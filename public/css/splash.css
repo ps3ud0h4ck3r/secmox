@@ -1,0 +1,69 @@
+/* The transition screen. The mark draws itself, then a rule sweeps right and
+   pulls the wordmark out behind it. Timings live here and nowhere else, so
+   splash.js reads SPLASH_MS from the stylesheet rather than keeping its own
+   copy. Shared tokens come from secmox.css, which must load first. */
+
+.splash{
+  position:fixed;inset:0;z-index:200;display:grid;place-items:center;
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(41,182,255,.12), transparent 70%),
+    linear-gradient(rgba(41,182,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41,182,255,.05) 1px, transparent 1px);
+  background-size:100% 100%,48px 48px,48px 48px;
+  opacity:1;transition:opacity .28s ease;
+}
+.splash.out{opacity:0}
+
+.splash-lock{display:flex;flex-direction:column;align-items:center;gap:16px}
+.splash-row{display:flex;align-items:center;gap:14px}
+
+.splash-mark{width:46px;height:46px;flex:none;display:block;
+  filter:drop-shadow(0 0 14px rgba(41,182,255,.55))}
+.splash-mark .ring{fill:none;stroke:var(--neon);stroke-width:2;
+  stroke-dasharray:84;stroke-dashoffset:84}
+.splash-mark .core{fill:var(--neon);opacity:0}
+
+/* the wordmark is revealed by the rule passing under it */
+.splash-word{position:relative;display:flex;flex-direction:column;gap:9px}
+.splash-text{font-family:var(--display);font-weight:700;font-size:34px;
+  letter-spacing:.12em;line-height:1;color:var(--text);
+  clip-path:inset(0 100% 0 0)}
+.splash-rule{display:block;height:2px;width:0;border-radius:1px;
+  background:linear-gradient(90deg,var(--neon),var(--neon-hi));
+  box-shadow:0 0 10px var(--glow)}
+
+.splash-note{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  color:var(--faint);margin:0;opacity:0}
+
+.splash.run .splash-mark{animation:sp-mark .46s cubic-bezier(.2,.8,.3,1) both}
+.splash.run .ring{animation:sp-ring .5s ease-out .04s both}
+.splash.run .core{animation:sp-core .3s cubic-bezier(.2,1.5,.4,1) .4s both}
+.splash.run .splash-rule{animation:sp-rule .46s cubic-bezier(.3,.7,.2,1) .46s both}
+.splash.run .splash-text{animation:sp-text .44s cubic-bezier(.3,.7,.2,1) .54s both}
+.splash.run .splash-note{animation:sp-note .3s ease-out .92s both}
+
+@keyframes sp-mark{from{transform:rotate(-60deg) scale(.55);opacity:0}
+  to{transform:none;opacity:1}}
+@keyframes sp-ring{to{stroke-dashoffset:0}}
+@keyframes sp-core{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+@keyframes sp-rule{from{width:0}to{width:100%}}
+@keyframes sp-text{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes sp-note{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* Reduced motion gets the finished lockup and a short beat, never a blank
+   screen: secmox.css kills every animation, so the end state has to be the
+   resting state too. splash.js drives removal on a timer for the same reason. */
+@media(prefers-reduced-motion:reduce){
+  .splash{transition:none}
+  .splash .ring{stroke-dashoffset:0}
+  .splash .core{opacity:1}
+  .splash .splash-rule{width:100%}
+  .splash .splash-text{clip-path:none}
+  .splash .splash-note{opacity:1}
+}
+
+@media(max-width:520px){
+  .splash-mark{width:38px;height:38px}
+  .splash-text{font-size:27px}
+}

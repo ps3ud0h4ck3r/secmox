@@ -72,6 +72,30 @@ For the one diagram in the landing hero only: `rotateX(56deg) rotateZ(-45deg)`
 with `transform-style: preserve-3d`, glowing plates stacked on `translateZ`,
 labelled with real artifact names. Never behind text.
 
+## Transition screen
+
+Signing in, creating an account, restoring a session, opening a lab and
+opening a practical all go through `splash()` in `public/js/splash.js`. The
+mark draws its own outline, the core pops in, then a neon rule sweeps right
+and pulls the wordmark out behind it.
+
+Two rules it must keep:
+
+- **It never adds waiting.** The work starts first and runs underneath. The
+  screen clears when both the work and one beat are done, so a fast network
+  sees the beat and a slow one sees the screen hold.
+- **It always clears.** Removal runs off a timer, never an `animationend`
+  event, because `prefers-reduced-motion` cancels every animation here and an
+  event that never fires would strand the overlay.
+
+Full version (1.25s) for auth and session restore, where there is a real
+request to cover. Quick version (0.5s) for opening a lab or a practical.
+Repeat actions inside a view, skipping a question or changing a filter, get
+no screen at all: those have to stay instant.
+
+This is the orchestrated moment for the app shell, so no app view should add
+a second one.
+
 ## Detector baseline
 
 ```bash
