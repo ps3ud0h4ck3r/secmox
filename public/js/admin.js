@@ -1,4 +1,5 @@
 import { $, api, say } from './common.js';
+import { clearLabForm, loadLabTable, setLabAdminHooks } from './admin-labs.js';
 
 let questions = [];
 
@@ -214,8 +215,9 @@ async function load() {
   const tiles = [
     ['Questions', stats.stats.questions],
     ['Follow-ups', stats.stats.follow_ups],
+    ['Labs', stats.stats.labs],
     ['Accounts', stats.stats.users],
-    ['Attempts', stats.stats.attempts],
+    ['Attempts', stats.stats.attempts + stats.stats.lab_attempts],
   ].map(([k, v]) => {
     const el = document.createElement('div');
     el.className = 'stat';
@@ -237,13 +239,31 @@ async function load() {
   );
 }
 
+function showPane(which) {
+  const labs = which === 'labs';
+  $('labsPane').hidden = !labs;
+  $('questionsPane').hidden = labs;
+  $('paneLabs').toggleAttribute('aria-current', labs);
+  $('paneQuestions').toggleAttribute('aria-current', !labs);
+  if (labs) $('paneLabs').setAttribute('aria-current', 'page');
+  else $('paneQuestions').setAttribute('aria-current', 'page');
+}
+
+$('paneQuestions').addEventListener('click', () => showPane('questions'));
+$('paneLabs').addEventListener('click', () => showPane('labs'));
+
+setLabAdminHooks({ onSaved: load });
+
 (async () => {
   try {
     const me = await api('/api/me');
     $('whoEmail').textContent = me.user.email;
     await load();
+    await loadLabTable();
     $('main').hidden = false;
     clearForm();
+    clearLabForm();
+    showPane('questions');
   } catch (err) {
     if (err.status === 401) {
       window.location.href = '/app/';

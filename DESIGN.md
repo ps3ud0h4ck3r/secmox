@@ -78,10 +78,16 @@ treatment:
 - `hard-offset-shadow` on inflated bottom edges (advisory only)
 
 `nested-cards` fires on every bezel-plus-screen panel and the inline waiver
-does not suppress it, so the clean baseline is **5 findings, all
-`nested-cards`**: four in `public/app/` and one in `public/index.html`. Treat a
-sixth as new. Every other finding, contrast above all, is a regression: fix it
-rather than waiving it.
+does not suppress it. Two more appeared once the CSS moved out of the pages
+into files, where the detector can resolve it fully: `radial-halo` on the
+body's two background washes, and `dark-glow` on the raised rim of the device
+bezel. Both are the dimensional language itself rather than decoration added
+on top, so they stay.
+
+The clean baseline is therefore **7 findings**: five `nested-cards` (four in
+`public/app/`, one in `public/index.html`), one `radial-halo`, one
+`dark-glow`. An eighth is new. Every other finding, contrast above all, is a
+regression: fix it rather than waiving it.
 
 ## Copy voice
 

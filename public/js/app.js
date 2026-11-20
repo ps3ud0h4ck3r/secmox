@@ -1,4 +1,5 @@
 import { $, api, say, wirePasswordToggles, ROLE_LABEL } from './common.js';
+import { loadLabs, openLab, setLabHandlers } from './labs.js';
 
 const state = { user: null, question: null, followUps: [], shown: 0, revealed: false, mode: 'in' };
 let resetToken = null;
@@ -7,7 +8,7 @@ wirePasswordToggles();
 
 /* ------------------------------------------------------------- views */
 
-const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'accountView'];
+const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -25,8 +26,9 @@ function show(view) {
   const chromeOn = Boolean(state.user) && !SIGNED_OUT.has(view);
   $('headActions').hidden = !chromeOn;
   $('tabsNav').hidden = !chromeOn;
+  const marked = view === 'labView' ? 'labsView' : view;
   for (const tab of $('tabsNav').querySelectorAll('[data-view]')) {
-    if (tab.dataset.view === view) tab.setAttribute('aria-current', 'page');
+    if (tab.dataset.view === marked) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   }
   window.scrollTo(0, 0);
@@ -36,7 +38,22 @@ $('tabsNav').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-view]');
   if (!tab) return;
   if (tab.dataset.view === 'accountView') openAccount();
-  else show('practiceView');
+  else if (tab.dataset.view === 'labsView') {
+    show('labsView');
+    loadLabs();
+  } else show('practiceView');
+});
+
+setLabHandlers({
+  needsAuth,
+  openLab: async (id) => {
+    if (await openLab(id)) show('labView');
+  },
+});
+
+$('backToLabs').addEventListener('click', () => {
+  show('labsView');
+  loadLabs();
 });
 
 function needsAuth() {

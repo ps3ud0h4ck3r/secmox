@@ -38,12 +38,18 @@
   </section>
 
   <section id="main" class="view" hidden>
-    <h1>Question bank</h1>
-    <p class="sub">Every question carries the follow-ups an interviewer asks next. A question with no chain is a flashcard, not practice.</p>
+    <h1>Content</h1>
+    <p class="sub">The question bank and the browser labs. Both are live the moment they save.</p>
 
     <div class="stats" id="stats"></div>
     <p class="msg" id="mailWarn"></p>
 
+    <div class="tabs-nav" role="tablist">
+      <button class="tab" type="button" id="paneQuestions" aria-current="page">Questions</button>
+      <button class="tab" type="button" id="paneLabs">Labs</button>
+    </div>
+
+    <div id="questionsPane">
     <div class="editor">
       <h2 id="formTitle">Add a question</h2>
       <form id="qForm" novalidate>
@@ -111,6 +117,93 @@
         </table>
       </div>
       <p class="msg" id="listMsg"></p>
+    </div>
+    </div>
+
+    <div id="labsPane" hidden>
+      <div class="editor">
+        <h2 id="labFormTitle">Add a lab</h2>
+        <form id="labForm" novalidate>
+          <input type="hidden" id="labId">
+          <div class="grid-3">
+            <div class="field">
+              <label for="labRole">Role</label>
+              <select id="labRole">
+                <option value="soc">SOC analyst</option>
+                <option value="pentest">Penetration testing</option>
+                <option value="network">Network security</option>
+                <option value="cloud">Cloud security</option>
+                <option value="grc">GRC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="labLevel">Level</label>
+              <select id="labLevel">
+                <option value="fresher">Fresher, 0 to 2 years</option>
+                <option value="mid">Mid-level, 2 to 7 years</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="labKind">Artifact kind</label>
+              <select id="labKind">
+                <option value="log">Log: line-numbered text with a filter</option>
+                <option value="table">Table: CSV with a header row, sortable</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="labTitleIn">Title</label>
+              <input id="labTitleIn" placeholder="Three failures, one success, and then what" required>
+            </div>
+            <div class="field">
+              <label for="labArtName">Artifact file name, as the candidate sees it</label>
+              <input id="labArtName" placeholder="auth.log" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="labBriefIn">The brief: what they have been handed, and why</label>
+            <textarea id="labBriefIn" class="short" placeholder="A web server has been handed to you after a monitoring alert about failed SSH logins. The alert closed itself when the failures stopped." required></textarea>
+          </div>
+
+          <div class="field">
+            <label for="labArtifact">The artifact</label>
+            <textarea id="labArtifact" placeholder="Paste the log or the CSV here." required></textarea>
+          </div>
+          <div class="actions">
+            <input type="file" id="labFile" accept=".log,.txt,.csv,.tsv,.eml,text/*">
+            <span class="cta-note" id="labBytes">Or paste above. 600 KB limit for now.</span>
+          </div>
+
+          <h3>Tasks</h3>
+          <div id="taskEditor"></div>
+          <div class="actions">
+            <button class="inf ghost small" type="button" id="addTask">Add a task</button>
+            <span class="cta-note">Four or five is right. Each one should need the artifact to answer.</span>
+          </div>
+
+          <div class="actions">
+            <button class="inf" type="submit" id="labSave">Save lab</button>
+            <button class="inf ghost" type="button" id="labClear">Clear the form</button>
+            <p class="msg" id="labFormMsg"></p>
+          </div>
+        </form>
+      </div>
+
+      <div class="editor">
+        <h2>Labs in the bank</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Title</th><th>Role</th><th>Level</th><th>Artifact</th><th>Size</th><th>Tasks</th><th>Done</th><th></th></tr>
+            </thead>
+            <tbody id="labRows"></tbody>
+          </table>
+        </div>
+        <p class="msg" id="labListMsg"></p>
+      </div>
     </div>
   </section>
 

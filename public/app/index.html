@@ -25,6 +25,7 @@
 
 <nav class="wrap tabs-nav" id="tabsNav" aria-label="Sections" hidden>
   <button class="tab" type="button" data-view="practiceView" aria-current="page">Practice</button>
+  <button class="tab" type="button" data-view="labsView">Labs</button>
   <button class="tab" type="button" data-view="accountView">Account</button>
   <a class="tab" href="/admin/" id="tabAdmin" hidden>Admin</a>
 </nav>
@@ -179,6 +180,51 @@
     </div>
 
     <div class="cov" id="coverage"></div>
+  </section>
+
+
+  <!-- ------------------------------------------------------ labs -->
+  <section id="labsView" class="view" hidden>
+    <h1>Browser labs</h1>
+    <p class="sub">A real artifact and the questions somebody would ask you about it. Read the evidence first; the answers are behind a button for a reason.</p>
+    <div class="lab-list" id="labList"></div>
+    <p class="msg" id="labsMsg"></p>
+  </section>
+
+  <!-- --------------------------------------------------- one lab -->
+  <section id="labView" class="view" hidden>
+    <button class="tab" type="button" id="backToLabs">Back to all labs</button>
+    <div class="lab-head">
+      <h1 id="labTitle">Lab</h1>
+      <span class="pill-tag" id="labMeta"></span>
+    </div>
+    <p class="lab-brief" id="labBrief"></p>
+
+    <div class="device artifact" data-impeccable-ignore="nested-cards">
+      <div class="screen" data-impeccable-ignore="nested-cards">
+        <div class="artifact-tools">
+          <span id="artName">artifact</span>
+          <input id="artFilter" placeholder="Filter lines" aria-label="Filter the artifact">
+          <span class="count" id="artCount"></span>
+        </div>
+        <div class="artifact-body" id="artBody"></div>
+      </div>
+    </div>
+
+    <div id="taskList"></div>
+
+    <div class="actions">
+      <button class="inf" id="labReveal" type="button">Show the answers</button>
+    </div>
+
+    <div class="rate" id="labRate" hidden>
+      <span class="label">How did that go?</span>
+      <button class="inf ghost small" data-lab-rate="got_it" type="button">Got it</button>
+      <button class="inf ghost small" data-lab-rate="shaky" type="button">Shaky</button>
+      <button class="inf ghost small" data-lab-rate="missed" type="button">Missed it</button>
+    </div>
+
+    <p class="msg" id="labMsg"></p>
   </section>
 
   <!-- --------------------------------------------------- account -->

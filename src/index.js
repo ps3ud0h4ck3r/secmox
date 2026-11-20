@@ -416,6 +416,79 @@ app.get('/api/coverage', async (c) => {
   return c.json({ coverage: results ?? [] });
 });
 
+/* ----------------------------------------------------------------- labs */
+
+const ARTIFACT_KINDS = new Set(['log', 'table']);
+const MAX_ARTIFACT_BYTES = 600_000;
+
+app.get('/api/labs', async (c) => {
+  const user = c.get('user');
+  const { results } = await c.env.DB.prepare(
+    `SELECT l.id, l.title, l.role, l.level, l.artifact_kind, l.artifact_name, l.is_free,
+            (SELECT COUNT(*) FROM lab_tasks t WHERE t.lab_id = l.id) AS tasks,
+            (SELECT COUNT(*) FROM lab_attempts a WHERE a.lab_id = l.id AND a.user_id = ?) AS done
+       FROM labs l ORDER BY l.level, l.role, l.title`,
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ labs: results ?? [] });
+});
+
+// The artifact and the tasks, but never the answers: the whole point is to
+// read the evidence before being told what is in it.
+app.get('/api/labs/:id', async (c) => {
+  const id = c.req.param('id');
+  const lab = await c.env.DB.prepare(
+    `SELECT l.id, l.title, l.role, l.level, l.brief, l.artifact_kind, l.artifact_name,
+            a.body, a.bytes
+       FROM labs l LEFT JOIN lab_artifacts a ON a.lab_id = l.id
+      WHERE l.id = ?`,
+  )
+    .bind(id)
+    .first();
+  if (!lab) return fail(c, 404, 'No such lab.');
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT position, prompt FROM lab_tasks WHERE lab_id = ? ORDER BY position',
+  )
+    .bind(id)
+    .all();
+
+  return c.json({ lab, tasks: results ?? [] });
+});
+
+app.get('/api/labs/:id/answers', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT position, prompt, model_answer FROM lab_tasks WHERE lab_id = ? ORDER BY position',
+  )
+    .bind(c.req.param('id'))
+    .all();
+  if (!results?.length) return fail(c, 404, 'No such lab.');
+  return c.json({ tasks: results });
+});
+
+app.post('/api/lab-attempts', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  if (!body) return fail(c, 400, 'Send JSON.');
+  if (!RATINGS.has(body.self_rating)) return fail(c, 400, 'Rate the attempt first.');
+
+  const lab = await c.env.DB.prepare('SELECT id FROM labs WHERE id = ?').bind(body.lab_id).first();
+  if (!lab) return fail(c, 404, 'No such lab.');
+
+  const answers = Array.isArray(body.answers)
+    ? JSON.stringify(body.answers.slice(0, 20).map((a) => String(a ?? '').slice(0, 4000)))
+    : null;
+
+  await c.env.DB.prepare(
+    'INSERT INTO lab_attempts (id, user_id, lab_id, answers, self_rating, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+    .bind(newId('lat'), user.id, lab.id, answers, body.self_rating, nowIso())
+    .run();
+
+  return c.json({ ok: true }, 201);
+});
+
 /* ---------------------------------------------------------------- admin */
 
 app.get('/api/admin/questions', async (c) => {
@@ -503,12 +576,124 @@ app.post('/api/admin/questions/:id/delete', async (c) => {
   return c.json({ ok: true });
 });
 
+/* ---------------------------------------------------------- admin: labs */
+
+app.get('/api/admin/labs', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT l.id, l.title, l.role, l.level, l.artifact_kind, l.artifact_name, l.is_free,
+            (SELECT COUNT(*) FROM lab_tasks t WHERE t.lab_id = l.id)      AS tasks,
+            (SELECT COUNT(*) FROM lab_attempts a WHERE a.lab_id = l.id)   AS attempts,
+            (SELECT bytes FROM lab_artifacts x WHERE x.lab_id = l.id)     AS bytes
+       FROM labs l ORDER BY l.role, l.level, l.title`,
+  ).all();
+  return c.json({ labs: results ?? [] });
+});
+
+app.get('/api/admin/labs/:id', async (c) => {
+  const id = c.req.param('id');
+  const lab = await c.env.DB.prepare(
+    `SELECT l.*, a.body FROM labs l LEFT JOIN lab_artifacts a ON a.lab_id = l.id WHERE l.id = ?`,
+  )
+    .bind(id)
+    .first();
+  if (!lab) return fail(c, 404, 'No such lab.');
+  const { results } = await c.env.DB.prepare(
+    'SELECT position, prompt, model_answer FROM lab_tasks WHERE lab_id = ? ORDER BY position',
+  )
+    .bind(id)
+    .all();
+  return c.json({ lab, tasks: results ?? [] });
+});
+
+function labProblem(body) {
+  if (!ROLES.has(body?.role)) return 'Pick a role.';
+  if (!LEVELS.has(body?.level)) return 'Pick a level.';
+  if (!ARTIFACT_KINDS.has(body?.artifact_kind)) return 'Pick an artifact kind.';
+  if (!body?.title?.trim()) return 'Give the lab a title.';
+  if (!body?.brief?.trim()) return 'Write the brief: what the candidate has been handed, and why.';
+  if (!body?.artifact_name?.trim()) return 'Name the artifact file.';
+  if (!body?.artifact?.trim()) return 'The artifact is empty.';
+  if (new TextEncoder().encode(body.artifact).length > MAX_ARTIFACT_BYTES) {
+    return 'That artifact is too large for now. Keep it under 600 KB.';
+  }
+  if (body.artifact_kind === 'table' && !body.artifact.includes(',')) {
+    return 'A table artifact needs comma-separated values with a header row.';
+  }
+  if (!Array.isArray(body.tasks) || !body.tasks.length) return 'A lab needs at least one task.';
+  if (body.tasks.length > 10) return 'Ten tasks is already more than anyone finishes.';
+  for (const t of body.tasks) {
+    if (!t?.prompt?.trim() || !t?.model_answer?.trim()) {
+      return 'Every task needs both a question and an answer.';
+    }
+  }
+  return null;
+}
+
+app.post('/api/admin/labs', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const problem = labProblem(body);
+  if (problem) return fail(c, 400, problem);
+
+  const id = body.id?.trim() || newId('lab');
+  const bytes = new TextEncoder().encode(body.artifact).length;
+
+  const statements = [
+    c.env.DB.prepare(
+      `INSERT INTO labs (id, title, role, level, brief, artifact_kind, artifact_name, is_free, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET title = excluded.title, role = excluded.role,
+         level = excluded.level, brief = excluded.brief, artifact_kind = excluded.artifact_kind,
+         artifact_name = excluded.artifact_name, is_free = excluded.is_free`,
+    ).bind(
+      id,
+      body.title.trim(),
+      body.role,
+      body.level,
+      body.brief.trim(),
+      body.artifact_kind,
+      body.artifact_name.trim(),
+      body.is_free ? 1 : 0,
+      nowIso(),
+    ),
+    c.env.DB.prepare(
+      `INSERT INTO lab_artifacts (lab_id, body, bytes) VALUES (?, ?, ?)
+       ON CONFLICT(lab_id) DO UPDATE SET body = excluded.body, bytes = excluded.bytes`,
+    ).bind(id, body.artifact, bytes),
+    c.env.DB.prepare('DELETE FROM lab_tasks WHERE lab_id = ?').bind(id),
+  ];
+  body.tasks.forEach((t, i) => {
+    statements.push(
+      c.env.DB
+        .prepare(
+          'INSERT INTO lab_tasks (id, lab_id, position, prompt, model_answer) VALUES (?, ?, ?, ?, ?)',
+        )
+        .bind(`${id}_t${i + 1}`, id, i + 1, t.prompt.trim(), t.model_answer.trim()),
+    );
+  });
+
+  await c.env.DB.batch(statements);
+  return c.json({ ok: true, id });
+});
+
+app.post('/api/admin/labs/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM lab_tasks WHERE lab_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM lab_attempts WHERE lab_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM lab_artifacts WHERE lab_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM labs WHERE id = ?').bind(id),
+  ]);
+  return c.json({ ok: true });
+});
+
 app.get('/api/admin/stats', async (c) => {
   const row = await c.env.DB.prepare(
-    `SELECT (SELECT COUNT(*) FROM users)      AS users,
-            (SELECT COUNT(*) FROM questions)  AS questions,
-            (SELECT COUNT(*) FROM follow_ups) AS follow_ups,
-            (SELECT COUNT(*) FROM attempts)   AS attempts`,
+    `SELECT (SELECT COUNT(*) FROM users)        AS users,
+            (SELECT COUNT(*) FROM questions)    AS questions,
+            (SELECT COUNT(*) FROM follow_ups)   AS follow_ups,
+            (SELECT COUNT(*) FROM attempts)     AS attempts,
+            (SELECT COUNT(*) FROM labs)         AS labs,
+            (SELECT COUNT(*) FROM lab_attempts) AS lab_attempts`,
   ).first();
   return c.json({ stats: row, mail: mailConfigured(c.env) });
 });
