@@ -34,7 +34,7 @@
 </header>
 
 <main>
-  <section class="sec">
+  <section class="sec hero-sec">
     <div class="wrap hero-grid">
       <div>
         <p class="prompt-line">&gt; ./start --round=practical<span class="cursor" aria-hidden="true">_</span></p>
@@ -56,7 +56,7 @@
     </div>
   </section>
 
-  <section class="sec" id="round">
+  <section class="sec on-bg" id="round">
     <div class="wrap">
       <h2>This is where most candidates lose the room</h2>
       <p class="intro">No slides, no definitions. A log on the screen, a clock running, and an interviewer waiting for your call.</p>
@@ -95,35 +95,46 @@
     </div>
   </section>
 
-  <section class="sec" id="practice">
-    <div class="wrap">
-      <h2>Four modes, one for each round you lose</h2>
-      <p class="intro">None of them is a video you watch.</p>
+  <section class="sec pin-sec" id="practice">
+    <div class="wrap pin-grid">
+      <div class="pin-left">
+        <h2 class="pin-stack">
+          <span data-mode="bank">Question bank</span>
+          <span data-mode="labs">Browser labs</span>
+          <span data-mode="mock">Mock interviews</span>
+          <span data-mode="scenario">Scenario writing</span>
+        </h2>
+        <p class="pin-sub">Four modes, one for each round you lose. None of them is a video you watch.</p>
+      </div>
 
-      <div class="modes">
-        <article class="mode">
+      <div class="pin-right">
+        <article class="pin-panel" data-mode="bank">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
           <h3>Question bank</h3>
           <p class="tagline">with the follow-up attached</p>
           <p>Every question carries the question that comes after it, because that is where candidates lose the room. Filter by role: SOC, pentest, GRC, cloud, network.</p>
+          <p class="pin-eg"><span>then</span> And if the account was a service account?</p>
         </article>
-        <article class="mode">
+        <article class="pin-panel" data-mode="labs">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>
           <h3>Browser labs</h3>
           <p class="tagline">real artifacts, no VM setup</p>
           <p>Packet captures, auth logs, memory strings, alert queues, phishing headers. They open in the browser and you answer what you see. Nothing to install.</p>
+          <p class="pin-eg"><span>open</span> auth.log &#183; 18 KB &#183; 412 lines</p>
         </article>
-        <article class="mode">
+        <article class="pin-panel" data-mode="mock">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
           <h3>Mock interviews</h3>
           <p class="tagline">timed, graded, on the record</p>
           <p>Pick a role and a company pattern. Get grilled for 30 minutes, then get a transcript that marks where your answer went thin and what the interviewer was fishing for.</p>
+          <p class="pin-eg"><span>round 2</span> 28:14 remaining</p>
         </article>
-        <article class="mode">
+        <article class="pin-panel" data-mode="scenario">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg>
           <h3>Scenario writing</h3>
           <p class="tagline">where judgment shows up</p>
           <p>Write out how you would handle an incident end to end. Scored against the same rubric a hiring panel uses, so you find out whether your reasoning holds before it costs you an offer.</p>
+          <p class="pin-eg"><span>scored</span> containment, evidence, handover</p>
         </article>
       </div>
     </div>

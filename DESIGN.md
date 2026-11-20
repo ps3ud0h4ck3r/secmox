@@ -75,17 +75,9 @@ labelled with real artifact names. Never behind text.
 ## Transition screen
 
 Signing in, creating an account, restoring a session, opening a lab and
-opening a practical all go through `splash()` in `public/js/splash.js`.
-
-The mark travels. It draws its own outline at the left, then runs right along
-the baseline like a nib, dragging the rule and pulling SECMOX out behind it.
-At the far edge it turns, arcs back over the wordmark, and settles into the
-lockup. Every resting angle is a multiple of 60deg, so a hexagon always lands
-on itself and the settle is never crooked.
-
-The travel is `left` against the row, not a measured pixel value, so
-`calc(100% - var(--mark))` reaches the far edge whatever the wordmark measures
-and the sequence survives a font loading late or a narrow screen.
+opening a practical all go through `splash()` in `public/js/splash.js`. The
+mark draws its own outline, the core pops in, then a neon rule sweeps right
+and pulls the wordmark out behind it.
 
 Page load is the exception: the session check runs bare and the screen only
 goes up once a session comes back. Wrapping the check itself would make every
@@ -109,13 +101,39 @@ element rather than keeping its own copy. Never shorten the screen by
 shortening the wait alone: that cuts the drawing off mid-sweep and the
 wordmark never arrives.
 
-Full: 1.9s travel, 0.45s hold, 0.38s fade, for auth and session restore.
-Short: 1.35s, 0.22s, 0.3s, for opening a lab or a practical. Repeat actions inside a
+Full: 1.9s draw, 0.45s hold, 0.38s fade, for auth and session restore.
+Short: 1.15s, 0.2s, 0.3s, for opening a lab or a practical. Repeat actions inside a
 view, skipping a question or changing a filter, get no screen at all: those
 have to stay instant.
 
 This is the orchestrated moment for the app shell, so no app view should add
 a second one.
+
+## Landing page scroll
+
+Two scroll-driven moves, both in `landing.js`, both off under
+`prefers-reduced-motion`.
+
+**The hero hands the screen over.** It is `position: sticky`, and the section
+below rides up over it with an opaque background and the same fixed grid, so
+the page opens by passing the screen on rather than scrolling away. The hero's
+content fades and drifts up at about two thirds of scroll speed, so the
+incoming edge catches it. Fading it in place leaves a long empty band between
+the faded hero and the incoming edge; fading it too slowly lets that edge cut
+a headline in half. Because the hero stays pinned for the whole page, every
+other section is `position: relative; z-index: 1` and the spent hero drops
+`pointer-events`, or an invisible hero would swallow clicks meant for the
+section actually on screen.
+
+**One pinned section.** The four mode names stay put while their panels scroll
+past, and the name belonging to the panel crossing the middle of the viewport
+lights up. An `IntersectionObserver` with a thin band in the middle decides
+that, so it costs nothing while the page sits still. The dim state stays
+readable: these are real headings, not decoration. Below 900px there is
+nothing to pin against, so the section goes back to four plain cards.
+
+The fade is a paused Web Animations keyframe seeked by scroll position, not an
+inline style, so `style-src` stays strict.
 
 ## Detector baseline
 

@@ -1,6 +1,22 @@
 /* Landing page only: the marketing sections. Shared tokens and components
    come from secmox.css, which must load first. */
 
+/* hero: it stays put and the next section rides up over it, so the page
+   opens by handing the screen over rather than by scrolling away. The fade is
+   driven from landing.js, which seeks a paused animation instead of writing
+   inline styles, so the content security policy stays strict. */
+.hero-sec{position:sticky;top:0;z-index:0}
+/* The hero stays pinned for the whole page, so everything after it has to sit
+   above it or an invisible hero would swallow clicks meant for the section on
+   screen. The faded hero also stops taking pointer events outright. */
+main > .sec:not(.hero-sec){position:relative;z-index:1}
+.hero-sec .wrap.spent{pointer-events:none}
+.on-bg{position:relative;z-index:1;background-color:var(--bg);
+  background-image:
+    linear-gradient(rgba(41,182,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41,182,255,.05) 1px, transparent 1px);
+  background-size:48px 48px,48px 48px;background-attachment:fixed}
+
 /* hero */
 .hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:48px;align-items:center}
 .prompt-line{font-family:var(--mono);font-size:14px;color:var(--neon);margin:0 0 22px}
@@ -51,15 +67,46 @@
   .gap-row .b{padding-left:14px;box-shadow:inset 2px 0 0 var(--neon)}
 }
 
-/* four modes */
-.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:18px}
-.mode{border:1px solid var(--line);border-radius:12px;padding:26px;display:flex;flex-direction:column;gap:12px;
-  background:linear-gradient(180deg,var(--panel-2),#080C12);transition:border-color .15s ease, box-shadow .15s ease}
-.mode:hover{border-color:rgba(41,182,255,.55);box-shadow:0 0 30px rgba(41,182,255,.12)}
-.mode svg{width:30px;height:30px;stroke:var(--neon);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.mode h3{font-size:21px;margin:0}
-.mode .tagline{font-family:var(--mono);font-size:12.5px;color:var(--neon);margin:0}
-.mode p{margin:0;color:var(--dim);font-size:15.5px}
+/* Four modes: the one pinned section on the page.
+
+   The names stay put while the panels scroll past them, and the name of the
+   panel crossing the middle of the viewport lights up. The lit word is the
+   only thing that moves, so the section reads as one idea with four parts
+   rather than four cards sitting in a row.
+
+   The dim state is --faint, not something darker. These are real headings and
+   they have to stay readable even when they are not the active one. */
+.pin-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:60px;align-items:start}
+.pin-left{position:sticky;top:116px}
+.pin-stack{display:flex;flex-direction:column;gap:2px;max-width:none;margin:0 0 20px}
+.pin-stack span{font-size:clamp(26px,3.3vw,40px);line-height:1.12;letter-spacing:-.025em;
+  color:#6A7E92;transition:color .32s ease, text-shadow .32s ease}
+.pin-stack span.on{color:var(--text);text-shadow:0 0 30px rgba(41,182,255,.4)}
+.pin-sub{color:var(--dim);font-size:16.5px;margin:0;max-width:34ch}
+
+.pin-right{display:flex;flex-direction:column}
+.pin-panel{min-height:62vh;display:flex;flex-direction:column;justify-content:center;gap:12px;
+  padding:34px 0}
+.pin-panel svg{width:30px;height:30px;stroke:var(--neon);fill:none;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.pin-panel h3{font-size:23px;margin:0}
+.pin-panel .tagline{font-family:var(--mono);font-size:12.5px;color:var(--neon);margin:0}
+.pin-panel p{margin:0;color:var(--dim);font-size:16.5px;max-width:48ch}
+.pin-eg{font-family:var(--mono);font-size:13px;color:var(--text) !important;
+  border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel);
+  display:flex;gap:10px;align-items:baseline;width:fit-content;max-width:100%}
+.pin-eg span{color:var(--neon);flex:none}
+
+/* Stacked on a phone the pinning has nothing to pin against, so the section
+   goes back to being four plain cards. */
+@media(max-width:900px){
+  .pin-grid{grid-template-columns:1fr;gap:26px}
+  .pin-left{position:static;top:auto}
+  .pin-stack{display:none}
+  .pin-panel{min-height:0;padding:22px;border:1px solid var(--line);border-radius:12px;
+    background:linear-gradient(180deg,var(--panel-2),#080C12)}
+  .pin-right{gap:16px}
+}
 
 /* tracks */
 .tracks{display:grid;grid-template-columns:1fr 1fr;gap:18px}

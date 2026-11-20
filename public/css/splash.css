@@ -1,26 +1,20 @@
-/* The transition screen. The mark travels: it enters from the left, runs
-   right along the baseline like a nib, dragging the rule and pulling SECMOX
-   out behind it, then flies back over the wordmark and settles into the
-   lockup. Shared tokens come from secmox.css, which must load first.
+/* The transition screen. The mark draws itself, then a rule sweeps right and
+   pulls the wordmark out behind it. Shared tokens come from secmox.css, which
+   must load first.
 
    Every step below is a fraction of --beat, so the whole sequence always
-   finishes inside one beat whatever the beat is. Change the beat and the
-   drawing slows or quickens as a piece; it never gets cut off halfway, which
-   is what happened when the short version only shortened the overlay and
-   left the keyframes at full length.
+   finishes inside one beat whatever the beat is set to. Change the beat and
+   the drawing slows or quickens as a piece; it never gets cut off halfway,
+   which is what happened when the short version only shortened the overlay
+   and left the keyframes at full length.
 
-   The mark's travel is `left` against the row, not a measured pixel value, so
-   `calc(100% - 46px)` lands it on the far edge whatever the wordmark measures
-   and the sequence survives a font loading late or a narrower screen.
-
-   splash.js reads the three times off the element, so timing lives here and
-   nowhere else. */
+   splash.js reads these three numbers off the element, so the timing lives
+   here and nowhere else. */
 
 .splash{
-  --beat:1900ms;   /* the whole travel, start to finish */
+  --beat:1900ms;   /* the drawing, start to finish */
   --hold:450ms;    /* the finished lockup, sitting still */
   --fade:380ms;    /* clearing the screen */
-  --mark:46px;
 
   position:fixed;inset:0;z-index:200;display:grid;place-items:center;
   background:var(--bg);
@@ -31,26 +25,22 @@
   background-size:100% 100%,48px 48px,48px 48px;
   opacity:1;transition:opacity var(--fade) ease;
 }
-.splash.quick{--beat:1350ms;--hold:220ms;--fade:300ms}
+.splash.quick{--beat:1150ms;--hold:200ms;--fade:300ms}
 .splash.out{opacity:0}
 
 .splash-lock{display:flex;flex-direction:column;align-items:center;gap:16px}
+.splash-row{display:flex;align-items:center;gap:14px}
 
-/* the row is the track the mark runs along, so it has to be exactly the
-   lockup's width: the mark's slot, then the wordmark */
-.splash-row{position:relative;display:inline-block}
-
-.splash-mark{position:absolute;left:0;top:calc(50% - (var(--mark) / 2));
-  width:var(--mark);height:var(--mark);display:block;z-index:2;
-  filter:drop-shadow(0 0 14px rgba(41,182,255,.6))}
+.splash-mark{width:46px;height:46px;flex:none;display:block;
+  filter:drop-shadow(0 0 14px rgba(41,182,255,.55))}
 .splash-mark .ring{fill:none;stroke:var(--neon);stroke-width:2;
   stroke-dasharray:84;stroke-dashoffset:84}
 .splash-mark .core{fill:var(--neon);opacity:0}
 
-.splash-word{position:relative;z-index:1;display:inline-flex;flex-direction:column;gap:9px;
-  margin-left:calc(var(--mark) + 14px)}
+/* the wordmark is revealed by the rule passing under it */
+.splash-word{position:relative;display:flex;flex-direction:column;gap:9px}
 .splash-text{font-family:var(--display);font-weight:700;font-size:34px;
-  letter-spacing:.12em;line-height:1;color:var(--text);white-space:nowrap;
+  letter-spacing:.12em;line-height:1;color:var(--text);
   clip-path:inset(0 100% 0 0)}
 .splash-rule{display:block;height:2px;width:0;border-radius:1px;
   background:linear-gradient(90deg,var(--neon),var(--neon-hi));
@@ -66,38 +56,21 @@
 .splash.run .splash-text,
 .splash.run .splash-note{animation-fill-mode:both}
 
-.splash.run .splash-mark{animation-name:sp-travel;animation-timing-function:linear;
-  animation-duration:var(--beat)}
+.splash.run .splash-mark{animation-name:sp-mark;animation-timing-function:cubic-bezier(.2,.8,.3,1);
+  animation-duration:calc(var(--beat) * .37)}
 .splash.run .ring{animation-name:sp-ring;animation-timing-function:ease-out;
-  animation-duration:calc(var(--beat) * .15)}
+  animation-duration:calc(var(--beat) * .40);animation-delay:calc(var(--beat) * .03)}
 .splash.run .core{animation-name:sp-core;animation-timing-function:cubic-bezier(.2,1.5,.4,1);
-  animation-duration:calc(var(--beat) * .10);animation-delay:calc(var(--beat) * .11)}
-.splash.run .splash-rule{animation-name:sp-rule;animation-timing-function:cubic-bezier(.42,0,.3,1);
-  animation-duration:calc(var(--beat) * .36);animation-delay:calc(var(--beat) * .20)}
-.splash.run .splash-text{animation-name:sp-text;animation-timing-function:cubic-bezier(.42,0,.3,1);
-  animation-duration:calc(var(--beat) * .36);animation-delay:calc(var(--beat) * .22)}
+  animation-duration:calc(var(--beat) * .24);animation-delay:calc(var(--beat) * .32)}
+.splash.run .splash-rule{animation-name:sp-rule;animation-timing-function:cubic-bezier(.3,.7,.2,1);
+  animation-duration:calc(var(--beat) * .37);animation-delay:calc(var(--beat) * .37)}
+.splash.run .splash-text{animation-name:sp-text;animation-timing-function:cubic-bezier(.3,.7,.2,1);
+  animation-duration:calc(var(--beat) * .35);animation-delay:calc(var(--beat) * .43)}
 .splash.run .splash-note{animation-name:sp-note;animation-timing-function:ease-out;
-  animation-duration:calc(var(--beat) * .12);animation-delay:calc(var(--beat) * .88)}
+  animation-duration:calc(var(--beat) * .24);animation-delay:calc(var(--beat) * .72)}
 
-/* Fly in, pause, run the line, pause, arc back over the wordmark, settle.
-   Every resting angle is a multiple of 60deg, so a hexagon always lands on
-   itself and the settle never looks crooked. */
-@keyframes sp-travel{
-  0%   {left:calc(var(--mark) * -1.6);opacity:0;
-        transform:translateY(0) rotate(-120deg) scale(.45)}
-  13%  {left:0;opacity:1;transform:translateY(0) rotate(0deg) scale(1)}
-  20%  {left:0;opacity:1;transform:translateY(0) rotate(0deg) scale(1)}
-  56%  {left:calc(100% - var(--mark));opacity:1;
-        transform:translateY(0) rotate(120deg) scale(1)}
-  64%  {left:calc(100% - var(--mark));opacity:1;
-        transform:translateY(0) rotate(120deg) scale(1)}
-  72%  {left:calc(72% - (var(--mark) / 2));opacity:1;
-        transform:translateY(-30px) rotate(170deg) scale(.9)}
-  80%  {left:calc(44% - (var(--mark) / 2));opacity:1;
-        transform:translateY(-42px) rotate(205deg) scale(.86)}
-  91%  {left:0;opacity:1;transform:translateY(0) rotate(240deg) scale(1.08)}
-  100% {left:0;opacity:1;transform:translateY(0) rotate(240deg) scale(1)}
-}
+@keyframes sp-mark{from{transform:rotate(-60deg) scale(.55);opacity:0}
+  to{transform:none;opacity:1}}
 @keyframes sp-ring{to{stroke-dashoffset:0}}
 @keyframes sp-core{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
 @keyframes sp-rule{from{width:0}to{width:100%}}
@@ -109,7 +82,6 @@
    resting state too. splash.js drives removal on a timer for the same reason. */
 @media(prefers-reduced-motion:reduce){
   .splash,.splash.quick{--beat:0ms;--hold:420ms;--fade:0ms;transition:none}
-  .splash .splash-mark{left:0;opacity:1;transform:none}
   .splash .ring{stroke-dashoffset:0}
   .splash .core{opacity:1}
   .splash .splash-rule{width:100%}
@@ -118,6 +90,6 @@
 }
 
 @media(max-width:520px){
-  .splash{--mark:38px}
+  .splash-mark{width:38px;height:38px}
   .splash-text{font-size:27px}
 }

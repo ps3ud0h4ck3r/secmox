@@ -55,3 +55,66 @@ if (calm) {
   };
   setTimeout(next, 400);
 }
+
+/* ------------------------------------------------------------ scrolling */
+
+// The pinned section: the panel crossing the middle of the viewport decides
+// which name is lit. An observer with a thin band in the middle does this
+// without a scroll handler, so it costs nothing while the page sits still.
+const words = new Map(
+  [...document.querySelectorAll('.pin-stack span')].map((el) => [el.dataset.mode, el]),
+);
+const panels = [...document.querySelectorAll('.pin-panel')];
+
+if (words.size && panels.length) {
+  const light = (mode) => {
+    for (const [key, el] of words) el.classList.toggle('on', key === mode);
+  };
+  light(panels[0].dataset.mode);
+  const band = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) if (e.isIntersecting) light(e.target.dataset.mode);
+    },
+    { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
+  );
+  for (const panel of panels) band.observe(panel);
+}
+
+// The hero hands the screen over: it is sticky, the next section rides up
+// over it, and its content fades as that happens. The fade is a paused Web
+// Animations keyframe seeked by scroll position, not an inline style, so
+// style-src stays strict and the work stays off the main thread's style
+// recalc path.
+const heroInner = document.querySelector('.hero-sec .wrap');
+
+if (heroInner && !calm && typeof heroInner.animate === 'function') {
+  // It drifts up at about two thirds of the scroll speed while it fades, so
+  // the section riding over it catches up and covers it. Fading in place
+  // instead leaves a long empty band between the faded hero and the incoming
+  // edge, and fading too slowly lets the edge cut a headline in half.
+  const recede = heroInner.animate(
+    [
+      { opacity: 1, transform: 'translateY(0)', offset: 0 },
+      { opacity: 0, transform: 'translateY(-104px)', offset: 0.34 },
+      { opacity: 0, transform: 'translateY(-230px)', offset: 1 },
+    ],
+    { duration: 1000, fill: 'both', easing: 'linear' },
+  );
+  recede.pause();
+
+  let queued = false;
+  const seek = () => {
+    queued = false;
+    const over = Math.min(1, Math.max(0, window.scrollY / window.innerHeight));
+    recede.currentTime = over * 1000;
+    heroInner.classList.toggle('spent', over > 0.34);
+  };
+  const onScroll = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(seek);
+  };
+  seek();
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+}
