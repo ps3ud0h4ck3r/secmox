@@ -1,9 +1,21 @@
 /* The transition screen. The mark draws itself, then a rule sweeps right and
-   pulls the wordmark out behind it. Timings live here and nowhere else, so
-   splash.js reads SPLASH_MS from the stylesheet rather than keeping its own
-   copy. Shared tokens come from secmox.css, which must load first. */
+   pulls the wordmark out behind it. Shared tokens come from secmox.css, which
+   must load first.
+
+   Every step below is a fraction of --beat, so the whole sequence always
+   finishes inside one beat whatever the beat is set to. Change the beat and
+   the drawing slows or quickens as a piece; it never gets cut off halfway,
+   which is what happened when the short version only shortened the overlay
+   and left the keyframes at full length.
+
+   splash.js reads these three numbers off the element, so the timing lives
+   here and nowhere else. */
 
 .splash{
+  --beat:1900ms;   /* the drawing, start to finish */
+  --hold:450ms;    /* the finished lockup, sitting still */
+  --fade:380ms;    /* clearing the screen */
+
   position:fixed;inset:0;z-index:200;display:grid;place-items:center;
   background:var(--bg);
   background-image:
@@ -11,8 +23,9 @@
     linear-gradient(rgba(41,182,255,.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(41,182,255,.05) 1px, transparent 1px);
   background-size:100% 100%,48px 48px,48px 48px;
-  opacity:1;transition:opacity .28s ease;
+  opacity:1;transition:opacity var(--fade) ease;
 }
+.splash.quick{--beat:1150ms;--hold:200ms;--fade:300ms}
 .splash.out{opacity:0}
 
 .splash-lock{display:flex;flex-direction:column;align-items:center;gap:16px}
@@ -36,12 +49,25 @@
 .splash-note{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
   color:var(--faint);margin:0;opacity:0}
 
-.splash.run .splash-mark{animation:sp-mark .46s cubic-bezier(.2,.8,.3,1) both}
-.splash.run .ring{animation:sp-ring .5s ease-out .04s both}
-.splash.run .core{animation:sp-core .3s cubic-bezier(.2,1.5,.4,1) .4s both}
-.splash.run .splash-rule{animation:sp-rule .46s cubic-bezier(.3,.7,.2,1) .46s both}
-.splash.run .splash-text{animation:sp-text .44s cubic-bezier(.3,.7,.2,1) .54s both}
-.splash.run .splash-note{animation:sp-note .3s ease-out .92s both}
+.splash.run .splash-mark,
+.splash.run .ring,
+.splash.run .core,
+.splash.run .splash-rule,
+.splash.run .splash-text,
+.splash.run .splash-note{animation-fill-mode:both}
+
+.splash.run .splash-mark{animation-name:sp-mark;animation-timing-function:cubic-bezier(.2,.8,.3,1);
+  animation-duration:calc(var(--beat) * .37)}
+.splash.run .ring{animation-name:sp-ring;animation-timing-function:ease-out;
+  animation-duration:calc(var(--beat) * .40);animation-delay:calc(var(--beat) * .03)}
+.splash.run .core{animation-name:sp-core;animation-timing-function:cubic-bezier(.2,1.5,.4,1);
+  animation-duration:calc(var(--beat) * .24);animation-delay:calc(var(--beat) * .32)}
+.splash.run .splash-rule{animation-name:sp-rule;animation-timing-function:cubic-bezier(.3,.7,.2,1);
+  animation-duration:calc(var(--beat) * .37);animation-delay:calc(var(--beat) * .37)}
+.splash.run .splash-text{animation-name:sp-text;animation-timing-function:cubic-bezier(.3,.7,.2,1);
+  animation-duration:calc(var(--beat) * .35);animation-delay:calc(var(--beat) * .43)}
+.splash.run .splash-note{animation-name:sp-note;animation-timing-function:ease-out;
+  animation-duration:calc(var(--beat) * .24);animation-delay:calc(var(--beat) * .72)}
 
 @keyframes sp-mark{from{transform:rotate(-60deg) scale(.55);opacity:0}
   to{transform:none;opacity:1}}
@@ -55,7 +81,7 @@
    screen: secmox.css kills every animation, so the end state has to be the
    resting state too. splash.js drives removal on a timer for the same reason. */
 @media(prefers-reduced-motion:reduce){
-  .splash{transition:none}
+  .splash,.splash.quick{--beat:0ms;--hold:420ms;--fade:0ms;transition:none}
   .splash .ring{stroke-dashoffset:0}
   .splash .core{opacity:1}
   .splash .splash-rule{width:100%}

@@ -81,17 +81,26 @@ and pulls the wordmark out behind it.
 
 Two rules it must keep:
 
-- **It never adds waiting.** The work starts first and runs underneath. The
-  screen clears when both the work and one beat are done, so a fast network
-  sees the beat and a slow one sees the screen hold.
+- **The work starts first** and runs underneath, so a slow request holds the
+  screen rather than making someone wait twice. The screen does set a floor of
+  its own, though: at these lengths it is a deliberate beat, not just a cover
+  for latency.
 - **It always clears.** Removal runs off a timer, never an `animationend`
   event, because `prefers-reduced-motion` cancels every animation here and an
   event that never fires would strand the overlay.
 
-Full version (1.25s) for auth and session restore, where there is a real
-request to cover. Quick version (0.5s) for opening a lab or a practical.
-Repeat actions inside a view, skipping a question or changing a filter, get
-no screen at all: those have to stay instant.
+Timing lives in `splash.css` as three numbers on the element: `--beat` (the
+drawing), `--hold` (the finished lockup sitting still) and `--fade`. Every
+keyframe step is a fraction of `--beat`, so the drawing always completes
+whatever the beat is, and `splash.js` reads the three values back off the
+element rather than keeping its own copy. Never shorten the screen by
+shortening the wait alone: that cuts the drawing off mid-sweep and the
+wordmark never arrives.
+
+Full: 1.9s draw, 0.45s hold, 0.38s fade, for auth and session restore. Short:
+1.15s, 0.2s, 0.3s, for opening a lab or a practical. Repeat actions inside a
+view, skipping a question or changing a filter, get no screen at all: those
+have to stay instant.
 
 This is the orchestrated moment for the app shell, so no app view should add
 a second one.
