@@ -18,6 +18,7 @@ import {
   throttleClear,
   throttleFail,
   userForToken,
+  isContentAdmin,
   verifyPassword,
 } from './auth.js';
 import { mailConfigured, resetEmail, sendMail } from './mail.js';
@@ -123,7 +124,7 @@ app.post('/api/auth/login', async (c) => {
   }
 
   const user = await c.env.DB.prepare(
-    'SELECT id, email, track, is_admin, password_hash, password_salt, iterations FROM users WHERE email = ?',
+    'SELECT id, email, track, is_admin, platform_role, password_hash, password_salt, iterations FROM users WHERE email = ?',
   )
     .bind(email)
     .first();
@@ -140,7 +141,13 @@ app.post('/api/auth/login', async (c) => {
   const { token } = await createSession(c.env.DB, user.id);
   signIn(c, token);
   return c.json({
-    user: { id: user.id, email: user.email, track: user.track, is_admin: user.is_admin === 1 },
+    user: {
+      id: user.id,
+      email: user.email,
+      track: user.track,
+      platform_role: user.platform_role ?? null,
+      is_admin: isContentAdmin(user.platform_role),
+    },
   });
 });
 

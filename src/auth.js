@@ -90,13 +90,29 @@ export async function createSession(db, userId) {
   return { token, expires };
 }
 
+// The content pages treat owner and developer as admins; business sells and
+// does not touch content, so it is not a content admin.
+export function isContentAdmin(platformRole) {
+  return platformRole === 'owner' || platformRole === 'developer';
+}
+
+// Resolves a token to the EFFECTIVE user, which is the impersonated target when
+// a platform account is viewing as someone, otherwise the account itself. When
+// impersonating, `actor` carries the real platform account so the middleware
+// knows both who is acting and as whom; otherwise `actor` is null.
 export async function userForToken(db, token) {
   if (!token) return null;
   const id = await sha256Hex(token);
   const row = await db
     .prepare(
-      `SELECT u.id, u.email, u.track, u.is_admin, u.created_at, s.expires_at
-         FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT s.expires_at, s.impersonating_user_id,
+              u.id AS u_id, u.email AS u_email, u.track AS u_track,
+              u.created_at AS u_created, u.platform_role AS u_role,
+              t.id AS t_id, t.email AS t_email, t.track AS t_track,
+              t.created_at AS t_created, t.platform_role AS t_role
+         FROM sessions s
+         JOIN users u ON u.id = s.user_id
+         LEFT JOIN users t ON t.id = s.impersonating_user_id
         WHERE s.id = ?`,
     )
     .bind(id)
@@ -106,12 +122,23 @@ export async function userForToken(db, token) {
     await db.prepare('DELETE FROM sessions WHERE id = ?').bind(id).run();
     return null;
   }
+
+  const impersonating = Boolean(row.impersonating_user_id && row.t_id);
+  const eff = impersonating
+    ? { id: row.t_id, email: row.t_email, track: row.t_track, created_at: row.t_created, role: row.t_role }
+    : { id: row.u_id, email: row.u_email, track: row.u_track, created_at: row.u_created, role: row.u_role };
+
   return {
-    id: row.id,
-    email: row.email,
-    track: row.track,
-    is_admin: row.is_admin === 1,
-    created_at: row.created_at,
+    id: eff.id,
+    email: eff.email,
+    track: eff.track,
+    created_at: eff.created_at,
+    platform_role: eff.role ?? null,
+    is_admin: isContentAdmin(eff.role),
+    impersonating,
+    actor: impersonating
+      ? { id: row.u_id, email: row.u_email, platform_role: row.u_role ?? null }
+      : null,
   };
 }
 

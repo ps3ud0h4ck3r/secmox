@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   iterations    INTEGER NOT NULL,
   track         TEXT NOT NULL DEFAULT 'fresher',
   is_admin      INTEGER NOT NULL DEFAULT 0,
+  platform_role TEXT,
   created_at    TEXT NOT NULL
 );
 
@@ -18,7 +19,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL
+  expires_at TEXT NOT NULL,
+  impersonating_user_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
@@ -181,3 +183,18 @@ CREATE TABLE IF NOT EXISTS review_schedule (
   PRIMARY KEY (user_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS idx_review_due ON review_schedule(user_id, due_at);
+
+-- Impersonation log: a platform account can act as any user to support or
+-- debug them. Every start and stop is written here and a banner shows the whole
+-- time, so the power always leaves a trail. (The session's own
+-- impersonating_user_id column, and users.platform_role, are part of the base
+-- table definitions above; existing databases get them via a one-time ALTER.)
+CREATE TABLE IF NOT EXISTS impersonation_log (
+  id         TEXT PRIMARY KEY,
+  actor_id   TEXT NOT NULL,
+  target_id  TEXT NOT NULL,
+  reason     TEXT,
+  started_at TEXT NOT NULL,
+  ended_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_imp_actor ON impersonation_log(actor_id, started_at);
