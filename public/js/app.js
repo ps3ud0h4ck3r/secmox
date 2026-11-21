@@ -3,6 +3,7 @@ import { loadLabs, openLab, setLabHandlers } from './labs.js';
 import { splash } from './splash.js';
 import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
+import { loadReadiness, wireReadiness } from './readiness.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -24,7 +25,7 @@ wirePasswordToggles();
 /* ------------------------------------------------------------- views */
 
 const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView',
-  'scenariosView', 'scenarioView', 'accountView'];
+  'scenariosView', 'scenarioView', 'readinessView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -59,6 +60,9 @@ $('tabsNav').addEventListener('click', (e) => {
   else if (tab.dataset.view === 'scenariosView') {
     show('scenariosView');
     loadScenarios();
+  } else if (tab.dataset.view === 'readinessView') {
+    show('readinessView');
+    loadReadiness();
   } else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();
@@ -85,6 +89,7 @@ setScenarioHandlers({
   },
 });
 wireScenario();
+wireReadiness();
 
 $('backToScenarios').addEventListener('click', () => {
   show('scenariosView');

@@ -416,6 +416,142 @@ app.get('/api/coverage', async (c) => {
   return c.json({ coverage: results ?? [] });
 });
 
+// Readiness: a per-role reading with the gaps named. There is no graded score
+// yet, so this is a mirror of the candidate's own practice and self-marks, not
+// an external verdict, and the client says so. "Hold" is the headline: of every
+// question in the role, a got-it counts 1, a shaky a half, a missed or an
+// unseen nothing, so a role is only as ready as the share you can actually hold
+// cold. Depth, scenarios and labs refine it, and the weak topics are the part
+// the candidate can act on.
+const RATING_WEIGHT = { got_it: 1, shaky: 0.5, missed: 0 };
+
+function readinessBand(hold, seen) {
+  if (!seen) return 'untouched';
+  if (hold < 25) return 'cold';
+  if (hold < 50) return 'shaky';
+  if (hold < 72) return 'building';
+  if (hold < 88) return 'close';
+  return 'ready';
+}
+
+app.get('/api/readiness', async (c) => {
+  const user = c.get('user');
+  const { level } = filters(c);
+  const lv = level || null;
+
+  const qWhere = lv ? 'WHERE q.level = ?' : '';
+  const questionRows = await c.env.DB.prepare(
+    `WITH latest AS (
+       SELECT question_id, self_rating, depth_reached, created_at,
+              ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY created_at DESC, id DESC) AS rn
+         FROM attempts WHERE user_id = ?
+     )
+     SELECT q.role, q.topic, q.id AS qid,
+            (SELECT COUNT(*) FROM follow_ups f WHERE f.question_id = q.id) AS fu,
+            l.self_rating, l.depth_reached, l.created_at AS last_at
+       FROM questions q
+       LEFT JOIN latest l ON l.question_id = q.id AND l.rn = 1
+      ${qWhere}`,
+  )
+    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .all();
+
+  const scenarioRows = await c.env.DB.prepare(
+    `SELECT s.role,
+            COUNT(DISTINCT s.id) AS total,
+            COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN s.id END) AS done
+       FROM scenarios s
+       LEFT JOIN scenario_attempts a ON a.scenario_id = s.id AND a.user_id = ?
+      ${lv ? 'WHERE s.level = ?' : ''}
+      GROUP BY s.role`,
+  )
+    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .all();
+
+  const labRows = await c.env.DB.prepare(
+    `SELECT l.role,
+            COUNT(DISTINCT l.id) AS total,
+            COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN l.id END) AS done
+       FROM labs l
+       LEFT JOIN lab_attempts a ON a.lab_id = l.id AND a.user_id = ?
+      ${lv ? 'WHERE l.level = ?' : ''}
+      GROUP BY l.role`,
+  )
+    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .all();
+
+  const scByRole = new Map((scenarioRows.results ?? []).map((r) => [r.role, r]));
+  const labByRole = new Map((labRows.results ?? []).map((r) => [r.role, r]));
+
+  const roles = new Map();
+  for (const row of questionRows.results ?? []) {
+    if (!roles.has(row.role)) {
+      roles.set(row.role, { role: row.role, rows: [], topics: new Map() });
+    }
+    const bucket = roles.get(row.role);
+    bucket.rows.push(row);
+    if (!bucket.topics.has(row.topic)) {
+      bucket.topics.set(row.topic, { topic: row.topic, total: 0, points: 0 });
+    }
+    const t = bucket.topics.get(row.topic);
+    t.total += 1;
+    t.points += RATING_WEIGHT[row.self_rating] ?? 0;
+  }
+
+  const readiness = [...roles.values()]
+    .map((bucket) => {
+      const total = bucket.rows.length;
+      let points = 0;
+      let seen = 0;
+      const counts = { got_it: 0, shaky: 0, missed: 0 };
+      let depthReached = 0;
+      let depthAvailable = 0;
+      let lastAt = null;
+
+      for (const row of bucket.rows) {
+        if (row.self_rating) {
+          seen += 1;
+          counts[row.self_rating] = (counts[row.self_rating] ?? 0) + 1;
+          points += RATING_WEIGHT[row.self_rating] ?? 0;
+          if (row.fu > 0) {
+            depthAvailable += row.fu;
+            depthReached += Math.min(row.depth_reached ?? 0, row.fu);
+          }
+          if (row.last_at && (!lastAt || row.last_at > lastAt)) lastAt = row.last_at;
+        }
+      }
+
+      const hold = total ? Math.round((points / total) * 100) : 0;
+      const sc = scByRole.get(bucket.role);
+      const lab = labByRole.get(bucket.role);
+
+      const weak = [...bucket.topics.values()]
+        .map((t) => ({ topic: t.topic, hold: t.total ? Math.round((t.points / t.total) * 100) : 0 }))
+        .sort((a, b) => a.hold - b.hold)
+        .slice(0, 3);
+
+      return {
+        role: bucket.role,
+        total,
+        seen,
+        unseen: total - seen,
+        got_it: counts.got_it,
+        shaky: counts.shaky,
+        missed: counts.missed,
+        hold,
+        band: readinessBand(hold, seen),
+        depth_pct: depthAvailable ? Math.round((depthReached / depthAvailable) * 100) : null,
+        scenarios: { total: sc?.total ?? 0, done: sc?.done ?? 0 },
+        labs: { total: lab?.total ?? 0, done: lab?.done ?? 0 },
+        weak_topics: weak,
+        last_practiced: lastAt,
+      };
+    })
+    .sort((a, b) => a.hold - b.hold);
+
+  return c.json({ readiness });
+});
+
 /* ----------------------------------------------------------------- labs */
 
 const ARTIFACT_KINDS = new Set(['log', 'table']);
