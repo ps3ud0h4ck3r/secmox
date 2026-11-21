@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecMox console</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/secmox.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="/app/" aria-label="SecMox practice">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
+      <span class="wordmark">SecMox</span>
+      <span class="pill-tag">console</span></a>
+    <div class="head-actions">
+      <span class="whoami" id="whoEmail"></span>
+      <span class="pill-tag" id="whoRole"></span>
+    </div>
+  </div>
+</header>
+
+<nav class="wrap tabs-nav" aria-label="Sections">
+  <a class="tab" href="/app/">Practice</a>
+  <a class="tab" href="/admin/" id="toAdmin" hidden>Content</a>
+  <a class="tab" href="/console/" aria-current="page">Console</a>
+</nav>
+
+<main class="wrap">
+
+  <section id="denied" class="view" hidden>
+    <h1>Not your area</h1>
+    <p class="sub">The console is for platform accounts. If that should be you, sign in with the right account.</p>
+    <a class="inf" href="/app/">Go to practice</a>
+  </section>
+
+  <section id="main" class="view" hidden>
+    <h1>Platform console</h1>
+    <p class="sub" id="consoleSub">Everything, across everyone. This sits above the per-company world.</p>
+
+    <div class="stats" id="overview"></div>
+
+    <div class="editor">
+      <div class="console-head">
+        <h2>Everyone on the platform</h2>
+        <input id="userSearch" type="search" placeholder="Search by email" autocomplete="off">
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Email</th><th>Platform</th><th>Track</th><th>Questions</th><th>Scenarios</th><th>Labs</th><th>Last seen</th><th>Joined</th></tr>
+          </thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="userMsg"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-row">
+    <span>Platform console. Actions here reach every account and every company.</span>
+    <a href="/app/">Back to practice</a>
+  </div>
+</footer>
+
+<script type="module" src="/js/console.js"></script>
+</body>
+</html>

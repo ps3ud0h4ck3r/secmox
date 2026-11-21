@@ -266,3 +266,16 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .b-cold .rs-num,.b-none .rs-num{color:var(--dim)}
 .b-cold .ready-band,.b-none .ready-band{color:var(--faint)}
 .b-cold .ready-fill,.b-none .ready-fill{background:var(--faint)}
+
+/* ------------------------------------------------------------ console */
+
+.console-head{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;margin-bottom:14px}
+.console-head h2{margin:0}
+.console-head input[type="search"]{width:240px;max-width:100%}
+
+/* platform-role badges: owner is the loud one, the rest are quieter. All clear
+   AA on the panel the pill sits on. */
+.pill-tag.plat-owner{color:var(--neon-hi);border-color:rgba(127,211,255,.5)}
+.pill-tag.plat-developer{color:#FFC24D;border-color:rgba(255,194,77,.45)}
+.pill-tag.plat-business{color:#8FE3A2;border-color:rgba(143,227,162,.45)}

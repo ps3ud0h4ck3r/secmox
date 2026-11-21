@@ -73,6 +73,17 @@ app.use('/api/admin/*', async (c, next) => {
   return next();
 });
 
+// The platform console. Any platform role reaches it; what each can do inside is
+// gated per route. While impersonating, the effective platform_role is the
+// target's (usually none), so the console closes until you exit view-as, which
+// is the right behaviour: managing the platform is not something you do wearing
+// someone else's face.
+const PLATFORM_ROLES = new Set(['owner', 'developer', 'business']);
+app.use('/api/console/*', async (c, next) => {
+  if (!PLATFORM_ROLES.has(c.get('user')?.platform_role)) return fail(c, 403, 'Not your area.');
+  return next();
+});
+
 function signIn(c, token) {
   c.header('Set-Cookie', sessionCookie(token, SESSION_DAYS * 86400));
 }
@@ -1107,6 +1118,44 @@ app.get('/api/admin/stats', async (c) => {
             (SELECT COUNT(*) FROM scenario_attempts) AS scenario_attempts`,
   ).first();
   return c.json({ stats: row, mail: mailConfigured(c.env) });
+});
+
+/* --------------------------------------------------------------- console */
+
+// Platform-wide numbers. Everything, across everyone, because the console sits
+// above the per-company world.
+app.get('/api/console/overview', async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM users)                               AS users,
+            (SELECT COUNT(*) FROM users WHERE platform_role='owner')     AS owners,
+            (SELECT COUNT(*) FROM users WHERE platform_role='developer') AS developers,
+            (SELECT COUNT(*) FROM users WHERE platform_role='business')  AS business,
+            (SELECT COUNT(*) FROM users WHERE platform_role IS NULL)     AS plain,
+            (SELECT COUNT(*) FROM attempts)          AS attempts,
+            (SELECT COUNT(*) FROM scenario_attempts) AS scenario_attempts,
+            (SELECT COUNT(*) FROM lab_attempts)      AS lab_attempts,
+            (SELECT COUNT(*) FROM questions)         AS questions,
+            (SELECT COUNT(*) FROM labs)              AS labs,
+            (SELECT COUNT(*) FROM scenarios)         AS scenarios`,
+  ).first();
+  return c.json({ overview: row });
+});
+
+// Every account on the platform, newest first, with how much each has done.
+app.get('/api/console/users', async (c) => {
+  const q = (c.req.query('q') || '').trim().toLowerCase();
+  const base = `SELECT u.id, u.email, u.track, u.platform_role, u.created_at,
+            (SELECT COUNT(*) FROM attempts a WHERE a.user_id = u.id)          AS attempts,
+            (SELECT COUNT(*) FROM scenario_attempts s WHERE s.user_id = u.id) AS scenarios,
+            (SELECT COUNT(*) FROM lab_attempts l WHERE l.user_id = u.id)      AS labs,
+            (SELECT MAX(a.created_at) FROM attempts a WHERE a.user_id = u.id) AS last_seen
+       FROM users u`;
+  const sql = q
+    ? `${base} WHERE lower(u.email) LIKE ? ORDER BY u.created_at DESC LIMIT 200`
+    : `${base} ORDER BY u.created_at DESC LIMIT 200`;
+  const stmt = q ? c.env.DB.prepare(sql).bind(`%${q}%`) : c.env.DB.prepare(sql);
+  const rows = await stmt.all();
+  return c.json({ users: rows.results ?? [], capped: (rows.results?.length ?? 0) >= 200 });
 });
 
 /* --------------------------------------------------------------- static */
