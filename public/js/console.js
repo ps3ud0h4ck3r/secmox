@@ -66,6 +66,41 @@ function roleCell(role) {
 }
 
 let searchTimer = null;
+let canEditRoles = false;
+
+// Owner-only: a dropdown that grants or revokes a platform role on the spot. A
+// refused change (the last-owner guard) snaps back and says why.
+function roleEditCell(u) {
+  const td = document.createElement('td');
+  const sel = document.createElement('select');
+  sel.className = 'role-set';
+  for (const [value, label] of [['', 'User'], ['business', 'Business'], ['developer', 'Developer'], ['owner', 'Owner']]) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if ((u.platform_role || '') === value) opt.selected = true;
+    sel.append(opt);
+  }
+  const was = u.platform_role || '';
+  sel.addEventListener('change', async () => {
+    sel.disabled = true;
+    try {
+      await api(`/api/console/users/${u.id}/role`, {
+        method: 'POST',
+        body: JSON.stringify({ platform_role: sel.value }),
+      });
+      u.platform_role = sel.value || null;
+      say($('userMsg'), `${u.email} is now ${sel.value || 'a plain user'}.`, 'ok');
+      await Promise.all([loadOverview(), loadUsers()]);
+    } catch (err) {
+      sel.value = was;
+      say($('userMsg'), err.message, 'err');
+    }
+    sel.disabled = false;
+  });
+  td.append(sel);
+  return td;
+}
 
 async function loadUsers() {
   const q = $('userSearch').value.trim();
@@ -83,12 +118,13 @@ async function loadUsers() {
         cell(since(u.last_seen), 'meta'),
         cell(since(u.created_at), 'meta'),
       );
+      if (canEditRoles) tr.append(roleEditCell(u));
       return tr;
     });
     if (!rows.length) {
       const tr = document.createElement('tr');
       const td = cell(q ? 'No account matches that.' : 'No accounts yet.', 'none');
-      td.colSpan = 8;
+      td.colSpan = canEditRoles ? 9 : 8;
       tr.append(td);
       $('userRows').replaceChildren(tr);
     } else {
@@ -116,6 +152,8 @@ $('userSearch').addEventListener('input', () => {
     $('whoEmail').textContent = me.user.email;
     $('whoRole').textContent = role;
     $('toAdmin').hidden = !me.user.is_admin;
+    canEditRoles = role === 'owner';
+    if (canEditRoles) $('actCol').hidden = false;
     if (role === 'business') {
       $('consoleSub').textContent = 'Usage across the platform, for selling and onboarding.';
     }

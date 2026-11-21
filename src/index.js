@@ -1158,6 +1158,44 @@ app.get('/api/console/users', async (c) => {
   return c.json({ users: rows.results ?? [], capped: (rows.results?.length ?? 0) >= 200 });
 });
 
+// Grant or revoke a platform role. Owner only: a developer must not be able to
+// mint owners or hand itself more power. An empty role drops the account back to
+// a plain user. The last owner cannot be demoted, so no one can lock everyone
+// out of god mode, themselves included.
+const ASSIGNABLE = new Set(['owner', 'developer', 'business']);
+
+app.post('/api/console/users/:id/role', async (c) => {
+  if (c.get('user').platform_role !== 'owner') {
+    return fail(c, 403, 'Only the owner can change platform roles.');
+  }
+  const body = await c.req.json().catch(() => null);
+  const raw = (body?.platform_role ?? '').toString();
+  const role = raw === '' ? null : raw;
+  if (role !== null && !ASSIGNABLE.has(role)) return fail(c, 400, 'Unknown platform role.');
+
+  const target = await c.env.DB.prepare('SELECT id, platform_role FROM users WHERE id = ?')
+    .bind(c.req.param('id'))
+    .first();
+  if (!target) return fail(c, 404, 'No such account.');
+
+  if (target.platform_role === 'owner' && role !== 'owner') {
+    const owners = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM users WHERE platform_role = 'owner'",
+    ).first();
+    if ((owners?.n ?? 0) <= 1) {
+      return fail(c, 409, 'That is the last owner. Make someone else an owner first.');
+    }
+  }
+
+  // is_admin is vestigial but kept honest: owner and developer are content
+  // admins, everyone else is not.
+  await c.env.DB.prepare('UPDATE users SET platform_role = ?, is_admin = ? WHERE id = ?')
+    .bind(role, isContentAdmin(role) ? 1 : 0, target.id)
+    .run();
+
+  return c.json({ ok: true, id: target.id, platform_role: role });
+});
+
 /* --------------------------------------------------------------- static */
 
 app.all('/api/*', (c) => fail(c, 404, 'No such endpoint.'));
