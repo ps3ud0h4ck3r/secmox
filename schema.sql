@@ -119,3 +119,46 @@ CREATE TABLE IF NOT EXISTS lab_attempts (
 );
 CREATE INDEX IF NOT EXISTS idx_lab_attempts_user ON lab_attempts(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_lab_attempts_user_lab ON lab_attempts(user_id, lab_id);
+
+-- Scenario writing. A scenario has no artifact to open: it is a situation and
+-- a brief, the candidate writes their handling end to end, and then scores
+-- what they wrote against the points a panel would look for. The model answer
+-- and the point details are never sent until they have submitted, so the
+-- reveal cannot be read ahead of time from the network tab.
+CREATE TABLE IF NOT EXISTS scenarios (
+  id           TEXT PRIMARY KEY,
+  role         TEXT NOT NULL,
+  level        TEXT NOT NULL,
+  title        TEXT NOT NULL,
+  situation    TEXT NOT NULL,
+  ask          TEXT NOT NULL,
+  minutes      INTEGER NOT NULL DEFAULT 20,
+  model_answer TEXT NOT NULL,
+  is_free      INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS scenario_points (
+  id          TEXT PRIMARY KEY,
+  scenario_id TEXT NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
+  ord         INTEGER NOT NULL,
+  label       TEXT NOT NULL,
+  detail      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scenario_points_scenario ON scenario_points(scenario_id, ord);
+
+CREATE TABLE IF NOT EXISTS scenario_attempts (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scenario_id TEXT NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
+  response    TEXT NOT NULL,
+  covered     INTEGER NOT NULL DEFAULT 0,
+  out_of      INTEGER NOT NULL,
+  -- which points they ticked, so a later coverage view can show what keeps
+  -- getting missed rather than only how many
+  covered_ids TEXT NOT NULL DEFAULT '[]',
+  scored_at   TEXT,
+  minutes     INTEGER,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scenario_attempts_user ON scenario_attempts(user_id, created_at);

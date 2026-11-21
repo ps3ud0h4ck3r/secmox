@@ -216,8 +216,12 @@ async function load() {
     ['Questions', stats.stats.questions],
     ['Follow-ups', stats.stats.follow_ups],
     ['Labs', stats.stats.labs],
+    ['Scenarios', stats.stats.scenarios],
     ['Accounts', stats.stats.users],
-    ['Attempts', stats.stats.attempts + stats.stats.lab_attempts],
+    [
+      'Attempts',
+      stats.stats.attempts + stats.stats.lab_attempts + stats.stats.scenario_attempts,
+    ],
   ].map(([k, v]) => {
     const el = document.createElement('div');
     el.className = 'stat';

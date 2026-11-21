@@ -1,6 +1,8 @@
 import { $, api, say, wirePasswordToggles, ROLE_LABEL } from './common.js';
 import { loadLabs, openLab, setLabHandlers } from './labs.js';
 import { splash } from './splash.js';
+import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
+  from './scenarios.js';
 
 const state = { user: null, question: null, followUps: [], shown: 0, revealed: false, mode: 'in' };
 let resetToken = null;
@@ -9,7 +11,8 @@ wirePasswordToggles();
 
 /* ------------------------------------------------------------- views */
 
-const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView', 'accountView'];
+const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView',
+  'scenariosView', 'scenarioView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -28,7 +31,8 @@ function show(view) {
   $('headActions').hidden = !chromeOn;
   $('tabsNav').hidden = !chromeOn;
   $('topHead').hidden = chromeOn;
-  const marked = view === 'labView' ? 'labsView' : view;
+  const marked =
+    view === 'labView' ? 'labsView' : view === 'scenarioView' ? 'scenariosView' : view;
   for (const tab of $('tabsNav').querySelectorAll('[data-view]')) {
     if (tab.dataset.view === marked) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
@@ -40,7 +44,10 @@ $('tabsNav').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-view]');
   if (!tab) return;
   if (tab.dataset.view === 'accountView') openAccount();
-  else if (tab.dataset.view === 'labsView') {
+  else if (tab.dataset.view === 'scenariosView') {
+    show('scenariosView');
+    loadScenarios();
+  } else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();
   } else startPractice();
@@ -53,6 +60,24 @@ async function startPractice() {
   show('practiceView');
   await splash({ work: loadQuestion(), quick: true, note: 'opening the practical' });
 }
+
+setScenarioHandlers({
+  openScenario: async (id) => {
+    await splash({
+      quick: true,
+      note: 'opening the scenario',
+      work: (async () => {
+        if (await openScenario(id)) show('scenarioView');
+      })(),
+    });
+  },
+});
+wireScenario();
+
+$('backToScenarios').addEventListener('click', () => {
+  show('scenariosView');
+  loadScenarios();
+});
 
 setLabHandlers({
   needsAuth,

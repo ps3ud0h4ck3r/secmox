@@ -489,6 +489,111 @@ app.post('/api/lab-attempts', async (c) => {
   return c.json({ ok: true }, 201);
 });
 
+/* ----------------------------------------------------------- scenarios */
+
+app.get('/api/scenarios', async (c) => {
+  const user = c.get('user');
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.id, s.title, s.role, s.level, s.minutes, s.is_free,
+            (SELECT COUNT(*) FROM scenario_points p WHERE p.scenario_id = s.id) AS points,
+            (SELECT COUNT(*) FROM scenario_attempts a
+              WHERE a.scenario_id = s.id AND a.user_id = ?) AS done
+       FROM scenarios s ORDER BY s.level, s.role, s.title`,
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ scenarios: results ?? [] });
+});
+
+// The brief, and the point labels only. The model answer and what each point
+// is really asking for stay on the server until something has been written,
+// otherwise the reveal is one network tab away and the exercise is pointless.
+app.get('/api/scenarios/:id', async (c) => {
+  const id = c.req.param('id');
+  const scenario = await c.env.DB.prepare(
+    'SELECT id, title, role, level, situation, ask, minutes FROM scenarios WHERE id = ?',
+  )
+    .bind(id)
+    .first();
+  if (!scenario) return fail(c, 404, 'No such scenario.');
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT id, ord, label FROM scenario_points WHERE scenario_id = ? ORDER BY ord',
+  )
+    .bind(id)
+    .all();
+  return c.json({ scenario, points: results ?? [] });
+});
+
+// Writing is what unlocks the answer. The response is saved first and the
+// reveal comes back in the same call, so there is no way to read it without
+// having committed to something.
+app.post('/api/scenario-attempts', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  if (!body) return fail(c, 400, 'Send JSON.');
+
+  const response = String(body.response ?? '').trim().slice(0, 20000);
+  if (response.length < 40) return fail(c, 400, 'Write your answer before revealing the rubric.');
+
+  const scenario = await c.env.DB.prepare(
+    'SELECT id, model_answer FROM scenarios WHERE id = ?',
+  )
+    .bind(body.scenario_id)
+    .first();
+  if (!scenario) return fail(c, 404, 'No such scenario.');
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT id, ord, label, detail FROM scenario_points WHERE scenario_id = ? ORDER BY ord',
+  )
+    .bind(scenario.id)
+    .all();
+  const points = results ?? [];
+
+  const minutes = Number.isFinite(body.minutes) ? Math.max(0, Math.round(body.minutes)) : null;
+  const attemptId = newId('sat');
+  await c.env.DB.prepare(
+    `INSERT INTO scenario_attempts (id, user_id, scenario_id, response, out_of, minutes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(attemptId, user.id, scenario.id, response, points.length, minutes, nowIso())
+    .run();
+
+  return c.json({ attempt_id: attemptId, model_answer: scenario.model_answer, points }, 201);
+});
+
+app.post('/api/scenario-attempts/:id/score', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => null);
+  if (!body) return fail(c, 400, 'Send JSON.');
+
+  const attempt = await c.env.DB.prepare(
+    'SELECT id, scenario_id, out_of FROM scenario_attempts WHERE id = ? AND user_id = ?',
+  )
+    .bind(id, user.id)
+    .first();
+  if (!attempt) return fail(c, 404, 'No such attempt.');
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT id FROM scenario_points WHERE scenario_id = ?',
+  )
+    .bind(attempt.scenario_id)
+    .all();
+  const valid = new Set((results ?? []).map((r) => r.id));
+  const ticked = Array.isArray(body.covered_ids)
+    ? [...new Set(body.covered_ids.map(String))].filter((pid) => valid.has(pid))
+    : [];
+
+  await c.env.DB.prepare(
+    'UPDATE scenario_attempts SET covered = ?, covered_ids = ?, scored_at = ? WHERE id = ?',
+  )
+    .bind(ticked.length, JSON.stringify(ticked), nowIso(), attempt.id)
+    .run();
+
+  return c.json({ ok: true, covered: ticked.length, out_of: attempt.out_of });
+});
+
 /* ---------------------------------------------------------------- admin */
 
 app.get('/api/admin/questions', async (c) => {
@@ -693,7 +798,9 @@ app.get('/api/admin/stats', async (c) => {
             (SELECT COUNT(*) FROM follow_ups)   AS follow_ups,
             (SELECT COUNT(*) FROM attempts)     AS attempts,
             (SELECT COUNT(*) FROM labs)         AS labs,
-            (SELECT COUNT(*) FROM lab_attempts) AS lab_attempts`,
+            (SELECT COUNT(*) FROM lab_attempts) AS lab_attempts,
+            (SELECT COUNT(*) FROM scenarios)         AS scenarios,
+            (SELECT COUNT(*) FROM scenario_attempts) AS scenario_attempts`,
   ).first();
   return c.json({ stats: row, mail: mailConfigured(c.env) });
 });

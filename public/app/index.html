@@ -36,6 +36,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Practice</button>
     <button class="side-link" type="button" data-view="labsView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>Labs</button>
+    <button class="side-link" type="button" data-view="scenariosView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg>Scenarios</button>
     <button class="side-link" type="button" data-view="accountView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</button>
     <a class="side-link" href="/admin/" id="tabAdmin" hidden>
@@ -212,6 +214,56 @@
     <p class="sub">A real artifact and the questions somebody would ask you about it. Read the evidence first; the answers are behind a button for a reason.</p>
     <div class="lab-list" id="labList"></div>
     <p class="msg" id="labsMsg"></p>
+  </section>
+
+  <!-- --------------------------------------------------- scenarios -->
+  <section id="scenariosView" class="view" hidden>
+    <p class="kicker">&gt; scenarios</p>
+    <h1>Scenario writing</h1>
+    <p class="sub">A situation and a blank box. Write how you would handle it end to end, then score what you wrote against the points a panel listens for.</p>
+    <div class="lab-list" id="scList"></div>
+    <p class="msg" id="scListMsg"></p>
+  </section>
+
+  <!-- --------------------------------------------------- one scenario -->
+  <section id="scenarioView" class="view" hidden>
+    <button class="tab" type="button" id="backToScenarios">Back to all scenarios</button>
+    <div class="lab-head">
+      <h1 id="scTitle">Scenario</h1>
+      <span class="pill-tag" id="scMeta"></span>
+    </div>
+
+    <div class="sc-brief">
+      <h2 class="sc-h">The situation</h2>
+      <p id="scSituation"></p>
+      <h2 class="sc-h">What you have to produce</h2>
+      <p id="scAsk"></p>
+    </div>
+
+    <div id="scWriting">
+      <div class="sc-bar">
+        <span class="sc-count" id="scCount">0 words</span>
+        <span class="sc-clock" id="scClock"></span>
+      </div>
+      <label class="sc-label" for="scResponse">Your answer</label>
+      <textarea id="scResponse" rows="16" spellcheck="true"
+        placeholder="Write it the way you would say it in the room."></textarea>
+      <p class="sc-points-note" id="scPointsNote"></p>
+      <button class="btn" type="button" id="scSubmit">Done, show me the rubric</button>
+      <p class="msg" id="scMsg"></p>
+    </div>
+
+    <div id="scReview" hidden>
+      <div class="sc-score" id="scScore"></div>
+      <h2 class="sc-h">Tick what you actually covered</h2>
+      <p class="sub">Be honest with yourself here. Half credit for nearly saying it is how people walk into a round believing they are ready.</p>
+      <div class="sc-rubric" id="scRubric"></div>
+      <h2 class="sc-h">What a strong answer covers</h2>
+      <div class="sc-model" id="scModel"></div>
+      <h2 class="sc-h">What you wrote</h2>
+      <div class="sc-yours" id="scYours"></div>
+      <p class="msg" id="scReviewMsg"></p>
+    </div>
   </section>
 
   <!-- --------------------------------------------------- one lab -->
