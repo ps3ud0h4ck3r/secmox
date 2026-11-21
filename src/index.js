@@ -301,7 +301,17 @@ app.post('/api/account/delete', async (c) => {
   return c.json({ ok: true });
 });
 
-app.get('/api/me', (c) => c.json({ user: c.get('user') }));
+app.get('/api/me', async (c) => {
+  const user = c.get('user');
+  const { results } = await c.env.DB.prepare(
+    `SELECT m.org_id, m.role, o.name, o.slug
+       FROM org_members m JOIN orgs o ON o.id = m.org_id
+      WHERE m.user_id = ? ORDER BY o.name`,
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ user: { ...user, orgs: results ?? [] } });
+});
 
 // Everything the account holds, in one file. Their data, on request.
 app.get('/api/account/export', async (c) => {
@@ -1217,6 +1227,74 @@ app.post('/api/console/users/:id/role', async (c) => {
     .run();
 
   return c.json({ ok: true, id: target.id, platform_role: role });
+});
+
+/* --------------------------------------------------------- companies */
+
+const ORG_ROLES = new Set(['org_admin', 'trainer', 'learner']);
+
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'company';
+}
+
+// Owner only for now: creating and staffing real companies is owner-level work.
+// Developer sandboxes and business demos slot in here later with their own
+// guards.
+app.get('/api/console/orgs', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner manages companies.');
+  const rows = await c.env.DB.prepare(
+    `SELECT o.id, o.name, o.slug, o.plan, o.status, o.is_sandbox, o.created_at,
+            (SELECT COUNT(*) FROM org_members m WHERE m.org_id = o.id) AS members
+       FROM orgs o ORDER BY o.created_at DESC`,
+  ).all();
+  return c.json({ orgs: rows.results ?? [] });
+});
+
+app.post('/api/console/orgs', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner manages companies.');
+  const body = await c.req.json().catch(() => null);
+  const name = (body?.name ?? '').toString().trim();
+  if (name.length < 2) return fail(c, 400, 'Give the company a name.');
+
+  let slug = slugify(name);
+  const clash = await c.env.DB.prepare('SELECT 1 FROM orgs WHERE slug = ?').bind(slug).first();
+  if (clash) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const id = newId('org');
+  await c.env.DB.prepare(
+    'INSERT INTO orgs (id, name, slug, is_sandbox, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
+    .bind(id, name, slug, body?.is_sandbox ? 1 : 0, nowIso())
+    .run();
+  return c.json({ ok: true, id, slug });
+});
+
+// Bootstrap a company's first admin (or add any member) by email. The account
+// must already exist; invites handle people who do not yet.
+app.post('/api/console/orgs/:id/members', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner manages companies.');
+  const body = await c.req.json().catch(() => null);
+  const email = normalizeEmail(body?.email);
+  const role = (body?.role ?? '').toString();
+  if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
+  if (!ORG_ROLES.has(role)) return fail(c, 400, 'Pick a company role.');
+
+  const org = await c.env.DB.prepare('SELECT id FROM orgs WHERE id = ?').bind(c.req.param('id')).first();
+  if (!org) return fail(c, 404, 'No such company.');
+  const user = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  if (!user) return fail(c, 404, 'No account with that email. Invite them instead.');
+
+  await c.env.DB.prepare(
+    `INSERT INTO org_members (org_id, user_id, role, created_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(org_id, user_id) DO UPDATE SET role = excluded.role`,
+  )
+    .bind(org.id, user.id, role, nowIso())
+    .run();
+  return c.json({ ok: true });
 });
 
 // The view-as trail. The owner sees every impersonation ever; a developer or

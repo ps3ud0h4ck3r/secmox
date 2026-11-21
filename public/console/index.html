@@ -46,6 +46,45 @@
 
     <div class="stats" id="overview"></div>
 
+    <div class="editor" id="orgSection" hidden>
+      <div class="console-head">
+        <h2>Companies</h2>
+        <span class="cta-note">A company is a tenant. Its people and private content stay inside it.</span>
+      </div>
+
+      <form id="orgForm" class="org-create" novalidate>
+        <input id="orgName" placeholder="Company name, e.g. Craw Security" autocomplete="off" required>
+        <label class="check-row" for="orgSandbox"><input type="checkbox" id="orgSandbox"><span>Sandbox</span></label>
+        <button class="inf" type="submit" id="orgCreate">Create company</button>
+      </form>
+      <p class="msg" id="orgMsg"></p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Slug</th><th>Members</th><th>Kind</th><th>Created</th></tr>
+          </thead>
+          <tbody id="orgRows"></tbody>
+        </table>
+      </div>
+
+      <div class="org-addmember">
+        <h3>Add a member</h3>
+        <form id="memberForm" class="org-create" novalidate>
+          <select id="memberOrg"></select>
+          <input id="memberEmail" type="email" placeholder="their@email.com" autocomplete="off" required>
+          <select id="memberRole">
+            <option value="org_admin">Company admin</option>
+            <option value="trainer">Trainer</option>
+            <option value="learner">Learner</option>
+          </select>
+          <button class="inf ghost" type="submit" id="memberAdd">Add</button>
+        </form>
+        <p class="cta-note">The account must already exist. People who do not yet have one come in through invites, next.</p>
+        <p class="msg" id="memberMsg"></p>
+      </div>
+    </div>
+
     <div class="editor">
       <div class="console-head">
         <h2>Everyone on the platform</h2>

@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS questions (
   level        TEXT NOT NULL,
   prompt       TEXT NOT NULL,
   model_answer TEXT NOT NULL,
+  org_id       TEXT,
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_questions_role_level ON questions(role, level);
@@ -89,6 +90,7 @@ CREATE TABLE IF NOT EXISTS labs (
   artifact_kind TEXT NOT NULL,          -- log | table
   artifact_name TEXT NOT NULL,
   is_free       INTEGER NOT NULL DEFAULT 0,
+  org_id        TEXT,
   created_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_labs_role_level ON labs(role, level);
@@ -137,6 +139,7 @@ CREATE TABLE IF NOT EXISTS scenarios (
   minutes      INTEGER NOT NULL DEFAULT 20,
   model_answer TEXT NOT NULL,
   is_free      INTEGER NOT NULL DEFAULT 0,
+  org_id       TEXT,
   created_at   TEXT NOT NULL
 );
 
@@ -198,3 +201,52 @@ CREATE TABLE IF NOT EXISTS impersonation_log (
   ended_at   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_imp_actor ON impersonation_log(actor_id, started_at);
+
+-- Tenancy. A company is one orgs row; everything that belongs to it carries its
+-- org_id, and every company-scoped query filters by the asker's org so one
+-- company never sees another's people or private content. is_sandbox marks a
+-- developer's throwaway company and a demo company, kept out of real metrics.
+CREATE TABLE IF NOT EXISTS orgs (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL UNIQUE,
+  plan        TEXT NOT NULL DEFAULT 'pilot',
+  status      TEXT NOT NULL DEFAULT 'active',
+  is_sandbox  INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL
+);
+
+-- Who is in a company and as what. A person can be in more than one company,
+-- so the key is the pair. Role: org_admin, trainer, learner.
+CREATE TABLE IF NOT EXISTS org_members (
+  org_id     TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  role       TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (org_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON org_members(user_id);
+
+-- Invitations. The client holds a random token; the stored value is its
+-- SHA-256, like sessions and resets. An invite is spent once accepted.
+CREATE TABLE IF NOT EXISTS invites (
+  id          TEXT PRIMARY KEY,
+  org_id      TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL,
+  token_hash  TEXT NOT NULL,
+  expires_at  TEXT NOT NULL,
+  accepted_at TEXT,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invites_org ON invites(org_id, created_at);
+
+-- A company hiding a global item from its own learners. It cannot edit or
+-- delete a global item, only hide it, because that item belongs to everyone.
+CREATE TABLE IF NOT EXISTS org_hidden_content (
+  org_id     TEXT NOT NULL,
+  kind       TEXT NOT NULL,
+  content_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (org_id, kind, content_id)
+);

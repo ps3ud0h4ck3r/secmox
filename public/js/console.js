@@ -176,6 +176,85 @@ $('userSearch').addEventListener('input', () => {
   searchTimer = setTimeout(loadUsers, 250);
 });
 
+// Companies (owner only). Create a tenant, see them all, and bootstrap a member
+// on an existing account. Invites handle people without accounts yet.
+async function loadOrgs() {
+  const { orgs } = await api('/api/console/orgs');
+  const rows = orgs.map((o) => {
+    const tr = document.createElement('tr');
+    tr.append(
+      cell(o.name, 'q'),
+      cell(o.slug, 'meta'),
+      cell(String(o.members), o.members ? 'meta' : 'meta chain-zero'),
+      cell(o.is_sandbox ? 'sandbox' : 'real', 'meta'),
+      cell(since(o.created_at), 'meta'),
+    );
+    return tr;
+  });
+  if (!rows.length) {
+    const tr = document.createElement('tr');
+    const td = cell('No companies yet. Create the first one above.', 'none');
+    td.colSpan = 5;
+    tr.append(td);
+    $('orgRows').replaceChildren(tr);
+  } else {
+    $('orgRows').replaceChildren(...rows);
+  }
+  const sel = $('memberOrg');
+  sel.replaceChildren(
+    ...orgs.map((o) => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.name;
+      return opt;
+    }),
+  );
+}
+
+function wireOrgs() {
+  $('orgForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('orgName').value.trim();
+    if (name.length < 2) return;
+    $('orgCreate').disabled = true;
+    say($('orgMsg'), 'Creating.');
+    try {
+      await api('/api/console/orgs', {
+        method: 'POST',
+        body: JSON.stringify({ name, is_sandbox: $('orgSandbox').checked }),
+      });
+      $('orgName').value = '';
+      $('orgSandbox').checked = false;
+      say($('orgMsg'), `${name} created.`, 'ok');
+      await loadOrgs();
+    } catch (err) {
+      say($('orgMsg'), err.message, 'err');
+    }
+    $('orgCreate').disabled = false;
+  });
+
+  $('memberForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const orgId = $('memberOrg').value;
+    const email = $('memberEmail').value.trim();
+    if (!orgId || !email) return;
+    $('memberAdd').disabled = true;
+    say($('memberMsg'), 'Adding.');
+    try {
+      await api(`/api/console/orgs/${orgId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ email, role: $('memberRole').value }),
+      });
+      $('memberEmail').value = '';
+      say($('memberMsg'), 'Added.', 'ok');
+      await loadOrgs();
+    } catch (err) {
+      say($('memberMsg'), err.message, 'err');
+    }
+    $('memberAdd').disabled = false;
+  });
+}
+
 function duration(startIso, endIso) {
   if (!endIso) return 'open now';
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
@@ -241,7 +320,13 @@ async function loadImpersonations() {
     }
     $('impScope').textContent =
       role === 'owner' ? 'Every view-as on the platform.' : 'Your own view-as sessions.';
-    await Promise.all([loadOverview(), loadUsers(), loadImpersonations()]);
+    const jobs = [loadOverview(), loadUsers(), loadImpersonations()];
+    if (role === 'owner') {
+      $('orgSection').hidden = false;
+      wireOrgs();
+      jobs.push(loadOrgs());
+    }
+    await Promise.all(jobs);
     $('main').hidden = false;
   } catch (err) {
     if (err.status === 401) {

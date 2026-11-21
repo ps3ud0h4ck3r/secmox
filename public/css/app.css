@@ -291,3 +291,11 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
   color:#FFD98A;font-size:14px}
 .imp-banner strong{color:#FFE9BE}
 .imp-banner .inf{border-color:rgba(255,194,77,.5);color:#FFD98A}
+
+/* ---------------------------------------------------------- companies */
+
+.org-create{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 6px}
+.org-create input[type="text"],.org-create input[type="email"],.org-create input:not([type]){flex:1;min-width:200px}
+.org-create select{min-width:150px}
+.org-addmember{margin-top:22px;padding-top:18px;border-top:1px solid rgba(41,182,255,.1)}
+.org-addmember h3{margin:0 0 12px}
