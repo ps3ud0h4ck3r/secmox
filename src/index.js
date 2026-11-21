@@ -374,6 +374,46 @@ app.get('/api/next', async (c) => {
   }
   const clause = where.join(' AND ');
 
+  // Weak-spots drill: only the questions whose latest rating was missed or
+  // shaky, worst first, so the candidate grinds exactly what has not stuck.
+  // No fresh or due fallback here; an empty pile means there is nothing to
+  // drill, and the client says so rather than slipping into normal practice.
+  if (c.req.query('focus') === 'weak') {
+    const weak = await c.env.DB.prepare(
+      `WITH latest AS (
+         SELECT question_id, self_rating,
+                ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY created_at DESC, id DESC) AS rn
+           FROM attempts WHERE user_id = ?
+       )
+       SELECT q.id, q.role, q.topic, q.level, q.prompt
+         FROM questions q
+         JOIN latest l ON l.question_id = q.id AND l.rn = 1
+        WHERE l.self_rating IN ('missed', 'shaky')
+          AND ${clause}
+          AND ${vis}
+        ORDER BY CASE l.self_rating WHEN 'missed' THEN 0 ELSE 1 END ASC, RANDOM()
+        LIMIT 1`,
+    )
+      .bind(user.id, ...args, user.id, user.id)
+      .first();
+    if (!weak) return c.json({ question: null, mode: 'weak' });
+    const fu = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM follow_ups WHERE question_id = ?')
+      .bind(weak.id)
+      .first();
+    return c.json({
+      question: {
+        id: weak.id,
+        role: weak.role,
+        topic: weak.topic,
+        level: weak.level,
+        prompt: weak.prompt,
+        follow_up_count: fu?.n ?? 0,
+      },
+      fresh: false,
+      mode: 'weak',
+    });
+  }
+
   let row = await c.env.DB.prepare(
     `SELECT q.id, q.role, q.topic, q.level, q.prompt
        FROM questions q

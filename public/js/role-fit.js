@@ -106,7 +106,7 @@ function chip(text, cls) {
   return s;
 }
 
-function fitRow(entry, gapText, isLead) {
+function fitRow(entry, gapText, isLead, onDrill) {
   const { r, f } = entry;
   const band = BAND[f.band] || BAND.cold;
   const row = document.createElement('article');
@@ -144,12 +144,27 @@ function fitRow(entry, gapText, isLead) {
   gap.textContent = gapText;
 
   row.append(head, bar, chips, gap);
+
+  // You can only drill spots you have actually stumbled on. An untouched or
+  // all-held role has nothing to grind, so no button.
+  const weakCount = (r.missed || 0) + (r.shaky || 0);
+  if (onDrill && weakCount > 0) {
+    const act = document.createElement('div');
+    act.className = 'fit-act';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'inf ghost small';
+    btn.textContent = `Drill these ${weakCount}`;
+    btn.addEventListener('click', () => onDrill(r.role));
+    act.append(btn);
+    row.append(act);
+  }
   return row;
 }
 
 // rows: the /api/readiness array. Fills #roleFit, or hides it when there is
 // nothing to rank yet (the readiness view already prints its own empty note).
-export function renderRoleFit(rows) {
+export function renderRoleFit(rows, onDrill) {
   const host = $('roleFit');
   if (!rows || !rows.length) {
     host.hidden = true;
@@ -171,7 +186,7 @@ export function renderRoleFit(rows) {
 
   const list = document.createElement('div');
   list.className = 'fit-list';
-  list.append(...ranked.map((e, i) => fitRow(e, leadGap(e.r, e.f), i === 0)));
+  list.append(...ranked.map((e, i) => fitRow(e, leadGap(e.r, e.f), i === 0, onDrill)));
 
   host.replaceChildren(head, list);
   host.hidden = false;

@@ -292,6 +292,7 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .fit-conf.c-some{color:#FFC24D;border-color:rgba(255,194,77,.35)}
 .fit-gap{margin:0;font-size:14.5px;color:var(--dim)}
 .fit-gap::before{content:"lift: ";font-family:var(--mono);font-size:12px;color:var(--faint)}
+.fit-act{margin-top:2px}
 .fit-row.b-ready .fit-num,.fit-row.b-ready .fit-band{color:var(--neon-hi)}
 .fit-row.b-ready .fit-fill{background:var(--neon-hi)}
 .fit-row.b-close .fit-num,.fit-row.b-close .fit-band{color:var(--neon)}

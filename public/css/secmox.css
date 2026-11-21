@@ -62,6 +62,8 @@ a:hover{color:var(--neon-hi)}
 
 .inf.ghost{background:rgba(41,182,255,.06);color:var(--text);border-color:rgba(41,182,255,.5);box-shadow:none}
 .inf.ghost:hover{background:rgba(41,182,255,.14);color:#fff;box-shadow:0 0 18px var(--glow-soft)}
+.inf.ghost.toggle[aria-pressed="true"]{background:var(--neon);color:var(--neon-ink);
+  border-color:var(--neon);box-shadow:0 0 22px var(--glow)}
 .inf.pale{background:var(--text);color:var(--neon-ink);border-color:var(--text);box-shadow:0 0 22px rgba(230,238,247,.25)}
 .inf.pale:hover{background:#fff;color:var(--neon-ink)}
 .inf.danger{background:#B8322A;border-color:#E2574C;color:#fff;box-shadow:0 0 18px rgba(255,107,94,.3)}

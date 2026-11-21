@@ -3,7 +3,7 @@ import { loadLabs, openLab, setLabHandlers } from './labs.js';
 import { splash } from './splash.js';
 import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
-import { loadReadiness, wireReadiness } from './readiness.js';
+import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -323,20 +323,29 @@ async function loadQuestion() {
   $('qPrompt').textContent = 'Loading a question.';
   $('qMeta').textContent = 'loading';
 
+  const weak = $('fWeak').getAttribute('aria-pressed') === 'true';
   const params = new URLSearchParams();
   if ($('fRole').value) params.set('role', $('fRole').value);
   if ($('fLevel').value) params.set('level', $('fLevel').value);
+  if (weak) params.set('focus', 'weak');
 
   try {
     const out = await api('/api/next?' + params.toString());
     if (!out.question) {
       state.question = null;
-      $('qMeta').textContent = 'empty';
-      $('qPrompt').textContent =
-        'Nothing here with those filters yet. Widen them, or add questions from the admin page.';
       $('reveal').hidden = true;
+      if (out.mode === 'weak') {
+        $('qMeta').textContent = 'clear';
+        $('qPrompt').textContent =
+          'No weak spots here. Nothing you have faced is sitting on a missed or shaky mark. Turn Weak spots off for fresh questions.';
+      } else {
+        $('qMeta').textContent = 'empty';
+        $('qPrompt').textContent =
+          'Nothing here with those filters yet. Widen them, or add questions from the admin page.';
+      }
       return;
     }
+    $('reveal').hidden = false;
     state.question = out.question;
     const q = out.question;
     $('qMeta').textContent = `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}`;
@@ -344,7 +353,9 @@ async function loadQuestion() {
     $('qDepth').textContent = q.follow_up_count
       ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
       : 'no follow-ups';
-    if (out.mode === 'due') {
+    if (out.mode === 'weak') {
+      say($('qMsg'), 'A weak spot: you marked this missed or shaky last time. Hold it now.');
+    } else if (out.mode === 'due') {
       say($('qMsg'), 'Back on schedule. Enough time has passed to see if it stuck.');
     } else if (out.mode === 'review') {
       say($('qMsg'), 'Nothing new left with these filters, so here is the weakest one to keep warm.');
@@ -483,6 +494,26 @@ $('rateRow').addEventListener('click', async (e) => {
 $('skip').addEventListener('click', loadQuestion);
 $('fRole').addEventListener('change', loadQuestion);
 $('fLevel').addEventListener('change', loadQuestion);
+
+$('fWeak').addEventListener('click', () => {
+  const on = $('fWeak').getAttribute('aria-pressed') === 'true';
+  setWeak(!on);
+  loadQuestion();
+});
+
+function setWeak(on) {
+  $('fWeak').setAttribute('aria-pressed', String(on));
+  $('fWeak').classList.toggle('on', on);
+}
+
+// Deep-link from the readiness role-fit block: drill one role's weak spots.
+async function startDrill(role) {
+  $('fRole').value = role || '';
+  setWeak(true);
+  show('practiceView');
+  await splash({ work: loadQuestion(), quick: true, note: 'opening your weak spots' });
+}
+setReadinessHandlers({ onDrill: startDrill });
 
 async function loadCoverage() {
   try {

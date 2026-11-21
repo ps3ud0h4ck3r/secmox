@@ -1,6 +1,11 @@
 import { $, api, say, ROLE_LABEL } from './common.js';
 import { renderRoleFit } from './role-fit.js';
 
+let onDrill = null;
+export function setReadinessHandlers(handlers) {
+  onDrill = handlers?.onDrill || null;
+}
+
 // The readiness reading. One card per role, weakest first, because the weakest
 // role is the one an interview will find. Everything here is the candidate's own
 // practice reflected back, so the copy never claims more certainty than a
@@ -131,7 +136,7 @@ export async function loadReadiness() {
       say($('readyMsg'), 'Nothing to read yet. Answer a few questions and come back.');
       return;
     }
-    renderRoleFit(rows);
+    renderRoleFit(rows, onDrill);
     list.replaceChildren(...rows.map(card));
   } catch (err) {
     list.textContent = '';
