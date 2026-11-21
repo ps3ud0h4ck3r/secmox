@@ -135,7 +135,23 @@ main > .sec:not(.hero-sec){position:relative;z-index:1}
 .tier li{font-size:15.5px;padding:9px 0;border-top:1px solid var(--line-soft);color:var(--dim)}
 .tier.lead li{color:var(--text)}
 .tier .inf{width:100%}
+.tier.soon{border-style:dashed;border-color:rgba(169,184,201,.3)}
+.tier.soon .price,.tier.soon .per{color:var(--faint)}
+.soon-flag{font-family:var(--mono);font-size:11.5px;color:var(--faint)!important;
+  background:transparent!important;border:1px solid rgba(169,184,201,.4);
+  border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle;letter-spacing:.04em}
+.tier.soon .inf[aria-disabled="true"]{display:inline-flex;justify-content:center;width:100%;
+  cursor:not-allowed;opacity:.5}
 @media(max-width:880px){.tiers{grid-template-columns:1fr}}
+
+/* on the way */
+.soon-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.soon-card{border:1px dashed rgba(169,184,201,.3);border-radius:12px;padding:26px;background:var(--panel)}
+.soon-card h3{font-size:19px;margin:12px 0 10px}
+.soon-card p{color:var(--dim);margin:0;font-size:15.5px}
+.soon-tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--faint);
+  border:1px solid rgba(169,184,201,.4);border-radius:999px;padding:3px 10px}
+@media(max-width:720px){.soon-row{grid-template-columns:1fr}}
 
 /* closing band */
 .band{border:1px solid rgba(41,182,255,.45);border-radius:16px;padding:60px 32px;text-align:center;

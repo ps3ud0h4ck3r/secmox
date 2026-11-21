@@ -45,6 +45,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg>Scenarios</button>
     <button class="side-link" type="button" data-view="readinessView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 9 9"/><path d="M12 7v5l3 2"/></svg>Readiness</button>
+    <button class="side-link" type="button" data-view="mockView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Mock</button>
     <button class="side-link" type="button" data-view="accountView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</button>
     <a class="side-link" href="/org/" id="tabOrg" hidden>
@@ -250,6 +252,30 @@
 
     <div class="ready-list" id="readyList"></div>
     <p class="msg" id="readyMsg"></p>
+  </section>
+
+  <!-- --------------------------------------------------- mock (coming soon) -->
+  <section id="mockView" class="view" hidden>
+    <p class="kicker">&gt; mock</p>
+    <h1>Mock rounds</h1>
+    <p class="sub">The two things we are building next. Neither is live yet, so nothing here runs. We would rather show you the plan than hide an empty button.</p>
+
+    <div class="soon-grid">
+      <article class="soon-box">
+        <span class="soon-tag">Coming soon</span>
+        <h2>AI mock interview</h2>
+        <p>Pick a role and a company pattern, then get grilled for thirty minutes by an interviewer that follows your answers instead of reading a script. At the end, a transcript marking where you went thin and what each question was really testing.</p>
+        <p class="soon-note">Why not yet: it runs on a model for every session, so we are getting the grilling sharp and the cost sane before it goes live.</p>
+      </article>
+      <article class="soon-box">
+        <span class="soon-tag">Coming soon</span>
+        <h2>Live mock round</h2>
+        <p>Forty-five minutes, one-on-one, with someone who has actually sat on the hiring side of the table. Run on a real company's pattern, with a written report in your inbox the next day.</p>
+        <p class="soon-note">Why not yet: a live round is only as good as the interviewer behind it, so this opens when we can staff it properly, not before.</p>
+      </article>
+    </div>
+
+    <p class="sub soon-foot">Until then, the follow-up ladder in Practice is the closest thing: it keeps asking the next question the way a real round would.</p>
   </section>
 
   <!-- --------------------------------------------------- scenarios -->

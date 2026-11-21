@@ -25,7 +25,7 @@ wirePasswordToggles();
 /* ------------------------------------------------------------- views */
 
 const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView',
-  'scenariosView', 'scenarioView', 'readinessView', 'accountView'];
+  'scenariosView', 'scenarioView', 'readinessView', 'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -63,6 +63,8 @@ $('tabsNav').addEventListener('click', (e) => {
   } else if (tab.dataset.view === 'readinessView') {
     show('readinessView');
     loadReadiness();
+  } else if (tab.dataset.view === 'mockView') {
+    show('mockView');
   } else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();

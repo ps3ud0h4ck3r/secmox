@@ -293,6 +293,19 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .fit-gap{margin:0;font-size:14.5px;color:var(--dim)}
 .fit-gap::before{content:"lift: ";font-family:var(--mono);font-size:12px;color:var(--faint)}
 .fit-act{margin-top:2px}
+
+/* -------------------------------------------------- mock (coming soon) */
+
+.soon-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:8px 0 22px}
+.soon-box{border:1px dashed rgba(169,184,201,.3);border-radius:12px;padding:24px;background:var(--panel)}
+.soon-box h2{font-size:20px;margin:12px 0 10px}
+.soon-box p{color:var(--dim);margin:0 0 12px;font-size:15px}
+.soon-tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  color:var(--faint);border:1px solid rgba(169,184,201,.4);border-radius:999px;padding:3px 10px}
+.soon-note{font-size:14px;color:var(--faint)}
+.soon-note::before{content:"note: ";font-family:var(--mono);font-size:12px}
+.soon-foot{margin-top:4px}
+@media(max-width:720px){.soon-grid{grid-template-columns:1fr}}
 .fit-row.b-ready .fit-num,.fit-row.b-ready .fit-band{color:var(--neon-hi)}
 .fit-row.b-ready .fit-fill{background:var(--neon-hi)}
 .fit-row.b-close .fit-num,.fit-row.b-close .fit-band{color:var(--neon)}
