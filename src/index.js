@@ -14,6 +14,7 @@ import {
   passwordProblem,
   readCookie,
   sessionCookie,
+  sha256Hex,
   throttleCheck,
   throttleClear,
   throttleFail,
@@ -171,6 +172,28 @@ app.post('/api/auth/logout', async (c) => {
 app.post('/api/auth/logout-all', async (c) => {
   await destroyAllSessions(c.env.DB, c.get('user').id);
   c.header('Set-Cookie', sessionCookie('', 0));
+  return c.json({ ok: true });
+});
+
+// Exit view-as. This lives outside the /api/console guard on purpose: while
+// impersonating, the effective role is the target's, so a guarded route would
+// refuse the very call that ends the impersonation. It checks the real actor
+// instead, carried alongside the effective user.
+app.post('/api/impersonate/stop', async (c) => {
+  const user = c.get('user');
+  if (!user.impersonating || !user.actor) return c.json({ ok: true });
+  const sid = await sha256Hex(tokenFrom(c));
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE sessions SET impersonating_user_id = NULL WHERE id = ?').bind(sid),
+    c.env.DB
+      .prepare(
+        `UPDATE impersonation_log SET ended_at = ?
+          WHERE id = (SELECT id FROM impersonation_log
+                       WHERE actor_id = ? AND target_id = ? AND ended_at IS NULL
+                       ORDER BY started_at DESC LIMIT 1)`,
+      )
+      .bind(nowIso(), user.actor.id, user.id),
+  ]);
   return c.json({ ok: true });
 });
 
@@ -1194,6 +1217,43 @@ app.post('/api/console/users/:id/role', async (c) => {
     .run();
 
   return c.json({ ok: true, id: target.id, platform_role: role });
+});
+
+// Start view-as. Owner can view anyone; a developer can view only plain users,
+// never a platform account, so impersonation can never be used to climb. The
+// impersonation flag is set on this exact session, not the account, so the
+// actor's other sessions are untouched, and the window is logged open.
+app.post('/api/console/impersonate/:id', async (c) => {
+  const actor = c.get('user');
+  if (actor.impersonating) return fail(c, 409, 'Exit the current view-as first.');
+  if (actor.platform_role !== 'owner' && actor.platform_role !== 'developer') {
+    return fail(c, 403, 'Your role cannot view as other users.');
+  }
+  const targetId = c.req.param('id');
+  if (targetId === actor.id) return fail(c, 400, 'You are already yourself.');
+
+  const target = await c.env.DB.prepare('SELECT id, platform_role FROM users WHERE id = ?')
+    .bind(targetId)
+    .first();
+  if (!target) return fail(c, 404, 'No such account.');
+  if (actor.platform_role === 'developer' && target.platform_role) {
+    return fail(c, 403, 'Developers can view plain users only.');
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 300) : null;
+  const sid = await sha256Hex(tokenFrom(c));
+
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE sessions SET impersonating_user_id = ? WHERE id = ?').bind(target.id, sid),
+    c.env.DB
+      .prepare(
+        `INSERT INTO impersonation_log (id, actor_id, target_id, reason, started_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .bind(newId('imp'), actor.id, target.id, reason, nowIso()),
+  ]);
+  return c.json({ ok: true });
 });
 
 /* --------------------------------------------------------------- static */

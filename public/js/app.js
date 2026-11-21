@@ -91,6 +91,27 @@ setScenarioHandlers({
 wireScenario();
 wireReadiness();
 
+// When a platform account is viewing as someone, a banner stays up the whole
+// time and the only way out is the exit, which clears it server-side and
+// returns to the console. Without this the viewer could forget whose screen
+// they are on.
+function applyImpersonation(user) {
+  if (!user?.impersonating) return;
+  $('impWho').textContent = user.actor?.email ? `${user.email}` : user.email;
+  $('impBanner').hidden = false;
+  document.body.classList.add('is-impersonating');
+}
+
+$('impExit').addEventListener('click', async () => {
+  $('impExit').disabled = true;
+  try {
+    await api('/api/impersonate/stop', { method: 'POST' });
+  } catch (_) {
+    /* fall through to reload regardless; the session flag is what matters */
+  }
+  window.location.href = '/console/';
+});
+
 $('backToScenarios').addEventListener('click', () => {
   show('scenariosView');
   loadScenarios();
@@ -515,6 +536,7 @@ async function loadCoverage() {
   }
 
   state.user = me.user;
+  applyImpersonation(me.user);
   await splash({
     note: 'restoring your session',
     work: (async () => {

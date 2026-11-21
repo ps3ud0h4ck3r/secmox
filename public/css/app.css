@@ -279,3 +279,15 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .pill-tag.plat-owner{color:var(--neon-hi);border-color:rgba(127,211,255,.5)}
 .pill-tag.plat-developer{color:#FFC24D;border-color:rgba(255,194,77,.45)}
 .pill-tag.plat-business{color:#8FE3A2;border-color:rgba(143,227,162,.45)}
+
+/* ---------------------------------------------------- impersonation */
+
+/* A loud, unmissable bar while a platform account is viewing as someone. Amber,
+   not neon, so it reads as a warning state rather than part of the product. It
+   sticks to the top and takes layout space so nothing hides behind it. */
+.imp-banner{position:sticky;top:0;z-index:50;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:10px 20px;background:#2A1E05;border-bottom:1px solid rgba(255,194,77,.5);
+  color:#FFD98A;font-size:14px}
+.imp-banner strong{color:#FFE9BE}
+.imp-banner .inf{border-color:rgba(255,194,77,.5);color:#FFD98A}

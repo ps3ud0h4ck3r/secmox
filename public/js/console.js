@@ -67,11 +67,47 @@ function roleCell(role) {
 
 let searchTimer = null;
 let canEditRoles = false;
+let canImpersonate = false;
+let showActions = false;
+let myId = null;
+let myRole = null;
+
+// A developer may view only plain users; the owner may view anyone but itself.
+function canViewAs(u) {
+  if (!canImpersonate || u.id === myId) return false;
+  if (myRole === 'developer' && u.platform_role) return false;
+  return true;
+}
+
+function actionCell(u) {
+  const td = document.createElement('td');
+  const wrap = document.createElement('div');
+  wrap.className = 'actions';
+  if (canEditRoles) wrap.append(roleSelect(u));
+  if (canViewAs(u)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'inf ghost small';
+    btn.textContent = 'View as';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await api(`/api/console/impersonate/${u.id}`, { method: 'POST', body: JSON.stringify({}) });
+        window.location.href = '/app/';
+      } catch (err) {
+        btn.disabled = false;
+        say($('userMsg'), err.message, 'err');
+      }
+    });
+    wrap.append(btn);
+  }
+  td.append(wrap);
+  return td;
+}
 
 // Owner-only: a dropdown that grants or revokes a platform role on the spot. A
 // refused change (the last-owner guard) snaps back and says why.
-function roleEditCell(u) {
-  const td = document.createElement('td');
+function roleSelect(u) {
   const sel = document.createElement('select');
   sel.className = 'role-set';
   for (const [value, label] of [['', 'User'], ['business', 'Business'], ['developer', 'Developer'], ['owner', 'Owner']]) {
@@ -98,8 +134,7 @@ function roleEditCell(u) {
     }
     sel.disabled = false;
   });
-  td.append(sel);
-  return td;
+  return sel;
 }
 
 async function loadUsers() {
@@ -118,13 +153,13 @@ async function loadUsers() {
         cell(since(u.last_seen), 'meta'),
         cell(since(u.created_at), 'meta'),
       );
-      if (canEditRoles) tr.append(roleEditCell(u));
+      if (showActions) tr.append(actionCell(u));
       return tr;
     });
     if (!rows.length) {
       const tr = document.createElement('tr');
       const td = cell(q ? 'No account matches that.' : 'No accounts yet.', 'none');
-      td.colSpan = canEditRoles ? 9 : 8;
+      td.colSpan = showActions ? 9 : 8;
       tr.append(td);
       $('userRows').replaceChildren(tr);
     } else {
@@ -152,8 +187,12 @@ $('userSearch').addEventListener('input', () => {
     $('whoEmail').textContent = me.user.email;
     $('whoRole').textContent = role;
     $('toAdmin').hidden = !me.user.is_admin;
+    myId = me.user.id;
+    myRole = role;
     canEditRoles = role === 'owner';
-    if (canEditRoles) $('actCol').hidden = false;
+    canImpersonate = role === 'owner' || role === 'developer';
+    showActions = canEditRoles || canImpersonate;
+    if (showActions) $('actCol').hidden = false;
     if (role === 'business') {
       $('consoleSub').textContent = 'Usage across the platform, for selling and onboarding.';
     }
