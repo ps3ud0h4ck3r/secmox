@@ -1,4 +1,5 @@
 import { $, api, say, ROLE_LABEL } from './common.js';
+import { renderRoleFit } from './role-fit.js';
 
 // The readiness reading. One card per role, weakest first, because the weakest
 // role is the one an interview will find. Everything here is the candidate's own
@@ -126,12 +127,15 @@ export async function loadReadiness() {
     const rows = out.readiness || [];
     if (!rows.length) {
       list.textContent = '';
+      renderRoleFit([]);
       say($('readyMsg'), 'Nothing to read yet. Answer a few questions and come back.');
       return;
     }
+    renderRoleFit(rows);
     list.replaceChildren(...rows.map(card));
   } catch (err) {
     list.textContent = '';
+    renderRoleFit([]);
     say($('readyMsg'), err.message, 'err');
   }
 }
