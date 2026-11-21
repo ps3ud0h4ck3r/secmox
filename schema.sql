@@ -162,3 +162,22 @@ CREATE TABLE IF NOT EXISTS scenario_attempts (
   created_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scenario_attempts_user ON scenario_attempts(user_id, created_at);
+
+-- Spaced repetition. One row per user and question, carrying when the question
+-- should next come back. Intervals widen with each consecutive got-it and
+-- collapse on a shaky or a missed, so a question you keep holding drifts out of
+-- the way while one you keep dropping stays close. The question bank and the
+-- attempt history are untouched; this only decides ordering in /api/next, and a
+-- question with attempts but no row here (from before this table existed) still
+-- surfaces through the older worst-and-stalest fallback.
+CREATE TABLE IF NOT EXISTS review_schedule (
+  user_id       TEXT NOT NULL,
+  question_id   TEXT NOT NULL,
+  reps          INTEGER NOT NULL DEFAULT 0,
+  interval_days INTEGER NOT NULL DEFAULT 0,
+  due_at        TEXT NOT NULL,
+  last_rating   TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  PRIMARY KEY (user_id, question_id)
+);
+CREATE INDEX IF NOT EXISTS idx_review_due ON review_schedule(user_id, due_at);

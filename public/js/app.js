@@ -322,8 +322,10 @@ async function loadQuestion() {
     $('qDepth').textContent = q.follow_up_count
       ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
       : 'no follow-ups';
-    if (!out.fresh) {
-      say($('qMsg'), 'Seen before. It came back because it went badly or it has been a while.');
+    if (out.mode === 'due') {
+      say($('qMsg'), 'Back on schedule. Enough time has passed to see if it stuck.');
+    } else if (out.mode === 'review') {
+      say($('qMsg'), 'Nothing new left with these filters, so here is the weakest one to keep warm.');
     }
   } catch (err) {
     if (err.status === 401) return needsAuth();

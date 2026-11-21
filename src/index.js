@@ -314,9 +314,32 @@ app.get('/api/next', async (c) => {
     .bind(...args, user.id)
     .first();
 
-  let fresh = true;
+  // mode: 'fresh' never seen, 'due' the schedule says it is time, 'review' the
+  // schedule is empty or nothing is due yet so fall back to the weakest and
+  // stalest. The client reads this to tell the candidate why a question is back.
+  let mode = 'fresh';
+
+  // Due: the spaced-repetition layer. Most overdue, worst last rating first. A
+  // question answered this session sits days out and will not reappear here.
   if (!row) {
-    fresh = false;
+    row = await c.env.DB.prepare(
+      `SELECT q.id, q.role, q.topic, q.level, q.prompt
+         FROM review_schedule s
+         JOIN questions q ON q.id = s.question_id
+        WHERE s.user_id = ? AND s.due_at <= ?
+          AND ${clause}
+        ORDER BY CASE s.last_rating WHEN 'missed' THEN 0 WHEN 'shaky' THEN 1 ELSE 2 END ASC,
+                 s.due_at ASC
+        LIMIT 1`,
+    )
+      .bind(user.id, nowIso(), ...args)
+      .first();
+    if (row) mode = 'due';
+  }
+
+  // Review: nothing due (or legacy attempts with no schedule row). Keep practice
+  // alive with the weakest, stalest thing rather than dead-ending.
+  if (!row) {
     row = await c.env.DB.prepare(
       `SELECT q.id, q.role, q.topic, q.level, q.prompt,
               MIN(CASE a.self_rating WHEN 'missed' THEN 0 WHEN 'shaky' THEN 1 ELSE 2 END) AS worst,
@@ -330,6 +353,7 @@ app.get('/api/next', async (c) => {
     )
       .bind(user.id, ...args)
       .first();
+    if (row) mode = 'review';
   }
 
   if (!row) return c.json({ question: null });
@@ -349,7 +373,8 @@ app.get('/api/next', async (c) => {
       prompt: row.prompt,
       follow_up_count: followUps?.n ?? 0,
     },
-    fresh,
+    fresh: mode === 'fresh',
+    mode,
   });
 });
 
@@ -370,6 +395,25 @@ app.get('/api/questions/:id/answer', async (c) => {
   return c.json({ model_answer: question.model_answer, follow_ups: results ?? [] });
 });
 
+// The widening ladder. A got-it moves the question one rung further out; a
+// shaky brings it back to a couple of days; a missed puts it on tomorrow. The
+// rungs are days, capped so nothing drifts past about a quarter.
+const GOT_IT_DAYS = [2, 4, 9, 21, 45, 90];
+
+function nextReview(prevReps, rating) {
+  if (rating === 'got_it') {
+    const reps = prevReps + 1;
+    const days = GOT_IT_DAYS[Math.min(reps, GOT_IT_DAYS.length) - 1];
+    return { reps, interval_days: days };
+  }
+  if (rating === 'shaky') return { reps: 0, interval_days: 2 };
+  return { reps: 0, interval_days: 1 };
+}
+
+function inDays(days) {
+  return new Date(Date.now() + days * 86_400_000).toISOString();
+}
+
 app.post('/api/attempts', async (c) => {
   const user = c.get('user');
   const body = await c.req.json().catch(() => null);
@@ -386,12 +430,31 @@ app.post('/api/attempts', async (c) => {
     ? Math.max(0, Math.min(10, body.depth_reached))
     : 0;
 
-  await c.env.DB.prepare(
-    `INSERT INTO attempts (id, user_id, question_id, answer, self_rating, depth_reached, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  const prior = await c.env.DB.prepare(
+    'SELECT reps FROM review_schedule WHERE user_id = ? AND question_id = ?',
   )
-    .bind(newId('att'), user.id, question.id, answer, body.self_rating, depth, nowIso())
-    .run();
+    .bind(user.id, question.id)
+    .first();
+  const { reps, interval_days } = nextReview(prior?.reps ?? 0, body.self_rating);
+
+  await c.env.DB.batch([
+    c.env.DB
+      .prepare(
+        `INSERT INTO attempts (id, user_id, question_id, answer, self_rating, depth_reached, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(newId('att'), user.id, question.id, answer, body.self_rating, depth, nowIso()),
+    c.env.DB
+      .prepare(
+        `INSERT INTO review_schedule (user_id, question_id, reps, interval_days, due_at, last_rating, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, question_id) DO UPDATE SET
+           reps = excluded.reps, interval_days = excluded.interval_days,
+           due_at = excluded.due_at, last_rating = excluded.last_rating,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(user.id, question.id, reps, interval_days, inDays(interval_days), body.self_rating, nowIso()),
+  ]);
 
   return c.json({ ok: true }, 201);
 });
