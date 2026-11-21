@@ -176,6 +176,49 @@ $('userSearch').addEventListener('input', () => {
   searchTimer = setTimeout(loadUsers, 250);
 });
 
+function duration(startIso, endIso) {
+  if (!endIso) return 'open now';
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  if (ms < 60_000) return `${Math.max(1, Math.round(ms / 1000))}s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+  return `${Math.round(ms / 3_600_000)}h`;
+}
+
+function stamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadImpersonations() {
+  try {
+    const { impersonations } = await api('/api/console/impersonations');
+    const rows = impersonations.map((r) => {
+      const tr = document.createElement('tr');
+      const open = !r.ended_at;
+      tr.append(
+        cell(r.actor_email, 'q'),
+        cell(r.target_email, 'meta'),
+        cell(r.reason || '-', 'meta'),
+        cell(stamp(r.started_at), 'meta'),
+        cell(duration(r.started_at, r.ended_at), open ? 'meta chain-zero' : 'meta'),
+      );
+      return tr;
+    });
+    if (!rows.length) {
+      const tr = document.createElement('tr');
+      const td = cell('No view-as sessions yet.', 'none');
+      td.colSpan = 5;
+      tr.append(td);
+      $('impRows').replaceChildren(tr);
+    } else {
+      $('impRows').replaceChildren(...rows);
+    }
+  } catch (_) {
+    /* the log is a record, never a blocker */
+  }
+}
+
 (async () => {
   try {
     const me = await api('/api/me');
@@ -196,7 +239,9 @@ $('userSearch').addEventListener('input', () => {
     if (role === 'business') {
       $('consoleSub').textContent = 'Usage across the platform, for selling and onboarding.';
     }
-    await Promise.all([loadOverview(), loadUsers()]);
+    $('impScope').textContent =
+      role === 'owner' ? 'Every view-as on the platform.' : 'Your own view-as sessions.';
+    await Promise.all([loadOverview(), loadUsers(), loadImpersonations()]);
     $('main').hidden = false;
   } catch (err) {
     if (err.status === 401) {

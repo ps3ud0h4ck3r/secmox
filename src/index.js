@@ -1219,6 +1219,25 @@ app.post('/api/console/users/:id/role', async (c) => {
   return c.json({ ok: true, id: target.id, platform_role: role });
 });
 
+// The view-as trail. The owner sees every impersonation ever; a developer or
+// business account sees only its own, because the full log is an accountability
+// record and that belongs to the owner.
+app.get('/api/console/impersonations', async (c) => {
+  const me = c.get('user');
+  const base = `SELECT il.id, il.started_at, il.ended_at, il.reason,
+                       a.email AS actor_email, t.email AS target_email
+                  FROM impersonation_log il
+                  JOIN users a ON a.id = il.actor_id
+                  JOIN users t ON t.id = il.target_id`;
+  const sql =
+    me.platform_role === 'owner'
+      ? `${base} ORDER BY il.started_at DESC LIMIT 100`
+      : `${base} WHERE il.actor_id = ? ORDER BY il.started_at DESC LIMIT 100`;
+  const stmt = me.platform_role === 'owner' ? c.env.DB.prepare(sql) : c.env.DB.prepare(sql).bind(me.id);
+  const rows = await stmt.all();
+  return c.json({ impersonations: rows.results ?? [] });
+});
+
 // Start view-as. Owner can view anyone; a developer can view only plain users,
 // never a platform account, so impersonation can never be used to climb. The
 // impersonation flag is set on this exact session, not the account, so the
