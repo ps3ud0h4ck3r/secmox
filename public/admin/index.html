@@ -49,6 +49,7 @@
     <div class="tabs-nav" role="tablist">
       <button class="tab" type="button" id="paneQuestions" aria-current="page">Questions</button>
       <button class="tab" type="button" id="paneLabs">Labs</button>
+      <button class="tab" type="button" id="paneScenarios">Scenarios</button>
     </div>
 
     <div id="questionsPane">
@@ -205,6 +206,89 @@
           </table>
         </div>
         <p class="msg" id="labListMsg"></p>
+      </div>
+    </div>
+
+    <div id="scenariosPane" hidden>
+      <div class="editor">
+        <h2 id="saFormTitle">Add a scenario</h2>
+        <form id="saForm" novalidate>
+          <input type="hidden" id="saId">
+          <div class="grid-3">
+            <div class="field">
+              <label for="saRole">Role</label>
+              <select id="saRole">
+                <option value="soc">SOC analyst</option>
+                <option value="pentest">Penetration testing</option>
+                <option value="network">Network security</option>
+                <option value="cloud">Cloud security</option>
+                <option value="grc">GRC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="saLevel">Level</label>
+              <select id="saLevel">
+                <option value="fresher">Fresher, 0 to 2 years</option>
+                <option value="mid">Mid-level, 2 to 7 years</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="saMinutes">Time budget, minutes</label>
+              <input id="saMinutes" type="number" min="5" max="120" value="20" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="saTitle">Title</label>
+            <input id="saTitle" placeholder="The alert nobody acknowledged" required>
+          </div>
+
+          <div class="field">
+            <label for="saSituation">The situation: what has happened, what they walk into</label>
+            <textarea id="saSituation" placeholder="At 03:12 an EDR alert fired on a finance workstation. Nobody acknowledged it. You arrive at 09:00 and it is still open." required></textarea>
+          </div>
+
+          <div class="field">
+            <label for="saAsk">The ask: what the candidate has to produce</label>
+            <textarea id="saAsk" class="short" placeholder="Write what you do in your first thirty minutes, in order, and state what would make you escalate rather than close it." required></textarea>
+          </div>
+
+          <div class="field">
+            <label for="saModel">The model answer: what a strong response looks like</label>
+            <textarea id="saModel" placeholder="Separate paragraphs with a blank line. This is shown after they submit." required></textarea>
+          </div>
+
+          <label class="check-row" for="saFree">
+            <input type="checkbox" id="saFree">
+            <span>Free: show this one to accounts on the free tier</span>
+          </label>
+
+          <h3>Scoring points</h3>
+          <div id="saPoints"></div>
+          <div class="actions">
+            <button class="inf ghost small" type="button" id="saAddPoint">Add a point</button>
+            <span class="cta-note">Six or seven is right. Each should be something a panel actually listens for.</span>
+          </div>
+
+          <div class="actions">
+            <button class="inf" type="submit" id="saSave">Save scenario</button>
+            <button class="inf ghost" type="button" id="saClear">Clear the form</button>
+            <p class="msg" id="saFormMsg"></p>
+          </div>
+        </form>
+      </div>
+
+      <div class="editor">
+        <h2>Scenarios in the bank</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Title</th><th>Role</th><th>Level</th><th>Time</th><th>Points</th><th>Done</th><th></th></tr>
+            </thead>
+            <tbody id="saRows"></tbody>
+          </table>
+        </div>
+        <p class="msg" id="saListMsg"></p>
       </div>
     </div>
   </section>

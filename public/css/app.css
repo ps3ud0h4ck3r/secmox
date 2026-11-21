@@ -197,3 +197,13 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
   #scResponse{min-height:240px}
   .sc-score{font-size:23px}
 }
+
+/* admin: the free-tier checkbox. secmox.css strips native appearance from every
+   input, so the box and its tick are drawn here, same as the scenario rubric. */
+.check-row{display:flex;gap:11px;align-items:center;cursor:pointer;margin:4px 0 8px;
+  font-size:15px;color:var(--dim)}
+.check-row input{flex:none;width:19px;height:19px;border-radius:5px;cursor:pointer;
+  border:1px solid rgba(41,182,255,.45);background:#0A1420;
+  background-repeat:no-repeat;background-position:center;background-size:15px 15px}
+.check-row input:checked{background-color:var(--neon);border-color:var(--neon);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.4 8.4l3 3 6.2-7' fill='none' stroke='%2305070B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}

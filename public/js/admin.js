@@ -1,5 +1,10 @@
 import { $, api, say } from './common.js';
 import { clearLabForm, loadLabTable, setLabAdminHooks } from './admin-labs.js';
+import {
+  clearScenarioForm,
+  loadScenarioTable,
+  setScenarioAdminHooks,
+} from './admin-scenarios.js';
 
 let questions = [];
 
@@ -243,20 +248,27 @@ async function load() {
   );
 }
 
+const PANES = [
+  { key: 'questions', pane: 'questionsPane', tab: 'paneQuestions' },
+  { key: 'labs', pane: 'labsPane', tab: 'paneLabs' },
+  { key: 'scenarios', pane: 'scenariosPane', tab: 'paneScenarios' },
+];
+
 function showPane(which) {
-  const labs = which === 'labs';
-  $('labsPane').hidden = !labs;
-  $('questionsPane').hidden = labs;
-  $('paneLabs').toggleAttribute('aria-current', labs);
-  $('paneQuestions').toggleAttribute('aria-current', !labs);
-  if (labs) $('paneLabs').setAttribute('aria-current', 'page');
-  else $('paneQuestions').setAttribute('aria-current', 'page');
+  for (const p of PANES) {
+    const on = p.key === which;
+    $(p.pane).hidden = !on;
+    if (on) $(p.tab).setAttribute('aria-current', 'page');
+    else $(p.tab).removeAttribute('aria-current');
+  }
 }
 
 $('paneQuestions').addEventListener('click', () => showPane('questions'));
 $('paneLabs').addEventListener('click', () => showPane('labs'));
+$('paneScenarios').addEventListener('click', () => showPane('scenarios'));
 
 setLabAdminHooks({ onSaved: load });
+setScenarioAdminHooks({ onSaved: load });
 
 (async () => {
   try {
@@ -264,9 +276,11 @@ setLabAdminHooks({ onSaved: load });
     $('whoEmail').textContent = me.user.email;
     await load();
     await loadLabTable();
+    await loadScenarioTable();
     $('main').hidden = false;
     clearForm();
     clearLabForm();
+    clearScenarioForm();
     showPane('questions');
   } catch (err) {
     if (err.status === 401) {

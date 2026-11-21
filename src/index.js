@@ -791,6 +791,104 @@ app.post('/api/admin/labs/:id/delete', async (c) => {
   return c.json({ ok: true });
 });
 
+/* ------------------------------------------------------ admin scenarios */
+
+app.get('/api/admin/scenarios', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.id, s.title, s.role, s.level, s.minutes, s.is_free,
+            (SELECT COUNT(*) FROM scenario_points p WHERE p.scenario_id = s.id)   AS points,
+            (SELECT COUNT(*) FROM scenario_attempts a WHERE a.scenario_id = s.id) AS attempts
+       FROM scenarios s ORDER BY s.role, s.level, s.title`,
+  ).all();
+  return c.json({ scenarios: results ?? [] });
+});
+
+app.get('/api/admin/scenarios/:id', async (c) => {
+  const id = c.req.param('id');
+  const scenario = await c.env.DB.prepare('SELECT * FROM scenarios WHERE id = ?')
+    .bind(id)
+    .first();
+  if (!scenario) return fail(c, 404, 'No such scenario.');
+  const { results } = await c.env.DB.prepare(
+    'SELECT ord, label, detail FROM scenario_points WHERE scenario_id = ? ORDER BY ord',
+  )
+    .bind(id)
+    .all();
+  return c.json({ scenario, points: results ?? [] });
+});
+
+function scenarioProblem(body) {
+  if (!ROLES.has(body?.role)) return 'Pick a role.';
+  if (!LEVELS.has(body?.level)) return 'Pick a level.';
+  if (!body?.title?.trim()) return 'Give the scenario a title.';
+  if (!body?.situation?.trim()) return 'Write the situation: what has happened and what they are walking into.';
+  if (!body?.ask?.trim()) return 'Write the ask: what the candidate has to produce.';
+  const minutes = Number(body?.minutes);
+  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 120) {
+    return 'Minutes should be a whole number between 5 and 120.';
+  }
+  if (!body?.model_answer?.trim()) return 'Write the model answer. It is what a strong response looks like.';
+  if (!Array.isArray(body.points) || !body.points.length) return 'A scenario needs at least one scoring point.';
+  if (body.points.length > 12) return 'Twelve points is already more than anyone ticks honestly.';
+  for (const p of body.points) {
+    if (!p?.label?.trim() || !p?.detail?.trim()) {
+      return 'Every point needs both a label and the detail that earns the tick.';
+    }
+  }
+  return null;
+}
+
+app.post('/api/admin/scenarios', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const problem = scenarioProblem(body);
+  if (problem) return fail(c, 400, problem);
+
+  const id = body.id?.trim() || newId('sc');
+  const statements = [
+    c.env.DB.prepare(
+      `INSERT INTO scenarios (id, role, level, title, situation, ask, minutes, model_answer, is_free, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET role = excluded.role, level = excluded.level,
+         title = excluded.title, situation = excluded.situation, ask = excluded.ask,
+         minutes = excluded.minutes, model_answer = excluded.model_answer, is_free = excluded.is_free`,
+    ).bind(
+      id,
+      body.role,
+      body.level,
+      body.title.trim(),
+      body.situation.trim(),
+      body.ask.trim(),
+      Number(body.minutes),
+      body.model_answer.trim(),
+      body.is_free ? 1 : 0,
+      nowIso(),
+    ),
+    c.env.DB.prepare('DELETE FROM scenario_points WHERE scenario_id = ?').bind(id),
+  ];
+  body.points.forEach((p, i) => {
+    statements.push(
+      c.env.DB
+        .prepare(
+          'INSERT INTO scenario_points (id, scenario_id, ord, label, detail) VALUES (?, ?, ?, ?, ?)',
+        )
+        .bind(`${id}_p${i + 1}`, id, i + 1, p.label.trim(), p.detail.trim()),
+    );
+  });
+
+  await c.env.DB.batch(statements);
+  return c.json({ ok: true, id });
+});
+
+app.post('/api/admin/scenarios/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM scenario_points WHERE scenario_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM scenario_attempts WHERE scenario_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM scenarios WHERE id = ?').bind(id),
+  ]);
+  return c.json({ ok: true });
+});
+
 app.get('/api/admin/stats', async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT (SELECT COUNT(*) FROM users)        AS users,
