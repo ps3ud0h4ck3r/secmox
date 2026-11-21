@@ -344,9 +344,23 @@ function filters(c) {
   return { role: ROLES.has(role) ? role : null, level: LEVELS.has(level) ? level : null };
 }
 
+// Content a user may see: a global item their org has not hidden, or an item
+// their own org added. A user with no org membership sees only global items, so
+// for the whole current B2C base this is exactly today's behaviour. References
+// <a>.org_id and <a>.id, and consumes two binds, both the user id, placed at the
+// end of the WHERE so the bind order stays simple. kind is a fixed literal, never
+// user input.
+function visibleSql(a, kind) {
+  return `((${a}.org_id IS NULL AND NOT EXISTS (
+             SELECT 1 FROM org_hidden_content h JOIN org_members mh ON mh.org_id = h.org_id
+              WHERE mh.user_id = ? AND h.kind = '${kind}' AND h.content_id = ${a}.id))
+           OR EXISTS (SELECT 1 FROM org_members mv WHERE mv.user_id = ? AND mv.org_id = ${a}.org_id))`;
+}
+
 app.get('/api/next', async (c) => {
   const user = c.get('user');
   const { role, level } = filters(c);
+  const vis = visibleSql('q', 'question');
 
   const where = ['1 = 1'];
   const args = [];
@@ -365,9 +379,10 @@ app.get('/api/next', async (c) => {
        FROM questions q
       WHERE ${clause}
         AND q.id NOT IN (SELECT question_id FROM attempts WHERE user_id = ?)
+        AND ${vis}
       ORDER BY RANDOM() LIMIT 1`,
   )
-    .bind(...args, user.id)
+    .bind(...args, user.id, user.id, user.id)
     .first();
 
   // mode: 'fresh' never seen, 'due' the schedule says it is time, 'review' the
@@ -384,11 +399,12 @@ app.get('/api/next', async (c) => {
          JOIN questions q ON q.id = s.question_id
         WHERE s.user_id = ? AND s.due_at <= ?
           AND ${clause}
+          AND ${vis}
         ORDER BY CASE s.last_rating WHEN 'missed' THEN 0 WHEN 'shaky' THEN 1 ELSE 2 END ASC,
                  s.due_at ASC
         LIMIT 1`,
     )
-      .bind(user.id, nowIso(), ...args)
+      .bind(user.id, nowIso(), ...args, user.id, user.id)
       .first();
     if (row) mode = 'due';
   }
@@ -403,11 +419,12 @@ app.get('/api/next', async (c) => {
          FROM questions q
          JOIN attempts a ON a.question_id = q.id AND a.user_id = ?
         WHERE ${clause}
+          AND ${vis}
         GROUP BY q.id
         ORDER BY worst ASC, last_seen ASC
         LIMIT 1`,
     )
-      .bind(user.id, ...args)
+      .bind(user.id, ...args, user.id, user.id)
       .first();
     if (row) mode = 'review';
   }
@@ -437,8 +454,13 @@ app.get('/api/next', async (c) => {
 // Answers stay out of the page until the candidate has committed to one.
 app.get('/api/questions/:id/answer', async (c) => {
   const id = c.req.param('id');
-  const question = await c.env.DB.prepare('SELECT id, model_answer FROM questions WHERE id = ?')
-    .bind(id)
+  const user = c.get('user');
+  // Scoped by visibility too, so another company's private question cannot be
+  // opened by guessing its id.
+  const question = await c.env.DB.prepare(
+    `SELECT id, model_answer FROM questions q WHERE id = ? AND ${visibleSql('q', 'question')}`,
+  )
+    .bind(id, user.id, user.id)
     .first();
   if (!question) return fail(c, 404, 'No such question.');
 
@@ -525,12 +547,12 @@ app.get('/api/coverage', async (c) => {
            SUM(CASE WHEN a.self_rating = 'missed' THEN 1 ELSE 0 END) AS missed
       FROM questions q
       LEFT JOIN attempts a ON a.question_id = q.id AND a.user_id = ?
-     ${level ? 'WHERE q.level = ?' : ''}
+     WHERE ${level ? 'q.level = ? AND ' : ''}${visibleSql('q', 'question')}
      GROUP BY q.role
      ORDER BY q.role`;
   const stmt = level
-    ? c.env.DB.prepare(sql).bind(user.id, level)
-    : c.env.DB.prepare(sql).bind(user.id);
+    ? c.env.DB.prepare(sql).bind(user.id, level, user.id, user.id)
+    : c.env.DB.prepare(sql).bind(user.id, user.id, user.id);
   const { results } = await stmt.all();
   return c.json({ coverage: results ?? [] });
 });
@@ -558,7 +580,6 @@ app.get('/api/readiness', async (c) => {
   const { level } = filters(c);
   const lv = level || null;
 
-  const qWhere = lv ? 'WHERE q.level = ?' : '';
   const questionRows = await c.env.DB.prepare(
     `WITH latest AS (
        SELECT question_id, self_rating, depth_reached, created_at,
@@ -570,9 +591,9 @@ app.get('/api/readiness', async (c) => {
             l.self_rating, l.depth_reached, l.created_at AS last_at
        FROM questions q
        LEFT JOIN latest l ON l.question_id = q.id AND l.rn = 1
-      ${qWhere}`,
+      WHERE ${lv ? 'q.level = ? AND ' : ''}${visibleSql('q', 'question')}`,
   )
-    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .bind(...(lv ? [user.id, lv, user.id, user.id] : [user.id, user.id, user.id]))
     .all();
 
   const scenarioRows = await c.env.DB.prepare(
@@ -581,10 +602,10 @@ app.get('/api/readiness', async (c) => {
             COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN s.id END) AS done
        FROM scenarios s
        LEFT JOIN scenario_attempts a ON a.scenario_id = s.id AND a.user_id = ?
-      ${lv ? 'WHERE s.level = ?' : ''}
+      WHERE ${lv ? 's.level = ? AND ' : ''}${visibleSql('s', 'scenario')}
       GROUP BY s.role`,
   )
-    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .bind(...(lv ? [user.id, lv, user.id, user.id] : [user.id, user.id, user.id]))
     .all();
 
   const labRows = await c.env.DB.prepare(
@@ -593,10 +614,10 @@ app.get('/api/readiness', async (c) => {
             COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN l.id END) AS done
        FROM labs l
        LEFT JOIN lab_attempts a ON a.lab_id = l.id AND a.user_id = ?
-      ${lv ? 'WHERE l.level = ?' : ''}
+      WHERE ${lv ? 'l.level = ? AND ' : ''}${visibleSql('l', 'lab')}
       GROUP BY l.role`,
   )
-    .bind(...(lv ? [user.id, lv] : [user.id]))
+    .bind(...(lv ? [user.id, lv, user.id, user.id] : [user.id, user.id, user.id]))
     .all();
 
   const scByRole = new Map((scenarioRows.results ?? []).map((r) => [r.role, r]));
@@ -682,9 +703,11 @@ app.get('/api/labs', async (c) => {
     `SELECT l.id, l.title, l.role, l.level, l.artifact_kind, l.artifact_name, l.is_free,
             (SELECT COUNT(*) FROM lab_tasks t WHERE t.lab_id = l.id) AS tasks,
             (SELECT COUNT(*) FROM lab_attempts a WHERE a.lab_id = l.id AND a.user_id = ?) AS done
-       FROM labs l ORDER BY l.level, l.role, l.title`,
+       FROM labs l
+      WHERE ${visibleSql('l', 'lab')}
+      ORDER BY l.level, l.role, l.title`,
   )
-    .bind(user.id)
+    .bind(user.id, user.id, user.id)
     .all();
   return c.json({ labs: results ?? [] });
 });
@@ -693,13 +716,14 @@ app.get('/api/labs', async (c) => {
 // read the evidence before being told what is in it.
 app.get('/api/labs/:id', async (c) => {
   const id = c.req.param('id');
+  const user = c.get('user');
   const lab = await c.env.DB.prepare(
     `SELECT l.id, l.title, l.role, l.level, l.brief, l.artifact_kind, l.artifact_name,
             a.body, a.bytes
        FROM labs l LEFT JOIN lab_artifacts a ON a.lab_id = l.id
-      WHERE l.id = ?`,
+      WHERE l.id = ? AND ${visibleSql('l', 'lab')}`,
   )
-    .bind(id)
+    .bind(id, user.id, user.id)
     .first();
   if (!lab) return fail(c, 404, 'No such lab.');
 
@@ -753,9 +777,11 @@ app.get('/api/scenarios', async (c) => {
             (SELECT COUNT(*) FROM scenario_points p WHERE p.scenario_id = s.id) AS points,
             (SELECT COUNT(*) FROM scenario_attempts a
               WHERE a.scenario_id = s.id AND a.user_id = ?) AS done
-       FROM scenarios s ORDER BY s.level, s.role, s.title`,
+       FROM scenarios s
+      WHERE ${visibleSql('s', 'scenario')}
+      ORDER BY s.level, s.role, s.title`,
   )
-    .bind(user.id)
+    .bind(user.id, user.id, user.id)
     .all();
   return c.json({ scenarios: results ?? [] });
 });
@@ -765,10 +791,12 @@ app.get('/api/scenarios', async (c) => {
 // otherwise the reveal is one network tab away and the exercise is pointless.
 app.get('/api/scenarios/:id', async (c) => {
   const id = c.req.param('id');
+  const user = c.get('user');
   const scenario = await c.env.DB.prepare(
-    'SELECT id, title, role, level, situation, ask, minutes FROM scenarios WHERE id = ?',
+    `SELECT id, title, role, level, situation, ask, minutes FROM scenarios s
+      WHERE id = ? AND ${visibleSql('s', 'scenario')}`,
   )
-    .bind(id)
+    .bind(id, user.id, user.id)
     .first();
   if (!scenario) return fail(c, 404, 'No such scenario.');
 
