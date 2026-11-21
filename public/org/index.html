@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecMox company</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/secmox.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="/app/" aria-label="SecMox practice">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
+      <span class="wordmark">SecMox</span>
+      <span class="pill-tag">company</span></a>
+    <div class="head-actions">
+      <span class="whoami" id="whoEmail"></span>
+    </div>
+  </div>
+</header>
+
+<nav class="wrap tabs-nav" aria-label="Sections">
+  <a class="tab" href="/app/">Practice</a>
+  <a class="tab" href="/org/" aria-current="page">Company</a>
+</nav>
+
+<main class="wrap">
+
+  <section id="denied" class="view" hidden>
+    <h1>Not your area</h1>
+    <p class="sub">This is for people who run a company on SecMox. If a company added you as an admin, sign in with that account.</p>
+    <a class="inf" href="/app/">Go to practice</a>
+  </section>
+
+  <section id="main" class="view" hidden>
+    <div class="console-head">
+      <h1 id="orgTitle">Company</h1>
+      <select id="orgPick" hidden></select>
+    </div>
+    <p class="sub">Your learners, trainers and invites. Everything here stays inside this company.</p>
+
+    <div class="editor">
+      <h2>Invite someone</h2>
+      <form id="inviteForm" class="org-create" novalidate>
+        <input id="inviteEmail" type="email" placeholder="their@email.com" autocomplete="off" required>
+        <select id="inviteRole">
+          <option value="learner">Learner</option>
+          <option value="trainer">Trainer</option>
+          <option value="org_admin">Company admin</option>
+        </select>
+        <button class="inf" type="submit" id="inviteSend">Create invite link</button>
+      </form>
+      <div id="inviteLinkWrap" hidden>
+        <p class="cta-note">Send this link to them. It works once and lasts 14 days.</p>
+        <div class="invite-link"><code id="inviteLink"></code><button class="inf ghost small" type="button" id="copyLink">Copy</button></div>
+      </div>
+      <p class="msg" id="inviteMsg"></p>
+    </div>
+
+    <div class="editor">
+      <h2>Pending invites</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Email</th><th>Role</th><th>Expires</th><th></th></tr></thead>
+          <tbody id="inviteRows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="inviteListMsg"></p>
+    </div>
+
+    <div class="editor">
+      <h2>Members</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Email</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="memberRows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="memberListMsg"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-row">
+    <span>Your company. What you do here reaches only your people.</span>
+    <a href="/app/">Back to practice</a>
+  </div>
+</footer>
+
+<script type="module" src="/js/org.js"></script>
+</body>
+</html>

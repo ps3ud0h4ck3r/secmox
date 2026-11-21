@@ -294,6 +294,7 @@ $('delForm').addEventListener('submit', async (e) => {
 async function enterApp() {
   $('whoEmail').textContent = state.user.email;
   $('tabAdmin').hidden = !state.user.is_admin;
+  $('tabOrg').hidden = !(state.user.orgs || []).some((o) => o.role === 'org_admin');
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
   show('practiceView');

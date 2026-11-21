@@ -299,3 +299,17 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .org-create select{min-width:150px}
 .org-addmember{margin-top:22px;padding-top:18px;border-top:1px solid rgba(41,182,255,.1)}
 .org-addmember h3{margin:0 0 12px}
+
+/* ------------------------------------------------------------- invites */
+
+.invite-link{display:flex;align-items:center;gap:10px;margin:8px 0 2px;flex-wrap:wrap}
+.invite-link code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;
+  font-family:var(--mono);font-size:13px;color:var(--neon-hi);
+  background:#05070B;border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+
+/* join page */
+.join-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:28px;text-align:center;padding:40px 20px}
+.join-card{max-width:440px;width:100%;border:1px solid var(--line);border-radius:16px;
+  background:var(--panel);padding:30px 28px}
+.join-card .actions{justify-content:center;margin-top:20px}

@@ -28,7 +28,7 @@ function toHex(buffer) {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function randomHex(bytes) {
+export function randomHex(bytes) {
   return toHex(crypto.getRandomValues(new Uint8Array(bytes)));
 }
 

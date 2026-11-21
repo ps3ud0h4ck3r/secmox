@@ -12,6 +12,7 @@ import {
   newId,
   normalizeEmail,
   passwordProblem,
+  randomHex,
   readCookie,
   sessionCookie,
   sha256Hex,
@@ -59,6 +60,10 @@ const OPEN_ROUTES = new Set([
   '/api/auth/login',
   '/api/auth/forgot',
   '/api/auth/reset',
+  // Reading an invite needs only the token, which is itself the secret, so the
+  // invitee can see who invited them before they have an account. Accepting
+  // still requires being signed in as the invited email.
+  '/api/invites/preview',
 ]);
 
 app.use('/api/*', async (c, next) => {
@@ -1151,6 +1156,160 @@ app.get('/api/admin/stats', async (c) => {
             (SELECT COUNT(*) FROM scenario_attempts) AS scenario_attempts`,
   ).first();
   return c.json({ stats: row, mail: mailConfigured(c.env) });
+});
+
+/* ------------------------------------------------------------- org side */
+
+// The platform owner can manage any company; otherwise you must be an org_admin
+// of this specific company. While impersonating, the effective user is the
+// target, so an owner viewing as a learner is checked as that learner, which is
+// right.
+async function isOrgAdmin(db, user, orgId) {
+  if (user.platform_role === 'owner') return true;
+  const row = await db
+    .prepare("SELECT 1 FROM org_members WHERE org_id = ? AND user_id = ? AND role = 'org_admin'")
+    .bind(orgId, user.id)
+    .first();
+  return Boolean(row);
+}
+
+const INVITE_DAYS = 14;
+
+app.get('/api/org/:orgId/members', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const rows = await c.env.DB.prepare(
+    `SELECT m.user_id, m.role, m.created_at, u.email
+       FROM org_members m JOIN users u ON u.id = m.user_id
+      WHERE m.org_id = ? ORDER BY m.role, u.email`,
+  )
+    .bind(orgId)
+    .all();
+  const org = await c.env.DB.prepare('SELECT id, name, slug FROM orgs WHERE id = ?').bind(orgId).first();
+  return c.json({ org, members: rows.results ?? [] });
+});
+
+app.post('/api/org/:orgId/members/:userId/remove', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const userId = c.req.param('userId');
+
+  const target = await c.env.DB.prepare(
+    'SELECT role FROM org_members WHERE org_id = ? AND user_id = ?',
+  )
+    .bind(orgId, userId)
+    .first();
+  if (!target) return fail(c, 404, 'Not a member.');
+  if (target.role === 'org_admin') {
+    const admins = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM org_members WHERE org_id = ? AND role = 'org_admin'",
+    )
+      .bind(orgId)
+      .first();
+    if ((admins?.n ?? 0) <= 1) return fail(c, 409, 'That is the last admin. Make someone else an admin first.');
+  }
+  await c.env.DB.prepare('DELETE FROM org_members WHERE org_id = ? AND user_id = ?')
+    .bind(orgId, userId)
+    .run();
+  return c.json({ ok: true });
+});
+
+app.get('/api/org/:orgId/invites', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const rows = await c.env.DB.prepare(
+    `SELECT id, email, role, expires_at, created_at FROM invites
+      WHERE org_id = ? AND accepted_at IS NULL ORDER BY created_at DESC`,
+  )
+    .bind(orgId)
+    .all();
+  return c.json({ invites: rows.results ?? [] });
+});
+
+app.post('/api/org/:orgId/invites', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const email = normalizeEmail(body?.email);
+  const role = (body?.role ?? '').toString();
+  if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
+  if (!ORG_ROLES.has(role)) return fail(c, 400, 'Pick a role for them.');
+
+  // If they already have an account and are already in, say so rather than
+  // minting a dead invite.
+  const existing = await c.env.DB.prepare(
+    `SELECT 1 FROM org_members m JOIN users u ON u.id = m.user_id
+      WHERE m.org_id = ? AND u.email = ?`,
+  )
+    .bind(orgId, email)
+    .first();
+  if (existing) return fail(c, 409, 'They are already in this company.');
+
+  const token = randomHex(24);
+  await c.env.DB.prepare(
+    `INSERT INTO invites (id, org_id, email, role, token_hash, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(newId('inv'), orgId, email, role, await sha256Hex(token), inDays(INVITE_DAYS), nowIso())
+    .run();
+
+  const origin = new URL(c.req.url).origin;
+  return c.json({ ok: true, link: `${origin}/join/?token=${token}`, email });
+});
+
+app.post('/api/org/:orgId/invites/:inviteId/revoke', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  await c.env.DB.prepare('DELETE FROM invites WHERE id = ? AND org_id = ? AND accepted_at IS NULL')
+    .bind(c.req.param('inviteId'), orgId)
+    .run();
+  return c.json({ ok: true });
+});
+
+// The invitee's side. Preview is readable by any signed-in user holding the
+// token; accept ties the membership to the account and requires the email to
+// match, so a forwarded link cannot enrol the wrong person.
+app.get('/api/invites/preview', async (c) => {
+  const token = c.req.query('token') || '';
+  const inv = await c.env.DB.prepare(
+    `SELECT i.email, i.role, i.expires_at, i.accepted_at, o.name AS org_name
+       FROM invites i JOIN orgs o ON o.id = i.org_id
+      WHERE i.token_hash = ?`,
+  )
+    .bind(await sha256Hex(token))
+    .first();
+  if (!inv) return fail(c, 404, 'This invite link is not valid.');
+  if (inv.accepted_at) return fail(c, 409, 'This invite has already been used.');
+  if (new Date(inv.expires_at) < new Date()) return fail(c, 410, 'This invite has expired.');
+  return c.json({ invite: { org_name: inv.org_name, role: inv.role, email: inv.email } });
+});
+
+app.post('/api/invites/accept', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  const token = (body?.token ?? '').toString();
+  const inv = await c.env.DB.prepare(
+    'SELECT id, org_id, email, role, expires_at, accepted_at FROM invites WHERE token_hash = ?',
+  )
+    .bind(await sha256Hex(token))
+    .first();
+  if (!inv) return fail(c, 404, 'This invite link is not valid.');
+  if (inv.accepted_at) return fail(c, 409, 'This invite has already been used.');
+  if (new Date(inv.expires_at) < new Date()) return fail(c, 410, 'This invite has expired.');
+  if (normalizeEmail(user.email) !== normalizeEmail(inv.email)) {
+    return fail(c, 403, 'This invite is for a different email. Sign in as that account.');
+  }
+
+  await c.env.DB.batch([
+    c.env.DB
+      .prepare(
+        `INSERT INTO org_members (org_id, user_id, role, created_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(org_id, user_id) DO UPDATE SET role = excluded.role`,
+      )
+      .bind(inv.org_id, user.id, inv.role, nowIso()),
+    c.env.DB.prepare('UPDATE invites SET accepted_at = ? WHERE id = ?').bind(nowIso(), inv.id),
+  ]);
+  return c.json({ ok: true });
 });
 
 /* --------------------------------------------------------------- console */
