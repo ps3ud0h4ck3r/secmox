@@ -51,6 +51,9 @@
 .followup .tag{font-family:var(--mono);font-size:12px;color:var(--neon);display:block;margin-bottom:6px;letter-spacing:.04em}
 .followup p{margin:0;font-size:16px;max-width:72ch}
 .followup .model{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--dim);font-size:15px;max-width:72ch}
+/* a rung on screen cold, before its answer: dashed edge marks it as still open */
+.followup.awaiting{border-style:dashed;background:rgba(41,182,255,.04)}
+.followup .fu-hint{margin-top:8px;font-size:13.5px;color:var(--faint);font-style:italic}
 
 .rate{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;align-items:center}
 .rate .label{font-size:14px;color:var(--dim);margin-right:2px}

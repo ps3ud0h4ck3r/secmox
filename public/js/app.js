@@ -4,7 +4,19 @@ import { splash } from './splash.js';
 import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
 
-const state = { user: null, question: null, followUps: [], shown: 0, revealed: false, mode: 'in' };
+// phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
+// answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
+// on screen cold, its answer is the next click), 'done' (no rungs left). rung is
+// how many follow-ups the candidate has climbed through, which is the depth.
+const state = {
+  user: null,
+  question: null,
+  followUps: [],
+  rung: 0,
+  phase: 'hidden',
+  rungBox: null,
+  mode: 'in',
+};
 let resetToken = null;
 
 wirePasswordToggles();
@@ -265,8 +277,9 @@ async function enterApp() {
 
 function resetCard() {
   state.followUps = [];
-  state.shown = 0;
-  state.revealed = false;
+  state.rung = 0;
+  state.phase = 'hidden';
+  state.rungBox = null;
   $('qAnswer').value = '';
   $('answerArea').hidden = true;
   $('answerArea').replaceChildren();
@@ -313,14 +326,21 @@ async function loadQuestion() {
   }
 }
 
+// The ladder. A follow-up is shown cold, prompt first, and its answer only on
+// the next click, so the candidate has to confront each rung the way the room
+// would make them, instead of reading the question and its answer together.
+function labelForNextRung() {
+  return state.rung === 0 ? 'Face the follow-up' : 'The next follow-up';
+}
+
 $('reveal').addEventListener('click', async () => {
   if (!state.question) return;
 
-  if (!state.revealed) {
+  // Step 1: reveal the main answer, then hand over to the ladder.
+  if (state.phase === 'hidden') {
     $('reveal').disabled = true;
     try {
       const out = await api(`/api/questions/${state.question.id}/answer`);
-      state.revealed = true;
       state.followUps = out.follow_ups || [];
 
       const block = document.createElement('div');
@@ -337,8 +357,16 @@ $('reveal').addEventListener('click', async () => {
 
       $('rateRow').hidden = false;
       $('reveal').disabled = false;
-      $('reveal').textContent = 'Next follow-up';
-      $('reveal').hidden = state.followUps.length === 0;
+
+      if (state.followUps.length) {
+        state.phase = 'answered';
+        $('reveal').textContent = labelForNextRung();
+        $('reveal').hidden = false;
+        $('qDepth').textContent = `depth 0 of ${state.followUps.length}`;
+      } else {
+        state.phase = 'done';
+        $('reveal').hidden = true;
+      }
     } catch (err) {
       $('reveal').disabled = false;
       if (err.status === 401) return needsAuth();
@@ -347,25 +375,54 @@ $('reveal').addEventListener('click', async () => {
     return;
   }
 
-  const next = state.followUps[state.shown];
-  if (!next) return;
-  state.shown += 1;
+  // Step 2: put the next follow-up on screen, prompt only.
+  if (state.phase === 'answered') {
+    const fu = state.followUps[state.rung];
+    if (!fu) return;
 
-  const box = document.createElement('div');
-  box.className = 'followup';
-  const tag = document.createElement('span');
-  tag.className = 'tag';
-  tag.textContent = `follow-up ${state.shown}`;
-  const q = document.createElement('p');
-  q.textContent = next.prompt;
-  const a = document.createElement('div');
-  a.className = 'model';
-  a.textContent = next.model_answer;
-  box.append(tag, q, a);
-  $('answerArea').append(box);
+    const box = document.createElement('div');
+    box.className = 'followup awaiting';
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = `follow-up ${state.rung + 1}`;
+    const q = document.createElement('p');
+    q.textContent = fu.prompt;
+    const hint = document.createElement('p');
+    hint.className = 'fu-hint';
+    hint.textContent = 'Answer it in your head before you look.';
+    box.append(tag, q, hint);
+    $('answerArea').append(box);
+    state.rungBox = box;
 
-  $('qDepth').textContent = `depth ${state.shown} of ${state.followUps.length}`;
-  if (state.shown >= state.followUps.length) $('reveal').hidden = true;
+    state.phase = 'prompt';
+    $('reveal').textContent = 'Show this answer';
+    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    return;
+  }
+
+  // Step 3: reveal the current rung's answer, climb one, line up the next.
+  if (state.phase === 'prompt') {
+    const fu = state.followUps[state.rung];
+    if (!fu || !state.rungBox) return;
+
+    state.rungBox.classList.remove('awaiting');
+    state.rungBox.querySelector('.fu-hint')?.remove();
+    const a = document.createElement('div');
+    a.className = 'model';
+    a.textContent = fu.model_answer;
+    state.rungBox.append(a);
+
+    state.rung += 1;
+    $('qDepth').textContent = `depth ${state.rung} of ${state.followUps.length}`;
+
+    if (state.rung >= state.followUps.length) {
+      state.phase = 'done';
+      $('reveal').hidden = true;
+    } else {
+      state.phase = 'answered';
+      $('reveal').textContent = labelForNextRung();
+    }
+  }
 });
 
 $('rateRow').addEventListener('click', async (e) => {
@@ -381,7 +438,7 @@ $('rateRow').addEventListener('click', async (e) => {
         question_id: state.question.id,
         answer: $('qAnswer').value.trim() || null,
         self_rating: btn.dataset.rate,
-        depth_reached: state.shown,
+        depth_reached: state.rung,
       }),
     });
     buttons.forEach((b) => (b.disabled = false));
