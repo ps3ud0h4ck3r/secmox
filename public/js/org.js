@@ -1,4 +1,5 @@
 import { $, api, say } from './common.js';
+import { setupOrgContent, loadOrgContent } from './org-content.js';
 
 // The company console, for an org_admin. Scoped to one company at a time; if you
 // run more than one, a picker switches between them. Everything it touches is
@@ -132,8 +133,10 @@ function wire() {
 
   $('orgPick').addEventListener('change', async () => {
     orgId = $('orgPick').value;
-    await Promise.all([loadMembers(), loadInvites()]);
+    await Promise.all([loadMembers(), loadInvites(), loadOrgContent()]);
   });
+
+  setupOrgContent(() => orgId);
 }
 
 (async () => {
@@ -159,7 +162,7 @@ function wire() {
       );
     }
     wire();
-    await Promise.all([loadMembers(), loadInvites()]);
+    await Promise.all([loadMembers(), loadInvites(), loadOrgContent()]);
     $('main').hidden = false;
   } catch (err) {
     if (err.status === 401) {

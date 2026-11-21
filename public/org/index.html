@@ -84,6 +84,96 @@
       </div>
       <p class="msg" id="memberListMsg"></p>
     </div>
+
+    <div class="console-head content-head">
+      <h1>Content</h1>
+    </div>
+    <p class="sub">Write questions only your learners see, and hide the global ones that do not fit your training.</p>
+
+    <div class="editor">
+      <h2>Write a private question</h2>
+      <form id="qcForm" novalidate>
+        <div class="grid-3">
+          <div class="field">
+            <label for="qcRole">Role</label>
+            <select id="qcRole">
+              <option value="soc">SOC analyst</option>
+              <option value="pentest">Penetration testing</option>
+              <option value="network">Network security</option>
+              <option value="cloud">Cloud security</option>
+              <option value="grc">GRC</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="qcLevel">Level</label>
+            <select id="qcLevel">
+              <option value="fresher">Fresher, 0 to 2 years</option>
+              <option value="mid">Mid-level, 2 to 7 years</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="qcTopic">Topic</label>
+            <input id="qcTopic" placeholder="triage, dns, iam, reporting" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="qcPrompt">The question, as an interviewer would say it</label>
+          <textarea id="qcPrompt" class="short" placeholder="An alert fires: several failed SSH logins from one IP, then a successful one. What do you do first?" required></textarea>
+        </div>
+        <div class="field">
+          <label for="qcAnswer">What a strong answer covers</label>
+          <textarea id="qcAnswer" class="short" placeholder="What separates a candidate who has done the job from one who has read about it." required></textarea>
+        </div>
+        <h3>Follow-ups</h3>
+        <div id="qcFuList"></div>
+        <div class="actions">
+          <button class="inf ghost small" type="button" id="qcAddFu">Add a follow-up</button>
+          <span class="cta-note">Two is usually right. Six is more than anyone asks.</span>
+        </div>
+        <div class="actions">
+          <button class="inf" type="submit" id="qcSave">Save to your library</button>
+          <p class="msg" id="qcMsg"></p>
+        </div>
+      </form>
+    </div>
+
+    <div class="editor">
+      <h2>Your private questions</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Question</th><th>Role</th><th>Level</th><th>Follow-ups</th><th></th></tr></thead>
+          <tbody id="privQRows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="privQMsg"></p>
+    </div>
+
+    <div class="editor">
+      <h2>The global catalogue</h2>
+      <p class="cta-note">Everything SecMox ships. Hide what you do not want your learners to practise. Hiding changes nothing for anyone outside your company.</p>
+      <h3>Questions</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Topic</th><th>Role</th><th>Level</th><th></th></tr></thead>
+          <tbody id="gQRows"></tbody>
+        </table>
+      </div>
+      <h3>Scenarios</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Title</th><th>Role</th><th>Level</th><th></th></tr></thead>
+          <tbody id="gSRows"></tbody>
+        </table>
+      </div>
+      <h3>Labs</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Title</th><th>Role</th><th>Level</th><th></th></tr></thead>
+          <tbody id="gLRows"></tbody>
+        </table>
+      </div>
+      <p class="msg" id="gMsg"></p>
+    </div>
   </section>
 
 </main>

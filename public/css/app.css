@@ -273,6 +273,8 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
   flex-wrap:wrap;margin-bottom:14px}
 .console-head h2{margin:0}
 .console-head input[type="search"]{width:240px;max-width:100%}
+.content-head{margin-top:40px;border-top:1px solid var(--line);padding-top:28px}
+tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 
 /* platform-role badges: owner is the loud one, the rest are quieter. All clear
    AA on the panel the pill sits on. */

@@ -737,10 +737,20 @@ app.get('/api/labs/:id', async (c) => {
 });
 
 app.get('/api/labs/:id/answers', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  // The answer key is a reveal route, so it carries the same wall as the lab
+  // itself: another company's private lab is a 404 here, not a leak.
+  const lab = await c.env.DB.prepare(
+    `SELECT l.id FROM labs l WHERE l.id = ? AND ${visibleSql('l', 'lab')}`,
+  )
+    .bind(id, user.id, user.id)
+    .first();
+  if (!lab) return fail(c, 404, 'No such lab.');
   const { results } = await c.env.DB.prepare(
     'SELECT position, prompt, model_answer FROM lab_tasks WHERE lab_id = ? ORDER BY position',
   )
-    .bind(c.req.param('id'))
+    .bind(id)
     .all();
   if (!results?.length) return fail(c, 404, 'No such lab.');
   return c.json({ tasks: results });
@@ -819,10 +829,14 @@ app.post('/api/scenario-attempts', async (c) => {
   const response = String(body.response ?? '').trim().slice(0, 20000);
   if (response.length < 40) return fail(c, 400, 'Write your answer before revealing the rubric.');
 
+  // Writing unlocks the rubric, but only for a scenario this user may see.
+  // Without the wall here, a non-member could POST an id and read the model
+  // answer of a company's private scenario straight out of the response.
   const scenario = await c.env.DB.prepare(
-    'SELECT id, model_answer FROM scenarios WHERE id = ?',
+    `SELECT s.id, s.model_answer FROM scenarios s
+      WHERE s.id = ? AND ${visibleSql('s', 'scenario')}`,
   )
-    .bind(body.scenario_id)
+    .bind(body.scenario_id, user.id, user.id)
     .first();
   if (!scenario) return fail(c, 404, 'No such scenario.');
 
@@ -1338,6 +1352,153 @@ app.post('/api/invites/accept', async (c) => {
     c.env.DB.prepare('UPDATE invites SET accepted_at = ? WHERE id = ?').bind(nowIso(), inv.id),
   ]);
   return c.json({ ok: true });
+});
+
+/* ----------------------------------------------------------- org content */
+
+const HIDE_KINDS = new Set(['question', 'scenario', 'lab']);
+const HIDE_TABLE = { question: 'questions', scenario: 'scenarios', lab: 'labs' };
+
+// A company's own library seen from the admin side: the private questions it
+// has written, plus the whole global catalogue with a flag on each item the
+// company has chosen to hide from its own learners.
+app.get('/api/org/:orgId/content', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+
+  const privateQs = await c.env.DB.prepare(
+    `SELECT q.id, q.role, q.topic, q.level, q.prompt,
+            (SELECT COUNT(*) FROM follow_ups f WHERE f.question_id = q.id) AS follow_ups
+       FROM questions q WHERE q.org_id = ? ORDER BY q.created_at DESC`,
+  )
+    .bind(orgId)
+    .all();
+
+  // Each global row flagged with whether this company hides it. The bind is the
+  // org id for the correlated EXISTS.
+  const hiddenFlag = (kind) =>
+    `EXISTS (SELECT 1 FROM org_hidden_content h
+              WHERE h.org_id = ? AND h.kind = '${kind}' AND h.content_id = x.id) AS hidden`;
+
+  const globalQs = await c.env.DB.prepare(
+    `SELECT x.id, x.role, x.topic, x.level, ${hiddenFlag('question')}
+       FROM questions x WHERE x.org_id IS NULL ORDER BY x.level, x.role, x.topic`,
+  )
+    .bind(orgId)
+    .all();
+  const globalSc = await c.env.DB.prepare(
+    `SELECT x.id, x.role, x.level, x.title, ${hiddenFlag('scenario')}
+       FROM scenarios x WHERE x.org_id IS NULL ORDER BY x.level, x.role, x.title`,
+  )
+    .bind(orgId)
+    .all();
+  const globalLabs = await c.env.DB.prepare(
+    `SELECT x.id, x.role, x.level, x.title, ${hiddenFlag('lab')}
+       FROM labs x WHERE x.org_id IS NULL ORDER BY x.level, x.role, x.title`,
+  )
+    .bind(orgId)
+    .all();
+
+  return c.json({
+    private: { questions: privateQs.results ?? [] },
+    globals: {
+      questions: globalQs.results ?? [],
+      scenarios: globalSc.results ?? [],
+      labs: globalLabs.results ?? [],
+    },
+  });
+});
+
+// Write a private question for the company. The id is always minted fresh and
+// org_id is pinned to this company, so an admin can never pass the id of a
+// global question and overwrite it, nor reach into another company's library.
+app.post('/api/org/:orgId/questions', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const problem = questionProblem(body);
+  if (problem) return fail(c, 400, problem);
+
+  const id = newId('q');
+  const statements = [
+    c.env.DB.prepare(
+      `INSERT INTO questions (id, role, topic, level, prompt, model_answer, org_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      id,
+      body.role,
+      body.topic.trim(),
+      body.level,
+      body.prompt.trim(),
+      body.model_answer.trim(),
+      orgId,
+      nowIso(),
+    ),
+  ];
+  body.follow_ups.forEach((f, i) => {
+    statements.push(
+      c.env.DB.prepare(
+        'INSERT INTO follow_ups (id, question_id, position, prompt, model_answer) VALUES (?, ?, ?, ?, ?)',
+      ).bind(`${id}_f${i + 1}`, id, i + 1, f.prompt.trim(), f.model_answer.trim()),
+    );
+  });
+  await c.env.DB.batch(statements);
+  return c.json({ ok: true, id }, 201);
+});
+
+// Remove a private question. Pinned to this company's org_id, so the delete can
+// only ever touch the company's own item.
+app.post('/api/org/:orgId/questions/:qid/delete', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const qid = c.req.param('qid');
+  const owned = await c.env.DB.prepare('SELECT id FROM questions WHERE id = ? AND org_id = ?')
+    .bind(qid, orgId)
+    .first();
+  if (!owned) return fail(c, 404, 'No such question in your library.');
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM follow_ups WHERE question_id = ?').bind(qid),
+    c.env.DB.prepare('DELETE FROM attempts WHERE question_id = ?').bind(qid),
+    c.env.DB.prepare('DELETE FROM questions WHERE id = ? AND org_id = ?').bind(qid, orgId),
+  ]);
+  return c.json({ ok: true });
+});
+
+// Hide or show a global item for this company's learners. You can only ever
+// hide a global (org_id IS NULL) item: your own private content you delete, and
+// another company's private content you cannot see in the first place.
+app.post('/api/org/:orgId/hidden', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const kind = (body?.kind ?? '').toString();
+  const contentId = (body?.content_id ?? '').toString();
+  const hidden = Boolean(body?.hidden);
+  if (!HIDE_KINDS.has(kind)) return fail(c, 400, 'Unknown kind.');
+  if (!contentId) return fail(c, 400, 'Which item?');
+
+  const exists = await c.env.DB.prepare(
+    `SELECT 1 FROM ${HIDE_TABLE[kind]} WHERE id = ? AND org_id IS NULL`,
+  )
+    .bind(contentId)
+    .first();
+  if (!exists) return fail(c, 404, 'No such global item.');
+
+  if (hidden) {
+    await c.env.DB.prepare(
+      `INSERT INTO org_hidden_content (org_id, kind, content_id, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(org_id, kind, content_id) DO NOTHING`,
+    )
+      .bind(orgId, kind, contentId, nowIso())
+      .run();
+  } else {
+    await c.env.DB.prepare(
+      'DELETE FROM org_hidden_content WHERE org_id = ? AND kind = ? AND content_id = ?',
+    )
+      .bind(orgId, kind, contentId)
+      .run();
+  }
+  return c.json({ ok: true, hidden });
 });
 
 /* --------------------------------------------------------------- console */

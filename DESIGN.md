@@ -141,10 +141,11 @@ inline style, so `style-src` stays strict.
 npx -y impeccable@latest detect --no-advisory public/
 ```
 
-The clean baseline is **38 `dark-glow` findings and nothing else**. The glow
+The clean baseline is **39 `dark-glow` findings and nothing else**. The glow
 on buttons, the logo, the lead cards and the terminal dot is the look itself,
 so those stay, and the count rises whenever a new screen reuses them: 30 before
-the admin scenarios pane, 31 after, 33 once the platform console landed. Any
+the admin scenarios pane, 31 after, 33 once the platform console landed, 34 with
+companies, 38 with the org console and join, 39 with the org content area. Any
 *other* finding is a regression, contrast above all: fix it rather than waiving
 it. The advisory `codex-grid-background` note is the grid by design.
 
