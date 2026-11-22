@@ -149,6 +149,26 @@ select option{background:var(--panel);color:var(--text)}
   background:transparent;color:var(--faint);display:grid;place-items:center;padding:0}
 .peek:hover{background:rgba(41,182,255,.1);color:var(--text)}
 .peek svg{width:19px;height:19px;display:block}
+.pw .peek{z-index:2}
+
+/* Password reveal effect: a matrix-decode + glitch that plays inside the field
+   only, in the site neon. The overlay masks the input while the scramble runs;
+   the slice jitter and the RGB-split ghosts are pure CSS. */
+.pw-fx{position:absolute;inset:0;z-index:1;display:flex;align-items:center;
+  padding:12px 48px 12px 14px;border-radius:8px;background:#05080D;
+  font:inherit;font-size:16px;color:var(--neon-hi);text-shadow:0 0 10px rgba(41,182,255,.55);
+  pointer-events:none;opacity:0;overflow:hidden;white-space:nowrap}
+.pw-fx.on{opacity:1;animation:pwSlice .22s steps(2) infinite}
+@keyframes pwSlice{
+  0%{clip-path:inset(0 0 62% 0);transform:translateX(-1px)}
+  50%{clip-path:inset(58% 0 0 0);transform:translateX(1px)}
+  100%{clip-path:inset(28% 0 34% 0);transform:translateX(0)}
+}
+.pw-fx-g{position:relative}
+.pw-fx-g::before,.pw-fx-g::after{content:attr(data-t);position:absolute;left:0;top:0;width:100%}
+.pw-fx-g::before{color:var(--neon);transform:translateX(-1.5px);opacity:.8}
+.pw-fx-g::after{color:var(--mint);transform:translateX(1.5px);opacity:.7}
+@media (prefers-reduced-motion: reduce){.pw-fx.on{animation:none}}
 
 /* a message line that takes no room until it has something to say */
 .msg{font-family:var(--mono);font-size:13px;color:var(--dim);margin:0}
