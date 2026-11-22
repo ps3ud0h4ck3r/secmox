@@ -1,0 +1,60 @@
+import { describe, it, expect } from 'vitest';
+import { RATING_WEIGHT, nextReview, inDays, readinessBand } from '../src/scoring.js';
+
+describe('RATING_WEIGHT', () => {
+  it('weights got_it full, shaky half, missed nothing', () => {
+    expect(RATING_WEIGHT.got_it).toBe(1);
+    expect(RATING_WEIGHT.shaky).toBe(0.5);
+    expect(RATING_WEIGHT.missed).toBe(0);
+  });
+});
+
+describe('nextReview', () => {
+  it('pushes got_it further out each clean repetition', () => {
+    expect(nextReview(0, 'got_it')).toEqual({ reps: 1, interval_days: 2 });
+    expect(nextReview(1, 'got_it')).toEqual({ reps: 2, interval_days: 4 });
+    expect(nextReview(2, 'got_it')).toEqual({ reps: 3, interval_days: 9 });
+  });
+
+  it('caps the ladder at its last step', () => {
+    // Ladder is [2,4,9,21,45,90]; any rep beyond it stays at 90.
+    expect(nextReview(50, 'got_it')).toEqual({ reps: 51, interval_days: 90 });
+  });
+
+  it('resets reps and shortens the interval for shaky and missed', () => {
+    expect(nextReview(5, 'shaky')).toEqual({ reps: 0, interval_days: 2 });
+    expect(nextReview(5, 'missed')).toEqual({ reps: 0, interval_days: 1 });
+  });
+});
+
+describe('inDays', () => {
+  it('returns an ISO timestamp the given number of days ahead', () => {
+    const before = Date.now();
+    const iso = inDays(3);
+    const ms = Date.parse(iso);
+    expect(Number.isNaN(ms)).toBe(false);
+    const delta = ms - before;
+    // ~3 days, allowing a little slack for execution time.
+    expect(delta).toBeGreaterThan(3 * 86_400_000 - 5000);
+    expect(delta).toBeLessThan(3 * 86_400_000 + 5000);
+  });
+});
+
+describe('readinessBand', () => {
+  it('is untouched when nothing has been seen, whatever the hold', () => {
+    expect(readinessBand(100, 0)).toBe('untouched');
+  });
+
+  it('grades the hold once a role has been seen', () => {
+    expect(readinessBand(0, 10)).toBe('cold');
+    expect(readinessBand(24.9, 10)).toBe('cold');
+    expect(readinessBand(25, 10)).toBe('shaky');
+    expect(readinessBand(49, 10)).toBe('shaky');
+    expect(readinessBand(50, 10)).toBe('building');
+    expect(readinessBand(71, 10)).toBe('building');
+    expect(readinessBand(72, 10)).toBe('close');
+    expect(readinessBand(87, 10)).toBe('close');
+    expect(readinessBand(88, 10)).toBe('ready');
+    expect(readinessBand(100, 10)).toBe('ready');
+  });
+});

@@ -9,12 +9,14 @@
     "schema": "wrangler d1 execute secmox --remote --file=schema.sql",
     "seed": "wrangler d1 execute secmox --remote --file=seed.sql",
     "check": "npx -y impeccable@latest detect public/",
-    "verify": "wrangler deploy --dry-run --outdir=.wrangler/dry-run"
+    "verify": "wrangler deploy --dry-run --outdir=.wrangler/dry-run",
+    "test": "vitest run"
   },
   "dependencies": {
     "hono": "^4.6.0"
   },
   "devDependencies": {
+    "vitest": "^5.1.1",
     "wrangler": "^4.0.0"
   },
   "engines": {

@@ -26,6 +26,7 @@ import {
   verifyPassword,
 } from './auth.js';
 import { mailConfigured, resetEmail, sendMail } from './mail.js';
+import { RATING_WEIGHT, nextReview, inDays, readinessBand } from './scoring.js';
 
 const app = new Hono();
 
@@ -63,8 +64,13 @@ async function guardAuth(c, limits) {
 /* --------------------------------------------------------------- headers */
 
 app.use('*', async (c, next) => {
+  // One id per request, surfaced on the response and carried into any error log
+  // so a report ("it broke, id abc123") can be traced to the exact line.
+  const reqId = crypto.randomUUID();
+  c.set('reqId', reqId);
   await next();
   const h = c.res.headers;
+  h.set('X-Request-Id', reqId);
   h.set('X-Content-Type-Options', 'nosniff');
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('X-Frame-Options', 'DENY');
@@ -74,6 +80,32 @@ app.use('*', async (c, next) => {
   if (new URL(c.req.url).pathname.startsWith('/api/')) {
     h.set('Cache-Control', 'no-store');
   }
+});
+
+// Anything a handler throws lands here: logged as one structured line (captured
+// by Workers observability) and returned to the caller without leaking
+// internals. The request id ties the two together.
+app.onError((err, c) => {
+  const reqId = c.get('reqId') || 'unknown';
+  const status = Number.isInteger(err?.status) ? err.status : 500;
+  console.error(
+    JSON.stringify({
+      at: new Date().toISOString(),
+      level: 'error',
+      reqId,
+      method: c.req.method,
+      path: new URL(c.req.url).pathname,
+      status,
+      name: err?.name,
+      message: err?.message,
+      stack: err?.stack,
+    }),
+  );
+  const body =
+    status < 500
+      ? { error: err?.message || 'Request failed.' }
+      : { error: 'Something went wrong on our end. Quote this id if you get in touch.', id: reqId };
+  return c.json(body, status, { 'X-Request-Id': reqId });
 });
 
 /* ------------------------------------------------------------- sessions */
@@ -820,21 +852,6 @@ app.get('/api/questions/:id/answer', async (c) => {
 // The widening ladder. A got-it moves the question one rung further out; a
 // shaky brings it back to a couple of days; a missed puts it on tomorrow. The
 // rungs are days, capped so nothing drifts past about a quarter.
-const GOT_IT_DAYS = [2, 4, 9, 21, 45, 90];
-
-function nextReview(prevReps, rating) {
-  if (rating === 'got_it') {
-    const reps = prevReps + 1;
-    const days = GOT_IT_DAYS[Math.min(reps, GOT_IT_DAYS.length) - 1];
-    return { reps, interval_days: days };
-  }
-  if (rating === 'shaky') return { reps: 0, interval_days: 2 };
-  return { reps: 0, interval_days: 1 };
-}
-
-function inDays(days) {
-  return new Date(Date.now() + days * 86_400_000).toISOString();
-}
 
 app.post('/api/attempts', async (c) => {
   const user = c.get('user');
@@ -908,17 +925,6 @@ app.get('/api/coverage', async (c) => {
 // unseen nothing, so a role is only as ready as the share you can actually hold
 // cold. Depth, scenarios and labs refine it, and the weak topics are the part
 // the candidate can act on.
-const RATING_WEIGHT = { got_it: 1, shaky: 0.5, missed: 0 };
-
-function readinessBand(hold, seen) {
-  if (!seen) return 'untouched';
-  if (hold < 25) return 'cold';
-  if (hold < 50) return 'shaky';
-  if (hold < 72) return 'building';
-  if (hold < 88) return 'close';
-  return 'ready';
-}
-
 app.get('/api/readiness', async (c) => {
   const user = c.get('user');
   const { level } = filters(c);
