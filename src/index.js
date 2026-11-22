@@ -347,33 +347,41 @@ app.get('/api/dashboard', async (c) => {
     .bind(user.id, now, user.id, user.id)
     .first();
 
+  // Days are the user's local days, not UTC. The client sends its offset in
+  // minutes east of UTC (IST = 330); attempts are stored in UTC, so a day
+  // boundary at midnight IST would otherwise land at 18:30 the day before and
+  // split or merge a learner's day. No DST handling: the target users are IST,
+  // which has none, and a fixed offset is correct there.
+  const tzRaw = Number(c.req.query('tz'));
+  const off = Number.isInteger(tzRaw) && tzRaw >= -720 && tzRaw <= 840 ? tzRaw : 0;
+  const mod = `${off >= 0 ? '+' : ''}${off} minutes`;
+  const localDay = (ms) => new Date(ms + off * 60000).toISOString().slice(0, 10);
+
   // Per-day attempt counts over the last 90 days, for the 7-day strip, the week
-  // total and the streak.
+  // total and the streak, grouped by the user's local day.
   const ninety = new Date(Date.now() - 90 * 86400000).toISOString();
   const byDay = await c.env.DB.prepare(
-    `SELECT date(created_at) AS d, COUNT(*) AS n
+    `SELECT date(created_at, ?) AS d, COUNT(*) AS n
        FROM attempts WHERE user_id = ? AND created_at >= ? GROUP BY d`,
   )
-    .bind(user.id, ninety)
+    .bind(mod, user.id, ninety)
     .all();
   const counts = new Map((byDay.results ?? []).map((r) => [r.d, r.n]));
 
-  const iso = (d) => d.toISOString().slice(0, 10);
   const activity = [];
   let weekTotal = 0;
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000);
-    const day = iso(d);
+    const day = localDay(Date.now() - i * 86400000);
     const n = counts.get(day) || 0;
     activity.push({ day, count: n });
     weekTotal += n;
   }
   let streak = 0;
-  const cur = new Date();
-  if (!counts.has(iso(cur))) cur.setUTCDate(cur.getUTCDate() - 1);
-  while (counts.has(iso(cur))) {
+  let probeMs = Date.now();
+  if (!counts.has(localDay(probeMs))) probeMs -= 86400000;
+  while (counts.has(localDay(probeMs))) {
     streak += 1;
-    cur.setUTCDate(cur.getUTCDate() - 1);
+    probeMs -= 86400000;
   }
 
   // Today's overall readiness: across every visible question, how much the user
@@ -394,7 +402,7 @@ app.get('/api/dashboard', async (c) => {
   const total = rows.length;
   const points = rows.reduce((a, r) => a + (RATING_WEIGHT[r.rating] ?? 0), 0);
   const overall = total ? Math.round((points / total) * 100) : 0;
-  const today = iso(new Date());
+  const today = localDay(Date.now());
   if (total) {
     await c.env.DB.prepare(
       `INSERT INTO readiness_snapshots (user_id, day, readiness) VALUES (?, ?, ?)

@@ -306,7 +306,13 @@ function renderActions(agg) {
 export async function loadDashboard() {
   $('dashMsg').textContent = '';
   try {
-    const [rd, dash] = await Promise.all([api('/api/readiness'), api('/api/dashboard')]);
+    // Minutes east of UTC (IST = 330) so the server counts days, the streak and
+    // the activity strip in the learner's local time, not UTC.
+    const tz = -new Date().getTimezoneOffset();
+    const [rd, dash] = await Promise.all([
+      api('/api/readiness'),
+      api('/api/dashboard?tz=' + tz),
+    ]);
     const rows = rd.readiness || [];
     const sum = (f) => rows.reduce((a, r) => a + f(r), 0);
     const seen = sum((r) => r.seen);
