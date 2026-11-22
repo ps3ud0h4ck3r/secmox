@@ -1043,6 +1043,20 @@ app.get('/api/labs/:id/answers', async (c) => {
     .bind(id, user.id, user.id)
     .first();
   if (!lab) return fail(c, 404, 'No such lab.');
+  // A guided walk reveals one step at a time, so ?position=N returns just that
+  // task's answer and nothing ahead of it. No position returns them all.
+  const pos = c.req.query('position');
+  if (pos !== undefined && pos !== '') {
+    const n = Number(pos);
+    if (!Number.isInteger(n)) return fail(c, 400, 'Bad position.');
+    const task = await c.env.DB.prepare(
+      'SELECT position, prompt, model_answer FROM lab_tasks WHERE lab_id = ? AND position = ?',
+    )
+      .bind(id, n)
+      .first();
+    if (!task) return fail(c, 404, 'No such task.');
+    return c.json({ tasks: [task] });
+  }
   const { results } = await c.env.DB.prepare(
     'SELECT position, prompt, model_answer FROM lab_tasks WHERE lab_id = ? ORDER BY position',
   )

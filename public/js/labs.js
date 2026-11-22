@@ -4,7 +4,18 @@ import { $, api, say, ROLE_LABEL } from './common.js';
 // viewer has to make hunting possible, so both kinds get a filter: that is
 // what an analyst actually does with a log or an alert queue.
 
-const state = { lab: null, tasks: [], revealed: false, rows: null, sort: { col: null, dir: 1 } };
+// A guided walk through a lab's tasks: one step at a time, reveal the model
+// answer for that step, then move on. step is the index into tasks; answers
+// holds what the learner wrote at each step; done marks it finished.
+const state = {
+  lab: null,
+  tasks: [],
+  step: 0,
+  answers: [],
+  stepRevealed: false,
+  rows: null,
+  sort: { col: null, dir: 1 },
+};
 let onNeedsAuth = () => {};
 let onOpenLab = () => {};
 
@@ -144,18 +155,20 @@ export async function loadLabs() {
 
 export async function openLab(id) {
   say($('labMsg'), '');
-  state.revealed = false;
   state.rows = null;
   state.sort = { col: null, dir: 1 };
+  state.step = 0;
+  state.answers = [];
+  state.stepRevealed = false;
+  progShown = 0;
   $('labRate').hidden = true;
-  $('labReveal').hidden = false;
-  $('labReveal').disabled = false;
   $('artFilter').value = '';
 
   try {
     const out = await api(`/api/labs/${id}`);
     state.lab = out.lab;
     state.tasks = out.tasks;
+    state.answers = out.tasks.map(() => '');
 
     $('labTitle').textContent = out.lab.title;
     $('labMeta').textContent = `${ROLE_LABEL[out.lab.role] || out.lab.role} / ${out.lab.level}`;
@@ -165,7 +178,8 @@ export async function openLab(id) {
     if (out.lab.artifact_kind === 'table') renderTable(out.lab.body || '');
     else renderLog(out.lab.body || '');
 
-    renderTasks();
+    $('labDone').replaceChildren();
+    renderStep();
     return true;
   } catch (err) {
     if (err.status === 401) {
@@ -327,56 +341,101 @@ $('artFilter').addEventListener('input', () => {
   else filterLog($('artFilter').value.trim().toLowerCase());
 });
 
-/* ------------------------------------------------------------- tasks */
+/* ------------------------------------------- guided task walkthrough */
 
-function renderTasks() {
-  const items = state.tasks.map((t) => {
-    const box = document.createElement('div');
-    box.className = 'task';
-    box.dataset.position = String(t.position);
-
-    const no = document.createElement('span');
-    no.className = 'no';
-    no.textContent = `task ${t.position}`;
-
-    const q = document.createElement('p');
-    q.className = 'q';
-    q.textContent = t.prompt;
-
-    const ta = document.createElement('textarea');
-    ta.placeholder = 'Answer from what you can see in the artifact.';
-    ta.setAttribute('aria-label', `Answer to task ${t.position}`);
-
-    box.append(no, q, ta);
-    return box;
-  });
-  $('taskList').replaceChildren(...items);
+// CSP forbids an inline style attribute, so the progress bar grows via WAAPI,
+// animating from where it was to where it should be.
+let progShown = 0;
+function grow(node, pct) {
+  const to = Math.max(0, Math.min(100, pct));
+  node.animate([{ width: progShown + '%' }, { width: to + '%' }], { duration: 400, easing: 'ease-out', fill: 'both' });
+  progShown = to;
 }
 
-$('labReveal').addEventListener('click', async () => {
-  if (!state.lab || state.revealed) return;
-  $('labReveal').disabled = true;
+// Draw the active step: its prompt and a fresh answer box, reveal hidden behind
+// the learner's attempt.
+function renderStep() {
+  const i = state.step;
+  const t = state.tasks[i];
+  if (!t) return;
+  state.stepRevealed = false;
+  $('labProgress').textContent = `Step ${i + 1} of ${state.tasks.length}`;
+  grow($('labProgFill'), state.tasks.length ? (i / state.tasks.length) * 100 : 0);
+  $('labStep').hidden = false;
+  $('labStepNo').textContent = `task ${t.position}`;
+  $('labStepQ').textContent = t.prompt;
+  const ta = $('labStepAnswer');
+  ta.value = state.answers[i] || '';
+  ta.readOnly = false;
+  $('labStepModel').hidden = true;
+  $('labStepNextWrap').hidden = true;
+  $('labStepReveal').hidden = false;
+  $('labStepReveal').disabled = false;
+}
+
+// Fold the finished step into the running record above the active one, so the
+// learner keeps the thread without the current step competing for attention.
+function appendDone(task, answer, model) {
+  const box = document.createElement('div');
+  box.className = 'lab-done-item';
+  const q = document.createElement('p');
+  q.className = 'lab-done-q';
+  q.textContent = `${task.position}. ${task.prompt}`;
+  box.append(q);
+  if (answer) {
+    const you = document.createElement('p');
+    you.className = 'lab-done-you';
+    you.textContent = answer;
+    box.append(you);
+  }
+  const m = document.createElement('p');
+  m.className = 'lab-done-model';
+  m.textContent = model;
+  box.append(m);
+  $('labDone').append(box);
+}
+
+function finishLab() {
+  grow($('labProgFill'), 100);
+  $('labProgress').textContent = `${state.tasks.length} of ${state.tasks.length} done`;
+  $('labStep').hidden = true;
+  $('labRate').hidden = false;
+  $('labRate').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+$('labStepReveal').addEventListener('click', async () => {
+  if (!state.lab || state.stepRevealed) return;
+  const i = state.step;
+  const t = state.tasks[i];
+  state.answers[i] = $('labStepAnswer').value.trim();
+  $('labStepReveal').disabled = true;
   try {
-    const out = await api(`/api/labs/${state.lab.id}/answers`);
-    state.revealed = true;
-    for (const t of out.tasks) {
-      const box = $('taskList').querySelector(`[data-position="${t.position}"]`);
-      if (!box) continue;
-      const model = document.createElement('div');
-      model.className = 'model';
-      const h = document.createElement('h4');
-      h.textContent = 'What a strong answer covers';
-      const p = document.createElement('p');
-      p.textContent = t.model_answer;
-      model.append(h, p);
-      box.append(model);
-    }
-    $('labReveal').hidden = true;
-    $('labRate').hidden = false;
+    const out = await api(`/api/labs/${state.lab.id}/answers?position=${t.position}`);
+    $('labStepModelText').textContent = out.tasks?.[0]?.model_answer || '';
+    $('labStepModel').hidden = false;
+    $('labStepAnswer').readOnly = true;
+    state.stepRevealed = true;
+    $('labStepReveal').hidden = true;
+    const last = i === state.tasks.length - 1;
+    $('labStepNext').textContent = last ? 'Finish and rate' : 'Next step';
+    $('labStepNextWrap').hidden = false;
+    $('labStepModel').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   } catch (err) {
-    $('labReveal').disabled = false;
+    $('labStepReveal').disabled = false;
     if (err.status === 401) return onNeedsAuth();
     say($('labMsg'), err.message, 'err');
+  }
+});
+
+$('labStepNext').addEventListener('click', () => {
+  if (!state.stepRevealed) return;
+  const i = state.step;
+  appendDone(state.tasks[i], state.answers[i], $('labStepModelText').textContent);
+  if (i === state.tasks.length - 1) {
+    finishLab();
+  } else {
+    state.step = i + 1;
+    renderStep();
   }
 });
 
@@ -387,10 +446,9 @@ $('labRate').addEventListener('click', async (e) => {
   buttons.forEach((b) => (b.disabled = true));
   say($('labMsg'), 'Saving.');
   try {
-    const answers = [...$('taskList').querySelectorAll('textarea')].map((t) => t.value.trim());
     await api('/api/lab-attempts', {
       method: 'POST',
-      body: JSON.stringify({ lab_id: state.lab.id, answers, self_rating: btn.dataset.labRate }),
+      body: JSON.stringify({ lab_id: state.lab.id, answers: state.answers, self_rating: btn.dataset.labRate }),
     });
     say($('labMsg'), 'Recorded.', 'ok');
     await loadLabs();

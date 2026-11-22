@@ -634,3 +634,32 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .search-item:hover,.search-item:focus-visible{border-color:rgba(41,182,255,.55);outline:none}
 .search-prompt{line-height:1.45}
 .search-meta{font-family:var(--mono);font-size:12px;color:var(--faint)}
+
+/* ------------------------------------------------- guided lab steps */
+
+.lab-steps{margin-top:4px}
+.lab-progress{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.lab-progress #labProgress{font-family:var(--mono);font-size:12px;color:var(--faint);white-space:nowrap}
+.lab-prog-bar{flex:1;height:6px;border-radius:4px;background:var(--panel);overflow:hidden}
+.lab-prog-fill{height:100%;border-radius:4px;background:var(--neon)}
+
+/* Finished steps: compact, muted, stacked above the active one. */
+.lab-done{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.lab-done-item{border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;background:var(--panel)}
+.lab-done-q{margin:0 0 8px;font-weight:600;color:var(--dim)}
+.lab-done-you{margin:0 0 8px;font-size:14px;color:var(--text);white-space:pre-wrap;
+  border-left:2px solid var(--line);padding-left:12px}
+.lab-done-model{margin:0;font-size:14px;color:var(--faint);line-height:1.55}
+
+/* Active step: the one the learner is on. */
+.lab-step{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--panel)}
+.lab-step-no{font-family:var(--mono);font-size:12px;color:var(--neon);display:block;margin-bottom:8px;letter-spacing:.04em}
+.lab-step-q{margin:0 0 16px;font-size:18px;max-width:72ch;line-height:1.5}
+#labStepAnswer{min-height:96px;max-width:72ch;width:100%}
+.lab-step-actions{margin-top:14px}
+.lab-step .model{margin-top:16px;padding:16px 18px;border-radius:10px;
+  border:1px solid var(--line-soft);background:linear-gradient(180deg,rgba(95,227,161,.05),transparent)}
+.lab-step .model h4{margin:0 0 8px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--mint);font-weight:500}
+.lab-step .model p{margin:0;font-size:15.5px;color:var(--text);max-width:72ch;line-height:1.6}
+.lab-step-next{margin-top:16px}

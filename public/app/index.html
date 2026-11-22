@@ -588,14 +588,31 @@
       </div>
     </div>
 
-    <div id="taskList"></div>
-
-    <div class="actions">
-      <button class="inf" id="labReveal" type="button">Show the answers</button>
+    <div class="lab-steps">
+      <div class="lab-progress">
+        <span id="labProgress">Step 1</span>
+        <div class="lab-prog-bar"><div class="lab-prog-fill" id="labProgFill"></div></div>
+      </div>
+      <div class="lab-done" id="labDone"></div>
+      <div class="lab-step" id="labStep">
+        <span class="lab-step-no" id="labStepNo">task 1</span>
+        <p class="lab-step-q" id="labStepQ"></p>
+        <textarea id="labStepAnswer" placeholder="Answer from what you can see in the artifact." aria-label="Your answer to this step"></textarea>
+        <div class="lab-step-actions">
+          <button class="inf ghost" id="labStepReveal" type="button">Reveal what a strong answer covers</button>
+        </div>
+        <div class="model" id="labStepModel" hidden>
+          <h4>What a strong answer covers</h4>
+          <p id="labStepModelText"></p>
+        </div>
+        <div class="lab-step-next" id="labStepNextWrap" hidden>
+          <button class="inf ghost" id="labStepNext" type="button">Next step</button>
+        </div>
+      </div>
     </div>
 
     <div class="rate" id="labRate" hidden>
-      <span class="label">How did that go?</span>
+      <span class="label">Across the whole lab, how did that go?</span>
       <button class="inf ghost small" data-lab-rate="got_it" type="button">Got it</button>
       <button class="inf ghost small" data-lab-rate="shaky" type="button">Shaky</button>
       <button class="inf ghost small" data-lab-rate="missed" type="button">Missed it</button>
