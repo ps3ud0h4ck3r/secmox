@@ -928,12 +928,14 @@ app.get('/api/scenarios', async (c) => {
     `SELECT s.id, s.title, s.role, s.level, s.minutes, s.is_free,
             (SELECT COUNT(*) FROM scenario_points p WHERE p.scenario_id = s.id) AS points,
             (SELECT COUNT(*) FROM scenario_attempts a
-              WHERE a.scenario_id = s.id AND a.user_id = ?) AS done
+              WHERE a.scenario_id = s.id AND a.user_id = ?) AS done,
+            (SELECT MAX(a.covered) FROM scenario_attempts a
+              WHERE a.scenario_id = s.id AND a.user_id = ?) AS best
        FROM scenarios s
       WHERE ${visibleSql('s', 'scenario')}
       ORDER BY s.level, s.role, s.title`,
   )
-    .bind(user.id, user.id, user.id)
+    .bind(user.id, user.id, user.id, user.id)
     .all();
   return c.json({ scenarios: results ?? [] });
 });

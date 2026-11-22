@@ -18,40 +18,111 @@ const words = (text) => (text.trim() ? text.trim().split(/\s+/).length : 0);
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+// Level (who it is for) and status (have you done it) are both worth filtering,
+// and the shortest scenario is a different commitment from the longest, so both
+// axes sort. All client-side over the loaded set.
+let allScenarios = [];
+let scWired = false;
+const scView = { role: '', level: '', status: '', sort: 'level-asc' };
+
+function scenarioCard(sc) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'lab-card';
+  card.dataset.id = sc.id;
+
+  const head = document.createElement('div');
+  head.className = 'lab-card-head';
+  const title = document.createElement('h3');
+  title.textContent = sc.title;
+  const tag = document.createElement('span');
+  tag.className = 'pill-tag';
+  tag.textContent = `${ROLE_LABEL[sc.role] ?? sc.role} / ${sc.level}`;
+  head.append(title, tag);
+
+  const meta = document.createElement('p');
+  meta.className = 'lab-card-meta';
+  meta.textContent = `${plural(sc.minutes, 'minute', 'minutes')} · ${plural(sc.points, 'point', 'points')} to cover`;
+
+  card.append(head, meta);
+
+  // Done scenarios show the best the user has covered, which is more use than a
+  // raw attempt count: it says how close they got.
+  if (sc.done) {
+    const foot = document.createElement('div');
+    foot.className = 'lab-foot sc-foot';
+    const done = document.createElement('span');
+    done.className = 'done';
+    done.textContent = 'Done';
+    foot.append(done);
+    if (sc.best != null) {
+      const score = document.createElement('span');
+      score.className = 'sc-best';
+      score.textContent = `best ${sc.best}/${sc.points} covered`;
+      foot.append(score);
+    }
+    card.append(foot);
+  }
+
+  card.addEventListener('click', () => onOpen(sc.id));
+  return card;
+}
+
+function scRender() {
+  const list = $('scList');
+  const v = scView;
+  const lvl = (s) => (s.level === 'mid' ? 1 : 0);
+  const byTitle = (a, b) => a.title.localeCompare(b.title);
+  const rows = allScenarios
+    .filter(
+      (s) =>
+        (!v.role || s.role === v.role) &&
+        (!v.level || s.level === v.level) &&
+        (!v.status || (v.status === 'done' ? s.done > 0 : !s.done)),
+    )
+    .sort((a, b) => {
+      if (v.sort === 'level-desc') return lvl(b) - lvl(a) || byTitle(a, b);
+      if (v.sort === 'time-asc') return a.minutes - b.minutes || byTitle(a, b);
+      if (v.sort === 'time-desc') return b.minutes - a.minutes || byTitle(a, b);
+      return lvl(a) - lvl(b) || byTitle(a, b); // level-asc default
+    });
+
+  if (!rows.length) {
+    list.replaceChildren();
+    say($('scListMsg'), 'No scenarios match those filters. Widen them.');
+    return;
+  }
+  say($('scListMsg'), '');
+  list.replaceChildren(...rows.map(scenarioCard));
+}
+
+function scWireControls() {
+  const apply = () => {
+    scView.role = $('scfRole').value;
+    scView.level = $('scfLevel').value;
+    scView.status = $('scfStatus').value;
+    scView.sort = $('scfSort').value;
+    scRender();
+  };
+  ['scfRole', 'scfLevel', 'scfStatus', 'scfSort'].forEach((id) => $(id).addEventListener('change', apply));
+}
+
 export async function loadScenarios() {
   const list = $('scList');
   list.textContent = 'Loading scenarios.';
   try {
     const { scenarios } = await api('/api/scenarios');
+    allScenarios = scenarios || [];
+    if (!scWired) {
+      scWireControls();
+      scWired = true;
+    }
     list.textContent = '';
-    if (!scenarios.length) {
+    if (!allScenarios.length) {
       list.textContent = 'No scenarios yet.';
       return;
     }
-    for (const sc of scenarios) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'lab-card';
-      card.dataset.id = sc.id;
-
-      const head = document.createElement('div');
-      head.className = 'lab-card-head';
-      const title = document.createElement('h3');
-      title.textContent = sc.title;
-      const tag = document.createElement('span');
-      tag.className = 'pill-tag';
-      tag.textContent = `${ROLE_LABEL[sc.role] ?? sc.role} / ${sc.level}`;
-      head.append(title, tag);
-
-      const meta = document.createElement('p');
-      meta.className = 'lab-card-meta';
-      meta.textContent = `${plural(sc.minutes, 'minute', 'minutes')} · ${plural(sc.points, 'point', 'points')} to cover`;
-      if (sc.done) meta.textContent += ` · written ${plural(sc.done, 'time', 'times')}`;
-
-      card.append(head, meta);
-      card.addEventListener('click', () => onOpen(sc.id));
-      list.append(card);
-    }
+    scRender();
   } catch (err) {
     list.textContent = '';
     say($('scListMsg'), err.message, 'err');

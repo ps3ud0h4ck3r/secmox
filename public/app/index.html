@@ -343,6 +343,44 @@
     <p class="kicker">&gt; scenarios</p>
     <h1>Scenario writing</h1>
     <p class="sub">A situation and a blank box. Write how you would handle it end to end, then score what you wrote against the points a panel listens for.</p>
+    <div class="controls" id="scControls">
+      <div>
+        <label for="scfRole">Role</label>
+        <select id="scfRole">
+          <option value="">All roles</option>
+          <option value="soc">SOC analyst</option>
+          <option value="pentest">Penetration testing</option>
+          <option value="network">Network security</option>
+          <option value="cloud">Cloud security</option>
+          <option value="grc">GRC</option>
+        </select>
+      </div>
+      <div>
+        <label for="scfLevel">Level</label>
+        <select id="scfLevel">
+          <option value="">All levels</option>
+          <option value="fresher">Fresher</option>
+          <option value="mid">Mid-level</option>
+        </select>
+      </div>
+      <div>
+        <label for="scfStatus">Status</label>
+        <select id="scfStatus">
+          <option value="">All</option>
+          <option value="todo">Not started</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div>
+        <label for="scfSort">Sort</label>
+        <select id="scfSort">
+          <option value="level-asc">Level: fresher first</option>
+          <option value="level-desc">Level: mid first</option>
+          <option value="time-asc">Time: shortest first</option>
+          <option value="time-desc">Time: longest first</option>
+        </select>
+      </div>
+    </div>
     <div class="lab-list" id="scList"></div>
     <p class="msg" id="scListMsg"></p>
   </section>

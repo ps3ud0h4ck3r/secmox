@@ -121,6 +121,8 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .diff.d2::before{background:#FFC24D}
 .diff.d3::before{background:#FF7A7A}
 .lab-card .done{font-family:var(--mono);font-size:12px;color:var(--mint)}
+.sc-foot{margin-top:14px}
+.sc-best{font-family:var(--mono);font-size:12px;color:var(--faint)}
 .lab-card .go{margin-left:auto;font-size:14px;font-weight:600;color:var(--neon)}
 
 .lab-head{display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap;margin:14px 0 10px}
