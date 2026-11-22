@@ -1,5 +1,6 @@
 import { $, api, say } from './common.js';
 import { setupOrgContent, loadOrgContent } from './org-content.js';
+import { setupCohorts, loadCohorts } from './org-cohorts.js';
 
 // The company console, for an org_admin. Scoped to one company at a time; if you
 // run more than one, a picker switches between them. Everything it touches is
@@ -133,10 +134,11 @@ function wire() {
 
   $('orgPick').addEventListener('change', async () => {
     orgId = $('orgPick').value;
-    await Promise.all([loadMembers(), loadInvites(), loadOrgContent()]);
+    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadOrgContent()]);
   });
 
   setupOrgContent(() => orgId);
+  setupCohorts(() => orgId);
 }
 
 (async () => {
@@ -162,7 +164,7 @@ function wire() {
       );
     }
     wire();
-    await Promise.all([loadMembers(), loadInvites(), loadOrgContent()]);
+    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadOrgContent()]);
     $('main').hidden = false;
   } catch (err) {
     if (err.status === 401) {

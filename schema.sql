@@ -308,3 +308,20 @@ CREATE TABLE IF NOT EXISTS question_reports (
   resolved_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_question_reports_open ON question_reports(resolved_at, created_at);
+
+-- Cohorts: a batch of learners inside a company. A company groups its people
+-- into cohorts, and a trainer watches a cohort's readiness.
+CREATE TABLE IF NOT EXISTS cohorts (
+  id         TEXT PRIMARY KEY,
+  org_id     TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cohorts_org ON cohorts(org_id, created_at);
+CREATE TABLE IF NOT EXISTS cohort_members (
+  cohort_id  TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (cohort_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_members_user ON cohort_members(user_id);

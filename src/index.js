@@ -1686,6 +1686,17 @@ async function isOrgAdmin(db, user, orgId) {
   return Boolean(row);
 }
 
+// A trainer or an admin may look at a company's cohorts and readiness; only an
+// admin changes them.
+async function isOrgStaff(db, user, orgId) {
+  if (user.platform_role === 'owner') return true;
+  const row = await db
+    .prepare("SELECT 1 FROM org_members WHERE org_id = ? AND user_id = ? AND role IN ('org_admin', 'trainer')")
+    .bind(orgId, user.id)
+    .first();
+  return Boolean(row);
+}
+
 const INVITE_DAYS = 14;
 
 app.get('/api/org/:orgId/members', async (c) => {
@@ -1723,6 +1734,157 @@ app.post('/api/org/:orgId/members/:userId/remove', async (c) => {
   }
   await c.env.DB.prepare('DELETE FROM org_members WHERE org_id = ? AND user_id = ?')
     .bind(orgId, userId)
+    .run();
+  return c.json({ ok: true });
+});
+
+/* ------------------------------------------------------------- cohorts */
+
+app.get('/api/org/:orgId/cohorts', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const rows = await c.env.DB.prepare(
+    `SELECT ch.id, ch.name, ch.created_at,
+            (SELECT COUNT(*) FROM cohort_members cm WHERE cm.cohort_id = ch.id) AS members
+       FROM cohorts ch WHERE ch.org_id = ? ORDER BY ch.created_at DESC`,
+  )
+    .bind(orgId)
+    .all();
+  return c.json({ cohorts: rows.results ?? [] });
+});
+
+app.post('/api/org/:orgId/cohorts', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const name = (body?.name ?? '').toString().trim().slice(0, 80);
+  if (name.length < 2) return fail(c, 400, 'Give the cohort a name.');
+  const id = newId('coh');
+  await c.env.DB.prepare('INSERT INTO cohorts (id, org_id, name, created_at) VALUES (?, ?, ?, ?)')
+    .bind(id, orgId, name, nowIso())
+    .run();
+  return c.json({ ok: true, id });
+});
+
+app.post('/api/org/:orgId/cohorts/:cid/delete', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const cid = c.req.param('cid');
+  const coh = await c.env.DB.prepare('SELECT id FROM cohorts WHERE id = ? AND org_id = ?').bind(cid, orgId).first();
+  if (!coh) return fail(c, 404, 'No such cohort.');
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM cohort_members WHERE cohort_id = ?').bind(cid),
+    c.env.DB.prepare('DELETE FROM cohorts WHERE id = ?').bind(cid),
+  ]);
+  return c.json({ ok: true });
+});
+
+// A cohort's roster with each learner's readiness: how much they have practised
+// (attempts, questions seen, coverage of the bank) and how solid it is (held
+// percentage on what they have faced). This is the trainer dashboard.
+app.get('/api/org/:orgId/cohorts/:cid', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const cid = c.req.param('cid');
+  const cohort = await c.env.DB.prepare('SELECT id, name FROM cohorts WHERE id = ? AND org_id = ?')
+    .bind(cid, orgId)
+    .first();
+  if (!cohort) return fail(c, 404, 'No such cohort.');
+
+  // How many questions this company's learners can see: global not hidden, plus
+  // the company's own private questions. The coverage denominator.
+  const totalRow = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM questions q
+      WHERE (q.org_id IS NULL OR q.org_id = ?)
+        AND q.id NOT IN (SELECT content_id FROM org_hidden_content WHERE org_id = ? AND kind = 'question')`,
+  )
+    .bind(orgId, orgId)
+    .first();
+  const total = totalRow?.n ?? 0;
+
+  const mem = await c.env.DB.prepare(
+    `SELECT u.id, u.email, u.target_role
+       FROM cohort_members cm JOIN users u ON u.id = cm.user_id
+      WHERE cm.cohort_id = ? ORDER BY u.email`,
+  )
+    .bind(cid)
+    .all();
+  const members = mem.results ?? [];
+  if (!members.length) return c.json({ cohort, total, members: [] });
+
+  const ids = members.map((m) => m.id);
+  const ph = ids.map(() => '?').join(', ');
+  const held = await c.env.DB.prepare(
+    `WITH latest AS (
+       SELECT user_id, question_id, self_rating,
+              ROW_NUMBER() OVER (PARTITION BY user_id, question_id ORDER BY created_at DESC, id DESC) AS rn
+         FROM attempts WHERE user_id IN (${ph})
+     )
+     SELECT user_id, COUNT(*) AS seen,
+            SUM(CASE self_rating WHEN 'got_it' THEN 1.0 WHEN 'shaky' THEN 0.5 ELSE 0 END) AS points
+       FROM latest WHERE rn = 1 GROUP BY user_id`,
+  )
+    .bind(...ids)
+    .all();
+  const activity = await c.env.DB.prepare(
+    `SELECT user_id, COUNT(*) AS attempts, MAX(created_at) AS last_active
+       FROM attempts WHERE user_id IN (${ph}) GROUP BY user_id`,
+  )
+    .bind(...ids)
+    .all();
+  const heldBy = new Map((held.results ?? []).map((r) => [r.user_id, r]));
+  const actBy = new Map((activity.results ?? []).map((r) => [r.user_id, r]));
+
+  const rows = members.map((m) => {
+    const h = heldBy.get(m.id);
+    const a = actBy.get(m.id);
+    const seen = h?.seen ?? 0;
+    return {
+      id: m.id,
+      email: m.email,
+      target_role: m.target_role ?? null,
+      attempts: a?.attempts ?? 0,
+      seen,
+      coverage: total ? Math.round((seen / total) * 100) : 0,
+      readiness: seen ? Math.round((h.points / seen) * 100) : 0,
+      last_active: a?.last_active ?? null,
+    };
+  });
+  return c.json({ cohort, total, members: rows });
+});
+
+// Add a company member to a cohort by email. They must already be in the
+// company; cohorts group existing members, they do not invite.
+app.post('/api/org/:orgId/cohorts/:cid/members', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const cid = c.req.param('cid');
+  const coh = await c.env.DB.prepare('SELECT id FROM cohorts WHERE id = ? AND org_id = ?').bind(cid, orgId).first();
+  if (!coh) return fail(c, 404, 'No such cohort.');
+  const body = await c.req.json().catch(() => null);
+  const email = normalizeEmail(body?.email);
+  if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
+  const user = await c.env.DB.prepare(
+    `SELECT u.id FROM users u JOIN org_members m ON m.user_id = u.id
+      WHERE u.email = ? AND m.org_id = ?`,
+  )
+    .bind(email, orgId)
+    .first();
+  if (!user) return fail(c, 404, 'That person is not in your company yet. Invite or add them first.');
+  await c.env.DB.prepare('INSERT OR IGNORE INTO cohort_members (cohort_id, user_id, created_at) VALUES (?, ?, ?)')
+    .bind(cid, user.id, nowIso())
+    .run();
+  return c.json({ ok: true });
+});
+
+app.post('/api/org/:orgId/cohorts/:cid/members/:uid/remove', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const cid = c.req.param('cid');
+  const coh = await c.env.DB.prepare('SELECT id FROM cohorts WHERE id = ? AND org_id = ?').bind(cid, orgId).first();
+  if (!coh) return fail(c, 404, 'No such cohort.');
+  await c.env.DB.prepare('DELETE FROM cohort_members WHERE cohort_id = ? AND user_id = ?')
+    .bind(cid, c.req.param('uid'))
     .run();
   return c.json({ ok: true });
 });

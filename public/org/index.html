@@ -86,6 +86,24 @@
     </div>
 
     <div class="console-head content-head">
+      <h1>Cohorts</h1>
+    </div>
+    <p class="sub">Group your learners into batches and watch each batch's readiness: how much they have practised and how solid it is.</p>
+
+    <div class="editor">
+      <h2>Create a cohort</h2>
+      <form id="cohortForm" class="org-create" novalidate>
+        <input id="cohortName" placeholder="e.g. SOC batch Nov 2026" autocomplete="off" required>
+        <button class="inf" type="submit" id="cohortCreate">Create cohort</button>
+      </form>
+      <p class="msg" id="cohortMsg"></p>
+    </div>
+
+    <div class="panel">
+      <div class="cohort-list" id="cohortList"></div>
+    </div>
+
+    <div class="console-head content-head">
       <h1>Content</h1>
     </div>
     <p class="sub">Write questions only your learners see, and hide the global ones that do not fit your training.</p>
