@@ -286,3 +286,25 @@ CREATE TABLE IF NOT EXISTS company_tracks (
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_company_tracks_role ON company_tracks(role, level);
+
+-- Questions a learner saved to come back to. focus=saved in /api/next plays
+-- only these; the star on the practice card toggles membership.
+CREATE TABLE IF NOT EXISTS bookmarks (
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  created_at  TEXT NOT NULL,
+  PRIMARY KEY (user_id, question_id)
+);
+
+-- A learner flagging a question as wrong, confusing or stale. Captured for
+-- review; resolved_at is set when it has been dealt with.
+CREATE TABLE IF NOT EXISTS question_reports (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  reason      TEXT NOT NULL,
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_question_reports_open ON question_reports(resolved_at, created_at);

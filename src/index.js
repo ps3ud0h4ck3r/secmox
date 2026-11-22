@@ -349,6 +349,93 @@ app.post('/api/me/onboard', async (c) => {
   return c.json({ ok: true, target_role: role ?? user.target_role ?? null, track: level ?? user.track });
 });
 
+/* ------------------------------------------ bookmarks, reports, search */
+
+// The ids the learner has saved, so the star shows the right state wherever a
+// question appears (fresh practice, a weak drill, a track run).
+app.get('/api/bookmarks', async (c) => {
+  const user = c.get('user');
+  const { results } = await c.env.DB.prepare(
+    'SELECT question_id FROM bookmarks WHERE user_id = ? ORDER BY created_at DESC',
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ ids: (results ?? []).map((r) => r.question_id) });
+});
+
+// Toggle a bookmark. Only a question the learner can actually see can be saved.
+app.post('/api/questions/:id/bookmark', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const q = await c.env.DB.prepare(
+    `SELECT q.id FROM questions q WHERE q.id = ? AND ${visibleSql('q', 'question')}`,
+  )
+    .bind(id, user.id, user.id)
+    .first();
+  if (!q) return fail(c, 404, 'No such question.');
+  const existing = await c.env.DB.prepare(
+    'SELECT 1 AS x FROM bookmarks WHERE user_id = ? AND question_id = ?',
+  )
+    .bind(user.id, id)
+    .first();
+  if (existing) {
+    await c.env.DB.prepare('DELETE FROM bookmarks WHERE user_id = ? AND question_id = ?')
+      .bind(user.id, id)
+      .run();
+    return c.json({ bookmarked: false });
+  }
+  await c.env.DB.prepare('INSERT OR IGNORE INTO bookmarks (user_id, question_id, created_at) VALUES (?, ?, ?)')
+    .bind(user.id, id, nowIso())
+    .run();
+  return c.json({ bookmarked: true });
+});
+
+const REPORT_REASONS = new Set(['wrong', 'typo', 'confusing', 'outdated', 'other']);
+
+// Report a bad question: wrong answer, typo, confusing, stale. Captured for
+// review rather than acted on live.
+app.post('/api/questions/:id/report', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => null);
+  const reason = body?.reason ? String(body.reason) : '';
+  if (!REPORT_REASONS.has(reason)) return fail(c, 400, 'Pick a reason.');
+  const note = String(body?.note ?? '').trim().slice(0, 1000) || null;
+  const q = await c.env.DB.prepare(
+    `SELECT q.id FROM questions q WHERE q.id = ? AND ${visibleSql('q', 'question')}`,
+  )
+    .bind(id, user.id, user.id)
+    .first();
+  if (!q) return fail(c, 404, 'No such question.');
+  await c.env.DB.prepare(
+    'INSERT INTO question_reports (id, user_id, question_id, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+    .bind(newId('rep'), user.id, id, reason, note, nowIso())
+    .run();
+  return c.json({ ok: true });
+});
+
+// Search the bank by prompt or topic, visible questions only. The client plays
+// the matches as a run, so the shape matches a question card.
+app.get('/api/search', async (c) => {
+  const user = c.get('user');
+  const term = String(c.req.query('q') ?? '').trim().slice(0, 100);
+  if (term.length < 2) return c.json({ results: [] });
+  const like = '%' + term.replace(/[%_\\]/g, (m) => '\\' + m) + '%';
+  const { results } = await c.env.DB.prepare(
+    `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty,
+            (SELECT COUNT(*) FROM follow_ups f WHERE f.question_id = q.id) AS follow_up_count
+       FROM questions q
+      WHERE (q.prompt LIKE ? ESCAPE '\\' OR q.topic LIKE ? ESCAPE '\\')
+        AND ${visibleSql('q', 'question')}
+      ORDER BY q.role, q.level, q.topic
+      LIMIT 25`,
+  )
+    .bind(like, like, user.id, user.id)
+    .all();
+  return c.json({ results: results ?? [] });
+});
+
 // Dashboard aggregates that readiness does not already carry: how many reviews
 // are due, the last week of activity and the current streak, and the readiness
 // trend. Opening the dashboard also records today's reading, so the trend grows
@@ -547,6 +634,38 @@ app.get('/api/next', async (c) => {
       },
       fresh: false,
       mode: 'weak',
+    });
+  }
+
+  // Saved drill: only the questions the learner bookmarked, random order. Like
+  // weak, no fallback — an empty pile means nothing is saved and the client
+  // says so rather than slipping into normal practice.
+  if (c.req.query('focus') === 'saved') {
+    const saved = await c.env.DB.prepare(
+      `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty
+         FROM questions q
+         JOIN bookmarks b ON b.question_id = q.id AND b.user_id = ?
+        WHERE ${clause} AND ${vis}
+        ORDER BY RANDOM() LIMIT 1`,
+    )
+      .bind(user.id, ...args, user.id, user.id)
+      .first();
+    if (!saved) return c.json({ question: null, mode: 'saved' });
+    const fu = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM follow_ups WHERE question_id = ?')
+      .bind(saved.id)
+      .first();
+    return c.json({
+      question: {
+        id: saved.id,
+        role: saved.role,
+        topic: saved.topic,
+        level: saved.level,
+        prompt: saved.prompt,
+        difficulty: saved.difficulty,
+        follow_up_count: fu?.n ?? 0,
+      },
+      fresh: false,
+      mode: 'saved',
     });
   }
 

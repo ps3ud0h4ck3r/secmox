@@ -23,6 +23,9 @@ const state = {
   // A company-track run: a fixed, ordered queue of question objects played in
   // place of the usual next-question engine. null means ordinary practice.
   run: null,
+  // Bookmarked question ids, loaded once so the star shows the right state
+  // wherever a question appears.
+  bookmarks: new Set(),
 };
 // This sitting's honest tally. In-memory only: it resets when the page reloads,
 // so it is a sense of momentum, not a streak to protect.
@@ -142,8 +145,8 @@ $('backToTracks').addEventListener('click', () => {
 
 // A run is a fixed, ordered queue of questions from one track. It overrides the
 // next-question engine until it is exhausted or exited.
-function startTrackRun(questions, meta) {
-  state.run = { questions, idx: 0, meta };
+function startTrackRun(questions, meta, startIdx = 0) {
+  state.run = { questions, idx: startIdx, meta };
   show('practiceView');
   loadQuestion();
 }
@@ -386,6 +389,9 @@ async function enterApp() {
     enterOnboarding();
     return;
   }
+  // Bookmarks first, so the first question's star is correct rather than
+  // flashing empty.
+  await loadBookmarks();
   // Land on the dashboard, but pre-warm practice so switching there is instant.
   show('dashboardView');
   // None reject: each reports its own failure in place.
@@ -472,6 +478,7 @@ function wireOnboard() {
     $('fRole').value = obPick.role;
     $('fLevel').value = level;
     show('practiceView');
+    await loadBookmarks();
     await splash({ work: Promise.all([loadQuestion(), loadCoverage(), loadDashboard()]), quick: true, note: 'lining up your first question' });
   });
 
@@ -479,7 +486,7 @@ function wireOnboard() {
     const ok = await saveOnboard({});
     if (!ok) return;
     show('dashboardView');
-    await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
+    await Promise.all([loadBookmarks(), loadDashboard(), loadQuestion(), loadCoverage()]);
   });
 }
 
@@ -513,6 +520,9 @@ function resetCard() {
   $('reveal').disabled = false;
   $('reveal').textContent = 'Show the answer';
   $('qDepth').textContent = '';
+  $('qStar').hidden = true;
+  $('qReport').hidden = true;
+  $('qReportPanel').hidden = true;
   say($('qMsg'), '');
 }
 
@@ -528,7 +538,23 @@ function renderQuestion(q, note) {
   $('qDepth').textContent = q.follow_up_count
     ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
     : 'no follow-ups';
+  // Save star and report, both tied to a real question on the card.
+  const star = $('qStar');
+  star.hidden = false;
+  star.setAttribute('aria-pressed', String(state.bookmarks.has(q.id)));
+  $('qReport').hidden = false;
+  $('qReportPanel').hidden = true;
   if (note) say($('qMsg'), note);
+}
+
+async function loadBookmarks() {
+  try {
+    const { ids } = await api('/api/bookmarks');
+    state.bookmarks = new Set(ids || []);
+  } catch (_) {
+    // A missing bookmark list is not worth blocking practice; the star just
+    // starts empty and corrects on the next toggle.
+  }
 }
 
 // In a track run the next question comes from the curated queue, in order, with
@@ -561,18 +587,24 @@ async function loadQuestion() {
   $('qMeta').textContent = 'loading';
 
   const weak = $('fWeak').getAttribute('aria-pressed') === 'true';
+  const saved = $('fSaved').getAttribute('aria-pressed') === 'true';
   const params = new URLSearchParams();
   if ($('fRole').value) params.set('role', $('fRole').value);
   if ($('fLevel').value) params.set('level', $('fLevel').value);
   if ($('fDiff').value) params.set('difficulty', $('fDiff').value);
   if (weak) params.set('focus', 'weak');
+  else if (saved) params.set('focus', 'saved');
 
   try {
     const out = await api('/api/next?' + params.toString());
     if (!out.question) {
       state.question = null;
       $('reveal').hidden = true;
-      if (out.mode === 'weak') {
+      if (out.mode === 'saved') {
+        $('qMeta').textContent = 'empty';
+        $('qPrompt').textContent =
+          'Nothing saved with these filters. Star a question to save it, or turn Saved off for fresh questions.';
+      } else if (out.mode === 'weak') {
         $('qMeta').textContent = 'clear';
         $('qPrompt').textContent =
           'No weak spots here. Nothing you have faced is sitting on a missed or shaky mark. Turn Weak spots off for fresh questions.';
@@ -584,13 +616,15 @@ async function loadQuestion() {
       return;
     }
     const note =
-      out.mode === 'weak'
-        ? 'A weak spot: you marked this missed or shaky last time. Hold it now.'
-        : out.mode === 'due'
-          ? 'Back on schedule. Enough time has passed to see if it stuck.'
-          : out.mode === 'review'
-            ? 'Nothing new left with these filters, so here is the weakest one to keep warm.'
-            : '';
+      out.mode === 'saved'
+        ? 'From your saved questions.'
+        : out.mode === 'weak'
+          ? 'A weak spot: you marked this missed or shaky last time. Hold it now.'
+          : out.mode === 'due'
+            ? 'Back on schedule. Enough time has passed to see if it stuck.'
+            : out.mode === 'review'
+              ? 'Nothing new left with these filters, so here is the weakest one to keep warm.'
+              : '';
     renderQuestion(out.question, note);
   } catch (err) {
     if (err.status === 401) return needsAuth();
@@ -758,13 +792,160 @@ $('fDiff').addEventListener('change', filterChanged);
 $('fWeak').addEventListener('click', () => {
   const on = $('fWeak').getAttribute('aria-pressed') === 'true';
   setWeak(!on);
+  if (!on) setSaved(false); // weak and saved are exclusive focuses
   endRun();
   loadQuestion();
+});
+
+$('fSaved').addEventListener('click', () => {
+  const on = $('fSaved').getAttribute('aria-pressed') === 'true';
+  setSaved(!on);
+  if (!on) setWeak(false);
+  endRun();
+  loadQuestion();
+});
+
+// Star: save or unsave the question on the card. Optimistic, reverts on error.
+$('qStar').addEventListener('click', async () => {
+  const q = state.question;
+  if (!q) return;
+  const star = $('qStar');
+  const want = star.getAttribute('aria-pressed') !== 'true';
+  star.setAttribute('aria-pressed', String(want));
+  try {
+    const out = await api(`/api/questions/${encodeURIComponent(q.id)}/bookmark`, { method: 'POST' });
+    if (out.bookmarked) state.bookmarks.add(q.id);
+    else state.bookmarks.delete(q.id);
+    star.setAttribute('aria-pressed', String(out.bookmarked));
+  } catch (err) {
+    star.setAttribute('aria-pressed', String(!want));
+    say($('qMsg'), err.message, 'err');
+  }
+});
+
+// Report a problem with the question on the card.
+$('qReport').addEventListener('click', () => {
+  $('qReportPanel').hidden = false;
+  $('qReport').hidden = true;
+  $('qReportNote').value = '';
+});
+$('qReportCancel').addEventListener('click', () => {
+  $('qReportPanel').hidden = true;
+  $('qReport').hidden = false;
+});
+$('qReportSend').addEventListener('click', async () => {
+  const q = state.question;
+  if (!q) return;
+  $('qReportSend').disabled = true;
+  try {
+    await api(`/api/questions/${encodeURIComponent(q.id)}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: $('qReportReason').value, note: $('qReportNote').value.trim() || null }),
+    });
+    $('qReportPanel').hidden = true;
+    $('qReport').hidden = true;
+    say($('qMsg'), 'Thanks, that is flagged for review.');
+  } catch (err) {
+    say($('qMsg'), err.message, 'err');
+  } finally {
+    $('qReportSend').disabled = false;
+  }
+});
+
+$('qSearchGo').addEventListener('click', runSearch);
+$('qSearch').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+});
+$('qSearch').addEventListener('input', () => {
+  if (!$('qSearch').value.trim()) $('qSearchResults').hidden = true;
 });
 
 function setWeak(on) {
   $('fWeak').setAttribute('aria-pressed', String(on));
   $('fWeak').classList.toggle('on', on);
+}
+
+function setSaved(on) {
+  $('fSaved').setAttribute('aria-pressed', String(on));
+  $('fSaved').classList.toggle('on', on);
+}
+
+/* --------------------------------------------------- search the bank */
+
+let searchResults = [];
+
+async function runSearch() {
+  const term = $('qSearch').value.trim();
+  const box = $('qSearchResults');
+  if (term.length < 2) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  box.textContent = 'Searching.';
+  try {
+    const { results } = await api('/api/search?q=' + encodeURIComponent(term));
+    searchResults = results || [];
+    renderSearchResults(term);
+  } catch (err) {
+    box.textContent = err.message;
+  }
+}
+
+function renderSearchResults(term) {
+  const box = $('qSearchResults');
+  box.replaceChildren();
+  if (!searchResults.length) {
+    const p = document.createElement('p');
+    p.className = 'search-empty';
+    p.textContent = `No questions match "${term}".`;
+    box.append(p);
+    return;
+  }
+  const head = document.createElement('div');
+  head.className = 'search-head';
+  const count = document.createElement('span');
+  count.className = 'search-count';
+  count.textContent = `${searchResults.length} match${searchResults.length > 1 ? 'es' : ''}`;
+  const all = document.createElement('button');
+  all.className = 'inf ghost small';
+  all.type = 'button';
+  all.textContent = 'Practice all';
+  all.addEventListener('click', () => startSearchRun(0, term));
+  const close = document.createElement('button');
+  close.className = 'inf ghost small';
+  close.type = 'button';
+  close.textContent = 'Close';
+  close.addEventListener('click', () => { box.hidden = true; });
+  head.append(count, all, close);
+  box.append(head);
+
+  const list = document.createElement('ul');
+  list.className = 'search-list';
+  searchResults.forEach((q, i) => {
+    const li = document.createElement('li');
+    li.className = 'search-item';
+    li.tabIndex = 0;
+    const prompt = document.createElement('span');
+    prompt.className = 'search-prompt';
+    prompt.textContent = q.prompt;
+    const meta = document.createElement('span');
+    meta.className = 'search-meta';
+    meta.textContent = `${ROLE_LABEL[q.role] ?? q.role} / ${q.level} / ${q.topic}`;
+    li.append(prompt, meta);
+    const open = () => startSearchRun(i, term);
+    li.addEventListener('click', open);
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+    list.append(li);
+  });
+  box.append(list);
+}
+
+// Play the matches as a run, starting at the one they picked.
+function startSearchRun(idx, term) {
+  $('qSearchResults').hidden = true;
+  endRun();
+  startTrackRun(searchResults, { company: 'Search', title: term }, idx);
 }
 
 // This sitting's tally, shown once the first question is rated.
@@ -796,6 +977,11 @@ function renderSession() {
 // except for the reveal chord.
 document.addEventListener('keydown', (e) => {
   if ($('practiceView').hidden) return;
+
+  // Typing in search, the report note or any other field is never a shortcut.
+  // The answer box is handled specially below (locked = rating still works).
+  const tag = e.target.tagName;
+  if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') && e.target !== $('qAnswer')) return;
 
   // A locked (post-reveal) answer box is not really "typing", so number-key
   // rating should work even if focus is still sitting in it.

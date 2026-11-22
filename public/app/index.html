@@ -211,6 +211,11 @@
     <p class="kicker">&gt; question bank</p>
     <h1>Practice</h1>
     <p class="sub">Answer it the way you would in the room, then see what the interviewer asks next.</p>
+    <div class="prac-search">
+      <input id="qSearch" type="search" placeholder="Search the bank by keyword or topic" autocomplete="off" aria-label="Search the question bank">
+      <button class="inf ghost" id="qSearchGo" type="button">Search</button>
+    </div>
+    <div class="search-results" id="qSearchResults" hidden></div>
     <div class="run-bar" id="runBar" hidden>
       <div class="run-bar-main">
         <span class="run-bar-tag" id="runTag"></span>
@@ -249,7 +254,10 @@
       </div>
       <div>
         <label for="fWeak">Focus</label>
-        <button class="inf ghost toggle" id="fWeak" type="button" aria-pressed="false">Weak spots</button>
+        <div class="focus-toggles">
+          <button class="inf ghost toggle" id="fWeak" type="button" aria-pressed="false">Weak spots</button>
+          <button class="inf ghost toggle" id="fSaved" type="button" aria-pressed="false">Saved</button>
+        </div>
       </div>
       <button class="inf ghost" id="skip" type="button">Skip</button>
     </div>
@@ -261,7 +269,7 @@
 
     <div class="device">
       <div class="screen">
-        <div class="screen-bar"><span id="qMeta">loading</span><span id="qDepth"></span></div>
+        <div class="screen-bar"><span id="qMeta">loading</span><span class="bar-right"><button class="qstar" id="qStar" type="button" aria-pressed="false" aria-label="Save this question" hidden>&#9733;</button><span id="qDepth"></span></span></div>
         <div class="screen-body">
           <p class="prompt" id="qPrompt">Loading a question.</p>
 
@@ -281,6 +289,25 @@
             <button class="inf ghost small" data-rate="got_it" type="button">Got it</button>
             <button class="inf ghost small" data-rate="shaky" type="button">Shaky</button>
             <button class="inf ghost small" data-rate="missed" type="button">Missed it</button>
+          </div>
+
+          <div class="q-extra">
+            <button class="linkish" id="qReport" type="button" hidden>Report a problem</button>
+          </div>
+          <div class="report-panel" id="qReportPanel" hidden>
+            <label for="qReportReason">What is wrong with this one?</label>
+            <select id="qReportReason">
+              <option value="wrong">The answer is wrong or misleading</option>
+              <option value="typo">Typo or formatting</option>
+              <option value="confusing">Confusing or unclear</option>
+              <option value="outdated">Out of date</option>
+              <option value="other">Something else</option>
+            </select>
+            <textarea id="qReportNote" placeholder="Anything to add (optional)" rows="2"></textarea>
+            <div class="report-actions">
+              <button class="inf ghost small" id="qReportSend" type="button">Send report</button>
+              <button class="inf ghost small" id="qReportCancel" type="button">Cancel</button>
+            </div>
           </div>
 
           <p class="msg" id="qMsg"></p>
