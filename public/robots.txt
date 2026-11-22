@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /$
+Allow: /og.png
+Allow: /favicon.svg
+Disallow: /app/
+Disallow: /admin/
+Disallow: /console/
+Disallow: /org/
+Disallow: /join/
+Disallow: /api/
+
+Sitemap: https://secmox.com/sitemap.xml
