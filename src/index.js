@@ -474,6 +474,11 @@ app.get('/api/next', async (c) => {
     where.push('q.level = ?');
     args.push(level);
   }
+  const diff = c.req.query('difficulty');
+  if (diff === '1' || diff === '2' || diff === '3') {
+    where.push('q.difficulty = ?');
+    args.push(Number(diff));
+  }
   const clause = where.join(' AND ');
 
   // Weak-spots drill: only the questions whose latest rating was missed or
@@ -487,7 +492,7 @@ app.get('/api/next', async (c) => {
                 ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY created_at DESC, id DESC) AS rn
            FROM attempts WHERE user_id = ?
        )
-       SELECT q.id, q.role, q.topic, q.level, q.prompt
+       SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty
          FROM questions q
          JOIN latest l ON l.question_id = q.id AND l.rn = 1
         WHERE l.self_rating IN ('missed', 'shaky')
@@ -509,6 +514,7 @@ app.get('/api/next', async (c) => {
         topic: weak.topic,
         level: weak.level,
         prompt: weak.prompt,
+        difficulty: weak.difficulty,
         follow_up_count: fu?.n ?? 0,
       },
       fresh: false,
@@ -517,7 +523,7 @@ app.get('/api/next', async (c) => {
   }
 
   let row = await c.env.DB.prepare(
-    `SELECT q.id, q.role, q.topic, q.level, q.prompt
+    `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty
        FROM questions q
       WHERE ${clause}
         AND q.id NOT IN (SELECT question_id FROM attempts WHERE user_id = ?)
@@ -536,7 +542,7 @@ app.get('/api/next', async (c) => {
   // question answered this session sits days out and will not reappear here.
   if (!row) {
     row = await c.env.DB.prepare(
-      `SELECT q.id, q.role, q.topic, q.level, q.prompt
+      `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty
          FROM review_schedule s
          JOIN questions q ON q.id = s.question_id
         WHERE s.user_id = ? AND s.due_at <= ?
@@ -555,7 +561,7 @@ app.get('/api/next', async (c) => {
   // alive with the weakest, stalest thing rather than dead-ending.
   if (!row) {
     row = await c.env.DB.prepare(
-      `SELECT q.id, q.role, q.topic, q.level, q.prompt,
+      `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty,
               MIN(CASE a.self_rating WHEN 'missed' THEN 0 WHEN 'shaky' THEN 1 ELSE 2 END) AS worst,
               MAX(a.created_at) AS last_seen
          FROM questions q
@@ -586,6 +592,7 @@ app.get('/api/next', async (c) => {
       topic: row.topic,
       level: row.level,
       prompt: row.prompt,
+      difficulty: row.difficulty,
       follow_up_count: followUps?.n ?? 0,
     },
     fresh: mode === 'fresh',

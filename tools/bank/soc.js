@@ -7,7 +7,7 @@
 export const SOC = [
   /* ------------------------------------------------------- fresher */
   {
-    slug: 'ssh-bruteforce', level: 'fresher', topic: 'triage',
+    slug: 'ssh-bruteforce', level: 'fresher', topic: 'triage', difficulty: 2,
     prompt: 'An alert fires: several failed SSH logins from one IP, then a successful one. What do you do first?',
     answer: 'Scope before acting. Which account succeeded, is the source internal or external, and does that account normally sign in from there. Then look at what the session did afterwards, especially sudo or any new key added. The failure that sinks candidates is calling it a brute force and closing it without reading what happened after the success.',
     followUps: [
@@ -18,7 +18,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'ids-vs-ips', level: 'fresher', topic: 'detection',
+    slug: 'ids-vs-ips', level: 'fresher', topic: 'detection', difficulty: 1,
     prompt: 'What is the difference between an IDS and an IPS?',
     answer: 'An IDS observes and alerts; an IPS sits inline and can drop. The difference that matters operationally is consequence: a false positive on an IDS is noise, a false positive on an IPS is an outage. That is why signatures go out in detect mode first and get promoted to block only once the noise is understood.',
     followUps: [
@@ -29,7 +29,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'phishing-report', level: 'fresher', topic: 'phishing',
+    slug: 'phishing-report', level: 'fresher', topic: 'phishing', difficulty: 2,
     prompt: 'A user reports a phishing email. Walk me through what you do.',
     answer: 'Preserve the original with full headers before anything else. Pull sender, reply-to, originating address, authentication results, links and attachments, and detonate anything live in a sandbox rather than on your own machine. Then find out who else received it and whether anyone interacted.',
     followUps: [
@@ -40,7 +40,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'url-to-render', level: 'fresher', topic: 'fundamentals',
+    slug: 'url-to-render', level: 'fresher', topic: 'fundamentals', difficulty: 1,
     prompt: 'You type a URL and press enter. Walk me through what happens, and tell me where you would look if it broke.',
     answer: 'DNS resolution, TCP connection, TLS handshake, HTTP request, response, render. The interviewer is not testing recall; they are testing whether you can hang investigation on the model. A strong answer names what fails at each step and what you would check to prove it, rather than reciting the sequence.',
     followUps: [
@@ -51,7 +51,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'unknown-alert', level: 'fresher', topic: 'process',
+    slug: 'unknown-alert', level: 'fresher', topic: 'process', difficulty: 2,
     prompt: 'You are on L1 and an alert type you have never seen before lands in the queue. Walk me through it.',
     answer: 'The honest answer is a method, not knowledge. Read what the rule is actually looking for, find the raw events behind it, establish whether the behaviour is normal for that host or account, and check whether it has fired before and how it was closed. Escalate with what you found, not with the alert forwarded untouched.',
     followUps: [
@@ -62,7 +62,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'threat-vuln-risk', level: 'fresher', topic: 'fundamentals',
+    slug: 'threat-vuln-risk', level: 'fresher', topic: 'fundamentals', difficulty: 1,
     prompt: 'What is the difference between a vulnerability, a threat and a risk?',
     answer: 'A vulnerability is a weakness, a threat is something that could exploit it, and risk is the combination weighed by likelihood and impact. The useful version is practical: an unpatched server is a vulnerability, a group that exploits that software is a threat, and the risk depends on whether that server is exposed and what it holds.',
     followUps: [
@@ -73,7 +73,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'what-siem-does', level: 'fresher', topic: 'tooling',
+    slug: 'what-siem-does', level: 'fresher', topic: 'tooling', difficulty: 1,
     prompt: 'What is a SIEM actually doing, and what is it not doing?',
     answer: 'It collects logs from many sources, normalises them into a common shape, correlates across them, and raises alerts on rules you wrote. What it is not doing is understanding your environment or finding things nobody asked it to look for. A SIEM with no tuned rules and no log sources that matter is an expensive search bar.',
     followUps: [
@@ -84,7 +84,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'beaconing-host', level: 'fresher', topic: 'triage',
+    slug: 'beaconing-host', level: 'fresher', topic: 'triage', difficulty: 2,
     prompt: 'A laptop is reaching out to the same external address every sixty seconds, give or take a few. What do you check?',
     answer: 'Regular intervals with small jitter mean automation, not a person. Establish which process is making the connection, what the destination is and how long it has been running, and whether other hosts do the same. Beaconing is a shape, and plenty of legitimate software has that shape too.',
     followUps: [
@@ -95,7 +95,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'why-soc', level: 'fresher', topic: 'behavioural',
+    slug: 'why-soc', level: 'fresher', topic: 'behavioural', difficulty: 1,
     prompt: 'Why security, and why a SOC role specifically?',
     answer: 'The weak answer is "I am passionate about cybersecurity". The strong one is concrete: something you actually did, what it taught you, and why the SOC in particular rather than security in general. Mentioning that you want the volume and pattern exposure a SOC gives early in a career shows you understand what the job is.',
     followUps: [
@@ -108,7 +108,7 @@ export const SOC = [
 
   /* ----------------------------------------------------------- mid */
   {
-    slug: 'signed-binary', level: 'mid', topic: 'endpoint',
+    slug: 'signed-binary', level: 'mid', topic: 'endpoint', difficulty: 2,
     prompt: 'Your EDR flags a signed binary behaving unusually. How do you triage it?',
     answer: 'A valid signature says who built it, not that this execution is safe. Look at the behaviour chain: parent process, command line, network destinations, files written, persistence created. Signed system tools get abused for living-off-the-land execution precisely because reputation scoring waves them through.',
     followUps: [
@@ -119,7 +119,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'rule-tuning', level: 'mid', topic: 'tuning',
+    slug: 'rule-tuning', level: 'mid', topic: 'tuning', difficulty: 2,
     prompt: 'How do you tune a noisy detection rule without going blind to the thing it was built for?',
     answer: 'Start from what the rule is meant to catch, then measure what it is actually matching. Narrow on the attribute that separates benign from malicious, usually a specific process, account or destination, rather than lowering severity or widening the window. Record the exclusion and the reason, so the next analyst can see the gap you accepted.',
     followUps: [
@@ -130,7 +130,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'coverage-real', level: 'mid', topic: 'detection',
+    slug: 'coverage-real', level: 'mid', topic: 'detection', difficulty: 3,
     prompt: 'How do you know your detection coverage is real and not just a long list of rules?',
     answer: 'Map detections to attacker behaviours rather than counting rules, then test them. A framework like ATT&CK gives you the map; atomic tests tell you whether the rule actually fires in your environment with your log sources. Coverage you have never fired is a claim, not a control.',
     followUps: [
@@ -141,7 +141,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'incident-walkthrough', level: 'mid', topic: 'behavioural',
+    slug: 'incident-walkthrough', level: 'mid', topic: 'behavioural', difficulty: 2,
     prompt: 'Walk me through an incident you actually handled, start to finish.',
     answer: 'Pick one you can tell honestly, including what went wrong. Structure it: how it was detected, what you first thought, what changed your mind, what you contained, and what the organisation changed afterwards. The part interviewers listen hardest for is the moment your first theory was wrong and how you noticed.',
     followUps: [
@@ -152,7 +152,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'siem-cost', level: 'mid', topic: 'tooling',
+    slug: 'siem-cost', level: 'mid', topic: 'tooling', difficulty: 2,
     prompt: 'Your SIEM ingest cost has doubled and you have been told to cut it. What goes?',
     answer: 'Start from which logs have ever been used in a detection or an investigation, because the bill usually hides a few enormous, useless sources. Cut volume before cutting sources: filter noisy event types, sample what is only ever used in aggregate, and move long-tail data to cheaper storage you can still search when it matters.',
     followUps: [
@@ -163,7 +163,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'shift-handover', level: 'mid', topic: 'process',
+    slug: 'shift-handover', level: 'mid', topic: 'process', difficulty: 2,
     prompt: 'How do you hand over a live incident at shift change?',
     answer: 'Written, not verbal, and structured: what is known, what is believed but unconfirmed, what has been done including anything you changed, what is pending and who owns it, and the next decision point. The common failure is handing over conclusions without the evidence, so the next shift cannot tell what to re-check.',
     followUps: [
@@ -174,7 +174,7 @@ export const SOC = [
     ],
   },
   {
-    slug: 'closed-wrongly', level: 'mid', topic: 'process',
+    slug: 'closed-wrongly', level: 'mid', topic: 'process', difficulty: 2,
     prompt: 'An analyst on your team closed a true positive as benign. How do you handle it?',
     answer: 'Handle the incident first, then the cause. Reopen, scope what was missed and how long it ran. Then look at why it was closable: was the evidence genuinely ambiguous, was the queue too deep to read properly, or was the runbook wrong. One analyst making one call is almost never the real finding.',
     followUps: [
@@ -187,7 +187,7 @@ export const SOC = [
 
   /* ----------------------------------------- batch 1 (added 2026-11-22) */
   {
-    slug: "read-auth-line", level: "fresher", topic: "log-reading",
+    slug: "read-auth-line", level: "fresher", topic: "log-reading", difficulty: 1,
     prompt: "Here is one line from an auth log: `Failed password for invalid user admin from 203.0.113.5`. What does it tell you, and what does it not?",
     answer: "It tells you someone tried to log in as admin, that the account does not exist on this host, that it came from that IP, and that it failed. It does not tell you whether this is one stray attempt or one of thousands, whether it is automated or aimed at you, or whether anything succeeded. A candidate who has read logs separates the fact in the line from the story they want to put around it.",
     followUps: [
@@ -198,7 +198,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "internet-is-slow", level: "fresher", topic: "network",
+    slug: "internet-is-slow", level: "fresher", topic: "network", difficulty: 1,
     prompt: "A user says the internet is slow. From a SOC seat, what could that mean to you that it does not mean to them?",
     answer: "To them it is an annoyance. To a SOC it is a possible symptom: a link saturated by exfiltration, a host beaconing hard, a denial-of-service, or a proxy failing. I do not diagnose the complaint, I ask what the traffic looks like, because slow is sometimes the only thing a user notices when something is leaving the network.",
     followUps: [
@@ -209,7 +209,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "encoded-powershell", level: "fresher", topic: "encoding",
+    slug: "encoded-powershell", level: "fresher", topic: "encoding", difficulty: 2,
     prompt: "You see `powershell -enc SQBFAFgA...` in a process-creation log. What is it, and what do you do?",
     answer: "The -enc flag runs base64-encoded PowerShell, where the base64 decodes to UTF-16LE text. It is a common obfuscation but not proof of anything on its own, since admins and installers use it too. I decode it and judge it on what it actually does, rather than reacting to the flag.",
     followUps: [
@@ -220,7 +220,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "windows-event-ids", level: "fresher", topic: "windows",
+    slug: "windows-event-ids", level: "fresher", topic: "windows", difficulty: 2,
     prompt: "Which Windows event IDs do you actually watch, and why those?",
     answer: "The ones that show access, privilege, and persistence, not a memorised list: 4625 and 4624 for failed and successful logons with their type, 4672 for a logon granted special privileges, 4688 for process creation, 4720 for a new account, 7045 for a new service. I would rather know cold why each of those matters than recite twenty I have never alerted on.",
     followUps: [
@@ -231,7 +231,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "mitre-day-to-day", level: "mid", topic: "mitre",
+    slug: "mitre-day-to-day", level: "mid", topic: "mitre", difficulty: 2,
     prompt: "How do you actually use MITRE ATT&CK day to day, beyond putting it on a slide?",
     answer: "As a coverage map and a shared language. I map detections to techniques to find the gaps, and I tag alerts with the technique so triage knows what stage it is. What I do not do is treat it as a checklist to cover everything, which is how you end up with a wall of weak detections. Someone who has used it talks about gaps and trade-offs, not completeness.",
     followUps: [
@@ -242,7 +242,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "lateral-in-logs", level: "mid", topic: "lateral-movement",
+    slug: "lateral-in-logs", level: "mid", topic: "lateral-movement", difficulty: 3,
     prompt: "What does lateral movement actually look like in your logs, as opposed to in a diagram?",
     answer: "A pattern across hosts, not a single event: one account authenticating to many machines in a short window, type-3 network logons to systems it never normally touches, use of admin shares, PsExec or WMI, and new service installs appearing on the targets. The arrow in the diagram is, in the data, a spray of ordinary-looking logons that are wrong only in aggregate.",
     followUps: [
@@ -253,7 +253,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "two-alerts-one-minute", level: "mid", topic: "triage",
+    slug: "two-alerts-one-minute", level: "mid", topic: "triage", difficulty: 2,
     prompt: "Same minute, one analyst: a malware detection auto-quarantined on a finance laptop, and a single failed VPN login for the CFO. Which do you take first, and why?",
     answer: "The VPN one, briefly. Auto-quarantine means the EDR has already acted, so that laptop is probably contained; a failed login on a high-value account could be the front edge of something that is not contained yet. I prioritise by what is still live and who it touches, not by which label sounds scarier.",
     followUps: [
@@ -264,7 +264,7 @@ export const SOC = [
     ],
   },
   {
-    slug: "soc-board-metrics", level: "mid", topic: "metrics",
+    slug: "soc-board-metrics", level: "mid", topic: "metrics", difficulty: 3,
     prompt: "You are asked for SOC metrics for a board deck. What do you report, and what do you refuse to report?",
     answer: "I report things that reflect outcomes: how fast we detect and respond, our true-positive rate, gaps we have closed. I refuse vanity numbers like alerts processed or threats blocked, which reward noise and sound impressive while saying nothing. Part of the job is protecting the board from a number that would mislead them.",
     followUps: [

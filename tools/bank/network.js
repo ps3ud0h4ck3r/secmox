@@ -4,7 +4,7 @@
 export const NETWORK = [
   /* ------------------------------------------------------- fresher */
   {
-    slug: 'tcp-handshake', level: 'fresher', topic: 'tcp',
+    slug: 'tcp-handshake', level: 'fresher', topic: 'tcp', difficulty: 1,
     prompt: 'Explain the TCP three-way handshake.',
     answer: 'The client sends SYN with its initial sequence number, the server replies SYN-ACK acknowledging it and offering its own, the client replies ACK. The point is that both sides agree on sequence numbers and both prove they can receive, which is what makes blind spoofing hard. Say why it exists, not just the three words.',
     followUps: [
@@ -15,7 +15,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'stateful-firewall', level: 'fresher', topic: 'firewalls',
+    slug: 'stateful-firewall', level: 'fresher', topic: 'firewalls', difficulty: 1,
     prompt: 'What is the difference between a stateful and a stateless firewall?',
     answer: 'A stateless firewall judges each packet in isolation. A stateful one tracks connections, so return traffic for an established session is allowed without a matching inbound rule. Stateful is why you do not have to write a rule for every ephemeral port on the way back.',
     followUps: [
@@ -26,7 +26,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'dns-resolution', level: 'fresher', topic: 'dns',
+    slug: 'dns-resolution', level: 'fresher', topic: 'dns', difficulty: 2,
     prompt: 'Walk me through how a name gets resolved, and tell me where you would tamper with it if you were an attacker.',
     answer: 'Browser cache, OS cache, configured resolver, then recursion from root to TLD to authoritative, with the answer cached at each hop by TTL. An attacker goes for whichever step is softest: the host file, the resolver setting, a registrar account, or cache poisoning. The caching is the interesting part, because it is what makes a bad answer stick.',
     followUps: [
@@ -37,7 +37,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'nat-investigation', level: 'fresher', topic: 'addressing',
+    slug: 'nat-investigation', level: 'fresher', topic: 'addressing', difficulty: 2,
     prompt: 'What is NAT, and why does it make your job harder?',
     answer: 'NAT rewrites addresses so many internal hosts share one public address. The investigative cost is that an external log showing your public address identifies the company, not the machine. Without NAT translation logs correlated by source port and exact timestamp, an abuse report is unactionable.',
     followUps: [
@@ -48,7 +48,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'tls-what-it-gives', level: 'fresher', topic: 'crypto',
+    slug: 'tls-what-it-gives', level: 'fresher', topic: 'crypto', difficulty: 2,
     prompt: 'HTTP versus HTTPS: what exactly does TLS give you, and what does it not?',
     answer: 'Confidentiality in transit, integrity so content cannot be altered undetected, and authentication of the server through its certificate. What it does not give you is a safe site, a safe endpoint, or hidden metadata: the destination address and the hostname in SNI are still visible, and the data is plaintext again the moment it arrives.',
     followUps: [
@@ -59,7 +59,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'vpn-protects', level: 'fresher', topic: 'remote-access',
+    slug: 'vpn-protects', level: 'fresher', topic: 'remote-access', difficulty: 1,
     prompt: 'What is a VPN actually protecting against?',
     answer: 'It protects traffic in transit across a network you do not trust, and for corporate use it puts the device inside a network boundary. That is it. It does not make the endpoint safe, it does not make you anonymous to the sites you visit, and a compromised laptop on a VPN is a compromised laptop with a route into the office.',
     followUps: [
@@ -72,7 +72,7 @@ export const NETWORK = [
 
   /* ----------------------------------------------------------- mid */
   {
-    slug: 'segmentation', level: 'mid', topic: 'segmentation',
+    slug: 'segmentation', level: 'mid', topic: 'segmentation', difficulty: 3,
     prompt: 'You are asked to segment a flat corporate network. Where do you start?',
     answer: 'With what talks to what, not with the diagram you wish you had. Collect flow data long enough to cover monthly jobs, group assets by function and sensitivity, then design the fewest zones that separate what must not reach each other. Enforce in monitor mode before you enforce for real.',
     followUps: [
@@ -83,7 +83,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'dns-exfil', level: 'mid', topic: 'dns',
+    slug: 'dns-exfil', level: 'mid', topic: 'dns', difficulty: 2,
     prompt: 'You see repeated TXT queries to a domain registered three days ago. What is your read?',
     answer: 'That shape fits DNS tunnelling or beaconing: TXT carries more than A records, and a newly registered domain is a standard indicator. Look at query volume, subdomain entropy, how regular the timing is, and which host is asking. Clockwork intervals mean a process, not a person.',
     followUps: [
@@ -94,7 +94,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'egress-filtering', level: 'mid', topic: 'architecture',
+    slug: 'egress-filtering', level: 'mid', topic: 'architecture', difficulty: 3,
     prompt: 'Design egress filtering for an office of three hundred people. Where do you start and where do you stop?',
     answer: 'Start by learning what actually leaves, then default-deny the protocols nobody should be using outbound directly, such as DNS to anything but your resolvers, SMTP, and arbitrary high ports. Force web traffic through a proxy you can see. Stop short of a full allowlist of destinations unless the business is one that can live with it.',
     followUps: [
@@ -105,7 +105,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'lateral-movement', level: 'mid', topic: 'detection',
+    slug: 'lateral-movement', level: 'mid', topic: 'detection', difficulty: 3,
     prompt: 'You cannot segment the network this quarter. How do you detect lateral movement anyway?',
     answer: 'Watch for the behaviours segmentation would have blocked: workstation-to-workstation SMB or RDP, which almost never happens legitimately, authentication from one account across many hosts in a short window, and admin tools running where no admin works. Detection cannot replace segmentation, but it shortens the time you are blind.',
     followUps: [
@@ -116,7 +116,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: 'vpn-saturated', level: 'mid', topic: 'troubleshooting',
+    slug: 'vpn-saturated', level: 'mid', topic: 'troubleshooting', difficulty: 2,
     prompt: 'The VPN concentrator is saturated and people cannot work. Diagnose it.',
     answer: 'Separate the three candidates before touching anything: more users than capacity, one user or process consuming the link, or the device itself degraded. Check concurrent sessions against the licensed and tested limit, top talkers by volume, and CPU on the box. Then say which it is rather than restarting and hoping.',
     followUps: [
@@ -129,7 +129,7 @@ export const NETWORK = [
 
   /* ----------------------------------------- batch 1 (added 2026-11-22) */
   {
-    slug: "ports-on-a-web-server", level: "fresher", topic: "ports",
+    slug: "ports-on-a-web-server", level: "fresher", topic: "ports", difficulty: 1,
     prompt: "Which ports would you expect open on a normal web server, and which one open would make you look twice?",
     answer: "80 and 443 for the site itself, and probably 22 for the admins, ideally not from the whole internet. The one that makes me look twice is something like 3389 or a database port exposed publicly: remote desktop or a database should not be reachable from outside, and finding them open usually means a mistake or a foothold someone left.",
     followUps: [
@@ -140,7 +140,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "first-look-at-a-pcap", level: "fresher", topic: "traffic-analysis",
+    slug: "first-look-at-a-pcap", level: "fresher", topic: "traffic-analysis", difficulty: 2,
     prompt: "I hand you a packet capture and say something is wrong, with no other context. What do you look at first?",
     answer: "The shape before the detail: the protocol hierarchy to see what is actually in there, the conversations to see who is talking to whom and how much, and whether anything is on a port that does not match its protocol. I am looking for the odd one out, not reading every packet, because a capture is too big to read and the anomaly is usually in the summary.",
     followUps: [
@@ -151,7 +151,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "proxy-beaconing", level: "fresher", topic: "c2",
+    slug: "proxy-beaconing", level: "fresher", topic: "c2", difficulty: 2,
     prompt: "A proxy log shows one host requesting the same URL every thirty seconds, each time a tiny response. Your read?",
     answer: "That regularity is the tell. Humans and normal apps are bursty; a request on a fixed interval with a small, consistent response looks like a beacon checking in with a controller. I would not conclude command-and-control from one pattern, but it earns a close look at the destination and the process making the calls.",
     followUps: [
@@ -162,7 +162,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "arp-for-defenders", level: "fresher", topic: "layer2",
+    slug: "arp-for-defenders", level: "fresher", topic: "layer2", difficulty: 1,
     prompt: "What is ARP, and why should a defender care about it?",
     answer: "ARP maps an IP address to a MAC address on a local network, so devices can actually deliver frames to each other. A defender cares because it has no authentication: a host can claim to be the gateway, and others will believe it. That is ARP spoofing, and it is how someone on the same LAN quietly puts themselves in the middle of traffic.",
     followUps: [
@@ -173,7 +173,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "where-to-place-a-sensor", level: "mid", topic: "monitoring",
+    slug: "where-to-place-a-sensor", level: "mid", topic: "monitoring", difficulty: 2,
     prompt: "Where do you place a network sensor, and what do you miss at each spot?",
     answer: "At the perimeter you see what enters and leaves but nothing host-to-host inside; in the core or at distribution you see east-west movement but can drown in volume; at the host you see everything for that host and nothing else. There is no single right spot, so the honest answer is a mix and being clear about the blind spot each one leaves.",
     followUps: [
@@ -184,7 +184,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "decrypt-all-tls", level: "mid", topic: "tls-inspection",
+    slug: "decrypt-all-tls", level: "mid", topic: "tls-inspection", difficulty: 3,
     prompt: "The business wants to decrypt all TLS so it can be inspected. Walk me through the trade-offs.",
     answer: "You gain payload visibility, which is real. You also take on the risk of holding everyone's decrypted traffic, you break anything that pins certificates or expects end-to-end trust, you create a privacy and legal question around personal and health and banking traffic, and you add latency and a single point of failure. It is a legitimate control, but it is a decision with costs, not a free upgrade.",
     followUps: [
@@ -195,7 +195,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "unassigned-ip-on-the-network", level: "mid", topic: "rogue-device",
+    slug: "unassigned-ip-on-the-network", level: "mid", topic: "rogue-device", difficulty: 2,
     prompt: "A device on the network has an IP you did not assign. How do you find it, and why do you care?",
     answer: "I care because an unknown device is unknown risk: it could be a staff member's personal kit, a test box someone forgot, or something that should not be there at all. To find it I work from the IP to the MAC in the ARP or DHCP tables, then to the switch port it is plugged into, which gives me the physical location.",
     followUps: [
@@ -206,7 +206,7 @@ export const NETWORK = [
     ],
   },
   {
-    slug: "public-site-under-ddos", level: "mid", topic: "ddos",
+    slug: "public-site-under-ddos", level: "mid", topic: "ddos", difficulty: 3,
     prompt: "Your public site looks like it is under a distributed denial-of-service. What can you actually do from the network side, and what can you not?",
     answer: "First I work out whether it is volumetric, filling the pipe, or application-layer, exhausting the server with valid-looking requests, because the answer is different. Against volume you cannot win locally: you need upstream help from the ISP or a scrubbing or CDN provider to absorb it before it reaches your link. Against application-layer you have more room with rate limiting, filtering, and caching. The hard truth is that if the pipe is full, nothing you do on your own side empties it.",
     followUps: [

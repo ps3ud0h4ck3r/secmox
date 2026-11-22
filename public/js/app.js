@@ -356,6 +356,7 @@ async function loadQuestion() {
   const params = new URLSearchParams();
   if ($('fRole').value) params.set('role', $('fRole').value);
   if ($('fLevel').value) params.set('level', $('fLevel').value);
+  if ($('fDiff').value) params.set('difficulty', $('fDiff').value);
   if (weak) params.set('focus', 'weak');
 
   try {
@@ -377,7 +378,9 @@ async function loadQuestion() {
     $('reveal').hidden = false;
     state.question = out.question;
     const q = out.question;
-    $('qMeta').textContent = `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}`;
+    const diffWord = { 1: 'easy', 2: 'medium', 3: 'hard' }[q.difficulty];
+    $('qMeta').textContent =
+      `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}` + (diffWord ? ` / ${diffWord}` : '');
     $('qPrompt').textContent = q.prompt;
     $('qDepth').textContent = q.follow_up_count
       ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
@@ -539,6 +542,7 @@ $('rateRow').addEventListener('click', async (e) => {
 $('skip').addEventListener('click', loadQuestion);
 $('fRole').addEventListener('change', loadQuestion);
 $('fLevel').addEventListener('change', loadQuestion);
+$('fDiff').addEventListener('change', loadQuestion);
 
 $('fWeak').addEventListener('click', () => {
   const on = $('fWeak').getAttribute('aria-pressed') === 'true';

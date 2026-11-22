@@ -5,7 +5,7 @@
 export const CLOUD = [
   /* ------------------------------------------------------- fresher */
   {
-    slug: 'shared-responsibility', level: 'fresher', topic: 'fundamentals',
+    slug: 'shared-responsibility', level: 'fresher', topic: 'fundamentals', difficulty: 1,
     prompt: 'Explain the shared responsibility model.',
     answer: 'The provider secures the infrastructure the service runs on; the customer secures what they put in it and how they configure it. The line moves by service type, with managed services taking more of the stack, but identity, access and data configuration stay with the customer in every model.',
     followUps: [
@@ -16,7 +16,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'public-bucket', level: 'fresher', topic: 'storage',
+    slug: 'public-bucket', level: 'fresher', topic: 'storage', difficulty: 2,
     prompt: 'A storage bucket is publicly readable. Walk me through the fix.',
     answer: 'Establish exposure first: what is in it, for how long, and whether access logs show reads from outside. Then remove public access at the account level rather than object by object. Only after that work out how it happened, because the same mechanism has usually produced others you have not found yet.',
     followUps: [
@@ -27,7 +27,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'iam-basics', level: 'fresher', topic: 'iam',
+    slug: 'iam-basics', level: 'fresher', topic: 'iam', difficulty: 1,
     prompt: 'What is cloud IAM, and how is it different from a username and a password?',
     answer: 'It is policy-based authorisation over every API call, for people and for workloads. The difference is granularity and reach: a policy says which identity may take which action on which resource under which conditions, and machines get identities too. A control-plane permission can be far more dangerous than a login, because it rewrites the environment.',
     followUps: [
@@ -38,7 +38,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'security-groups', level: 'fresher', topic: 'network',
+    slug: 'security-groups', level: 'fresher', topic: 'network', difficulty: 2,
     prompt: 'What does a cloud security group actually do, and what does it not?',
     answer: 'It is a stateful virtual firewall attached to an instance or interface, allowing traffic by port, protocol and source. It does not inspect content, it does not stop anything already running on the host, and on most platforms it cannot express a deny rule, only an absence of allow.',
     followUps: [
@@ -49,7 +49,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'first-three-cloud', level: 'fresher', topic: 'strategy',
+    slug: 'first-three-cloud', level: 'fresher', topic: 'strategy', difficulty: 2,
     prompt: 'A company is moving to cloud. Name the three things you would secure first, and defend the order.',
     answer: 'Identity, then logging, then network exposure. Identity because the control plane is the new perimeter and a compromised admin identity is total loss. Logging second because without it you cannot investigate anything, including whether the first item already failed. Exposure third because it is the one you can keep fixing after the fact.',
     followUps: [
@@ -62,7 +62,7 @@ export const CLOUD = [
 
   /* ----------------------------------------------------------- mid */
   {
-    slug: 'secrets-handling', level: 'mid', topic: 'secrets',
+    slug: 'secrets-handling', level: 'mid', topic: 'secrets', difficulty: 2,
     prompt: 'How do you handle secrets in a cloud application?',
     answer: 'In a managed secret store, injected at runtime, never in the repository, the image, or environment variables baked at build. Access scoped by identity, reads logged, rotation automated. Where the platform supports workload identity, use it and delete the long-lived credential entirely, because the best secret is the one that does not exist.',
     followUps: [
@@ -73,7 +73,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'wildcard-iam', level: 'mid', topic: 'iam',
+    slug: 'wildcard-iam', level: 'mid', topic: 'iam', difficulty: 2,
     prompt: 'An IAM role has wildcard permissions. How do you fix it without breaking production?',
     answer: 'Do not guess a replacement policy. Determine what the role actually uses from access logs over a period long enough to include monthly jobs, build least privilege from observed calls, then run it in a mode that reports denials before enforcing. Narrow in stages, not in one change at the end of a sprint.',
     followUps: [
@@ -84,7 +84,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'cloud-incident', level: 'mid', topic: 'incident-response',
+    slug: 'cloud-incident', level: 'mid', topic: 'incident-response', difficulty: 3,
     prompt: 'You suspect a compromise in a cloud account. How is the investigation different from an on-premises one?',
     answer: 'The control plane is both the crime scene and the toolkit. Your primary evidence is the API audit log rather than disk, and the attacker\'s most valuable moves are configuration changes: new identities, new keys, policy edits, logging disabled. You can also snapshot and isolate instantly, which is a real advantage if you use it before you start poking.',
     followUps: [
@@ -95,7 +95,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'container-root', level: 'mid', topic: 'containers',
+    slug: 'container-root', level: 'mid', topic: 'containers', difficulty: 2,
     prompt: 'A container is running as root. How bad is it, and what do you do?',
     answer: 'On its own it is a weakness, not a breach: root in the container is not root on the host unless something else gives way. It matters because it removes a layer, so a code execution bug becomes a much better position, and it combines badly with a privileged flag, a mounted socket or a host path. Judge it with what is next to it.',
     followUps: [
@@ -106,7 +106,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: 'secure-cicd', level: 'mid', topic: 'pipeline',
+    slug: 'secure-cicd', level: 'mid', topic: 'pipeline', difficulty: 3,
     prompt: 'How do you secure a CI/CD pipeline, and why is it worth the effort?',
     answer: 'Because the pipeline deploys to production, so compromising it beats compromising production. Secure it as a production system: short-lived credentials from workload identity rather than stored keys, no secrets in logs, pinned third-party actions, review required on the pipeline definition itself, and separate credentials per environment.',
     followUps: [
@@ -119,7 +119,7 @@ export const CLOUD = [
 
   /* ----------------------------------------- batch 1 (added 2026-11-22) */
   {
-    slug: "first-logging-service", level: "fresher", topic: "logging",
+    slug: "first-logging-service", level: "fresher", topic: "logging", difficulty: 1,
     prompt: "What is the one logging service you turn on first in a new cloud account, and why?",
     answer: "The account's audit trail, the service that records who did what: every API call, who made it, from where, and whether it succeeded. I turn it on first because without it you are blind to your own account, and after an incident it is the difference between reconstructing what happened and guessing. It is also the thing attackers try to turn off.",
     followUps: [
@@ -130,7 +130,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "leaked-access-key", level: "fresher", topic: "incident",
+    slug: "leaked-access-key", level: "fresher", topic: "incident", difficulty: 2,
     prompt: "A developer pasted a cloud access key into a public code repository. Walk me through the next hour.",
     answer: "Rotate and revoke the key first, before anything else, because it is public and bots scrape for exactly this within minutes. Then work out what that key could do, how over-privileged it was, and pull the audit log to see whether it was already used and for what. Removing it from the repository is last and almost beside the point, since it is already copied.",
     followUps: [
@@ -141,7 +141,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "lock-down-root-account", level: "fresher", topic: "iam",
+    slug: "lock-down-root-account", level: "fresher", topic: "iam", difficulty: 1,
     prompt: "The root or owner account of a cloud organisation: what do you lock down on day one?",
     answer: "Hardware or app multi-factor on it, no daily use so it is reserved for the few things only it can do, no access keys attached to it, and alerting whenever it is used at all. The root account can undo every other control, so it is the one account where a compromise is total, and it should be boring and rarely touched.",
     followUps: [
@@ -152,7 +152,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "public-disk-snapshot", level: "fresher", topic: "storage",
+    slug: "public-disk-snapshot", level: "fresher", topic: "storage", difficulty: 2,
     prompt: "A disk snapshot is shared publicly. Why does that matter more than it sounds?",
     answer: "Because a snapshot is a copy of a whole disk: the operating system, the application, and whatever secrets, keys, and data were on it at the moment it was taken. A public snapshot is not a misconfigured setting, it is a data breach waiting for someone to mount it, and people do scan for them.",
     followUps: [
@@ -163,7 +163,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "cloud-privesc", level: "mid", topic: "privilege-escalation",
+    slug: "cloud-privesc", level: "mid", topic: "privilege-escalation", difficulty: 3,
     prompt: "In the cloud, how does an attacker turn a low-privilege foothold into admin, and how would you spot it?",
     answer: "Usually through the identity layer, not an exploit: a role that can pass a more privileged role to a service, attach a policy to itself, create access keys for another identity, or update a function that already runs with high permissions. You spot it in the audit trail, where these are all logged API calls that look wrong for the identity making them, like a low-privilege user suddenly editing IAM.",
     followUps: [
@@ -174,7 +174,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "find-everything-internet-facing", level: "mid", topic: "exposure",
+    slug: "find-everything-internet-facing", level: "mid", topic: "exposure", difficulty: 2,
     prompt: "How do you find everything in a cloud account that is reachable from the internet?",
     answer: "Not by looking at one thing: public IPs on instances, load balancers, storage buckets and their policies, managed databases with public access, API gateways, and functions with public URLs. It is an inventory problem more than a scanning problem, because the account can expose things in a dozen ways, and the one you forget is the one that bites.",
     followUps: [
@@ -185,7 +185,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "why-many-cloud-accounts", level: "mid", topic: "architecture",
+    slug: "why-many-cloud-accounts", level: "mid", topic: "architecture", difficulty: 3,
     prompt: "Why do mature organisations use many cloud accounts instead of one big one, from a security view?",
     answer: "To bound the blast radius. If production, development, and each team live in separate accounts, a compromise or a mistake in one does not reach the others, permissions stay scoped, and billing and ownership are clear. The cost is complexity: more to manage, and you need a way to govern them centrally, so it is a trade of simplicity for containment.",
     followUps: [
@@ -196,7 +196,7 @@ export const CLOUD = [
     ],
   },
   {
-    slug: "serverless-security-shift", level: "mid", topic: "serverless",
+    slug: "serverless-security-shift", level: "mid", topic: "serverless", difficulty: 2,
     prompt: "What changes about security when the application is serverless functions instead of servers?",
     answer: "You stop patching hosts, which is a real win, but the risk moves to the identity and the glue: each function has its own permissions that are easy to over-grant, functions are triggered by events that can be poisoned, and your dependencies and third-party packages become a larger part of your attack surface. You trade operating-system patching for permission hygiene and supply-chain care.",
     followUps: [

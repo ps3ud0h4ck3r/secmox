@@ -4,7 +4,7 @@
 export const GRC = [
   /* ------------------------------------------------------- fresher */
   {
-    slug: 'policy-standard-procedure', level: 'fresher', topic: 'documents',
+    slug: 'policy-standard-procedure', level: 'fresher', topic: 'documents', difficulty: 1,
     prompt: 'What is the difference between a policy, a standard and a procedure?',
     answer: 'A policy states intent and is approved by leadership. A standard makes it measurable: the specific requirement a thing must meet. A procedure is the steps someone follows to meet it. Policies change rarely, standards change with technology, procedures change with tooling.',
     followUps: [
@@ -15,7 +15,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'risk-register', level: 'fresher', topic: 'risk',
+    slug: 'risk-register', level: 'fresher', topic: 'risk', difficulty: 1,
     prompt: 'What does a risk register do, and what makes a bad one?',
     answer: 'It records the risks the organisation has decided to track, each with an owner, a rating, a treatment decision and a review date. A bad one is a list of vulnerabilities with no owner, no decision and no date, which makes it an inventory nobody acts on rather than a tool for allocating attention.',
     followUps: [
@@ -26,7 +26,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'dpdp-basics', level: 'fresher', topic: 'privacy',
+    slug: 'dpdp-basics', level: 'fresher', topic: 'privacy', difficulty: 2,
     prompt: 'What is India\'s Digital Personal Data Protection Act, and who does it apply to?',
     answer: 'It governs the processing of digital personal data of people in India, and it reaches organisations outside India that process such data to offer goods or services here. It works on consent and stated purpose, puts duties on the data fiduciary to secure data and report breaches, and gives people rights over their own data. Be clear it is principles and duties, not a technical checklist.',
     followUps: [
@@ -37,7 +37,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'audit-vs-assessment', level: 'fresher', topic: 'assurance',
+    slug: 'audit-vs-assessment', level: 'fresher', topic: 'assurance', difficulty: 1,
     prompt: 'What is the difference between an audit and an assessment?',
     answer: 'An audit tests against a defined standard and produces a formal opinion, usually by an independent party, with evidence requirements and consequences. An assessment is advisory: it tells you where you stand and what to improve, with no pass or fail. Confusing them in front of a client is a quick way to lose credibility.',
     followUps: [
@@ -48,7 +48,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'least-privilege-practice', level: 'fresher', topic: 'controls',
+    slug: 'least-privilege-practice', level: 'fresher', topic: 'controls', difficulty: 1,
     prompt: 'What does least privilege mean in practice, not in theory?',
     answer: 'That access is granted for a defined need, scoped to it, and removed when the need ends. The practical work is the removal: joiners get access easily everywhere, movers accumulate it, and leavers get missed. A programme that only controls granting is not doing least privilege, it is doing paperwork at the front door.',
     followUps: [
@@ -59,7 +59,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'owner-refuses', level: 'fresher', topic: 'behavioural',
+    slug: 'owner-refuses', level: 'fresher', topic: 'behavioural', difficulty: 2,
     prompt: 'A business owner refuses a control you have recommended. What do you do?',
     answer: 'Find out why, because the reason is usually cost, timing or a workflow you did not know about, and all three are negotiable. Offer a smaller version or a compensating control. If they still refuse, write it up as an accepted risk with their name on it and a review date. Then move on without sulking.',
     followUps: [
@@ -72,7 +72,7 @@ export const GRC = [
 
   /* ----------------------------------------------------------- mid */
   {
-    slug: 'iso-six-months', level: 'mid', topic: 'certification',
+    slug: 'iso-six-months', level: 'mid', topic: 'certification', difficulty: 3,
     prompt: 'You are asked to get the company ISO 27001 certified in six months. What is your first move?',
     answer: 'Define the scope, because everything follows from it: which entity, which locations, which systems, which data. Then run a gap assessment against the controls in that scope, which usually finds more already happening in practice but undocumented than leadership expects.',
     followUps: [
@@ -83,7 +83,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'third-party-risk', level: 'mid', topic: 'vendors',
+    slug: 'third-party-risk', level: 'mid', topic: 'vendors', difficulty: 2,
     prompt: 'How do you run third-party risk assessment that is not just a questionnaire nobody reads?',
     answer: 'Tier vendors by what they can actually reach: data, network access, business criticality. Spend the effort on the top tier and let the long tail be light. Ask for evidence rather than self-attestation where it matters, and put the answers into the contract, because a questionnaire with no contractual teeth changes nothing.',
     followUps: [
@@ -94,7 +94,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'after-breach', level: 'mid', topic: 'regulatory',
+    slug: 'after-breach', level: 'mid', topic: 'regulatory', difficulty: 3,
     prompt: 'Your company has had a breach. What does the regulator ask for, and what will you wish you had?',
     answer: 'What happened, when you knew, what data and how many people, what you did, and how you are preventing recurrence. What you will wish you had is a timeline supported by evidence rather than recollection, and proof that your controls were operating before the incident, not just documented.',
     followUps: [
@@ -105,7 +105,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'measure-programme', level: 'mid', topic: 'metrics',
+    slug: 'measure-programme', level: 'mid', topic: 'metrics', difficulty: 3,
     prompt: 'How do you measure whether a security programme is actually working?',
     answer: 'Pick measures tied to outcomes and to how fast you respond, not to activity. Time to detect and time to contain, coverage of critical assets by the controls that matter, how long high findings stay open, and how much of your estate you can actually see. Counting blocked attacks or training completions measures effort, not effect.',
     followUps: [
@@ -116,7 +116,7 @@ export const GRC = [
     ],
   },
   {
-    slug: 'soc2-vs-iso', level: 'mid', topic: 'certification',
+    slug: 'soc2-vs-iso', level: 'mid', topic: 'certification', difficulty: 2,
     prompt: 'Explain SOC 2 and ISO 27001 to a CFO who wants to know which one to pay for.',
     answer: 'ISO 27001 certifies a management system against an international standard and travels well, especially in Europe and Asia. SOC 2 is an attestation report by an auditor on how your controls operated, and North American customers ask for it by name. The CFO question is not which is better, it is which one your buyers are asking for.',
     followUps: [
@@ -129,7 +129,7 @@ export const GRC = [
 
   /* ----------------------------------------- batch 1 (added 2026-11-22) */
   {
-    slug: "cia-real-tradeoff", level: "fresher", topic: "fundamentals",
+    slug: "cia-real-tradeoff", level: "fresher", topic: "fundamentals", difficulty: 1,
     prompt: "The CIA triad gets recited a lot. Give me a real decision where confidentiality and availability actually pulled against each other.",
     answer: "Locking an account after failed logins: it protects confidentiality by stopping a guesser, and it harms availability because a real user, or an attacker spraying known usernames, can lock people out. Or encryption where the only key holder leaves and the data is now safe and also unrecoverable. The triad is not a slogan, it is a set of trade-offs you have to actually choose between.",
     followUps: [
@@ -140,7 +140,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "control-types-stolen-laptop", level: "fresher", topic: "controls",
+    slug: "control-types-stolen-laptop", level: "fresher", topic: "controls", difficulty: 2,
     prompt: "Preventive, detective, corrective: give me one real control of each for a stolen laptop, and which you would fund first.",
     answer: "Preventive is full-disk encryption, so the thief gets a brick. Detective is an alert when the device checks in from somewhere new or is reported missing. Corrective is a remote wipe and re-issue. I fund encryption first, because detection and response after a loss are cold comfort if the data was readable the moment it left the building.",
     followUps: [
@@ -151,7 +151,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "compliance-vs-risk", level: "fresher", topic: "risk",
+    slug: "compliance-vs-risk", level: "fresher", topic: "risk", difficulty: 2,
     prompt: "A control is required by a standard but makes no sense for your actual risk. What do you do?",
     answer: "I do not just ignore it, and I do not blindly implement theatre either. I document why it does not fit, put a compensating control in place if the underlying intent still matters, and record a risk acceptance with an owner if it genuinely does not apply. Compliance and security are not the same thing, but you manage the gap openly rather than pretending it is not there.",
     followUps: [
@@ -162,7 +162,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "what-counts-as-evidence", level: "fresher", topic: "assurance",
+    slug: "what-counts-as-evidence", level: "fresher", topic: "assurance", difficulty: 1,
     prompt: "An auditor asks for evidence that a control works. What counts, and what does not?",
     answer: "What counts is proof it actually operated: logs showing it ran, tickets showing it was followed, configurations showing it is set, samples over a period rather than one lucky day. What does not count is the policy that says it should happen. The difference an auditor is testing is between saying you do something and showing that you did.",
     followUps: [
@@ -173,7 +173,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "risk-in-money-to-the-board", level: "mid", topic: "risk",
+    slug: "risk-in-money-to-the-board", level: "mid", topic: "risk", difficulty: 3,
     prompt: "The board asks how much cyber risk you have, in money. How do you answer honestly?",
     answer: "In ranges with stated assumptions, not a single confident figure. I would frame it as likelihood times impact across the scenarios that actually threaten us, show the big drivers, and be explicit about what is estimated. A precise-sounding number invented to satisfy the question is worse than an honest range, because the board will treat false precision as fact and plan around it.",
     followUps: [
@@ -184,7 +184,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "who-declares-a-breach", level: "mid", topic: "incident",
+    slug: "who-declares-a-breach", level: "mid", topic: "incident", difficulty: 2,
     prompt: "Who decides when an incident becomes a breach that must be reported, and why does that matter?",
     answer: "It should be decided by defined criteria and a named owner agreed before anything happens, not argued out in the heat of the moment. It matters because reporting obligations come with clocks and legal exposure, and the decision is easier to get wrong, or to delay, exactly when everyone is stressed. Deciding who calls it and on what basis is itself a control.",
     followUps: [
@@ -195,7 +195,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "critical-vendor-wont-comply", level: "mid", topic: "vendors",
+    slug: "critical-vendor-wont-comply", level: "mid", topic: "vendors", difficulty: 3,
     prompt: "A critical vendor will not meet your security requirements, but the business needs them. What is your actual move?",
     answer: "I treat it as risk management, not a gate. I understand exactly what the vendor touches and what could go wrong, then reach for compensating controls on our side, contract terms that put obligations and liability in writing, and monitoring of the connection. If residual risk remains, it gets accepted explicitly by someone senior enough to own it. A flat no the business overrules anyway protects nobody.",
     followUps: [
@@ -206,7 +206,7 @@ export const GRC = [
     ],
   },
   {
-    slug: "awareness-training-doesnt-work", level: "mid", topic: "awareness",
+    slug: "awareness-training-doesnt-work", level: "mid", topic: "awareness", difficulty: 2,
     prompt: "Security awareness training mostly does not change behaviour. What would you do differently?",
     answer: "Stop measuring completion and start measuring behaviour: phishing-report and click rates, not slides watched. Make it targeted and role-based so finance hears about invoice fraud and developers hear about secrets, keep it short and frequent rather than an annual marathon, and most of all make the secure path the easy one, because people route around friction no matter how much they were trained.",
     followUps: [

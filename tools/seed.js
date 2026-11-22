@@ -31,9 +31,9 @@ const blocks = QUESTIONS.map((item) => {
   seen.add(id);
 
   const lines = [
-    'INSERT OR REPLACE INTO questions (id, role, topic, level, prompt, model_answer, created_at) VALUES (' +
-      [id, item.role, item.topic, item.level, item.prompt, item.answer, now].map(q).join(', ') +
-      ');',
+    'INSERT OR REPLACE INTO questions (id, role, topic, level, prompt, model_answer, difficulty, created_at) VALUES (' +
+      [id, item.role, item.topic, item.level, item.prompt, item.answer].map(q).join(', ') +
+      `, ${item.difficulty || 1}, ${q(now)});`,
   ];
   item.followUps.forEach((f, i) => {
     if (!f.prompt?.trim() || !f.answer?.trim()) {

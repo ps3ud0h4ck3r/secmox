@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS questions (
   level        TEXT NOT NULL,
   prompt       TEXT NOT NULL,
   model_answer TEXT NOT NULL,
+  difficulty   INTEGER NOT NULL DEFAULT 1,
   org_id       TEXT,
   created_at   TEXT NOT NULL
 );
