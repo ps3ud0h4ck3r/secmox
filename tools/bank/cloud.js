@@ -116,4 +116,95 @@ export const CLOUD = [
         answer: 'Alert on the pipeline\'s own identity doing something outside its pattern: deploying from an unusual branch, touching resources it never touches, or running at an odd hour. Also watch for edits to the pipeline definition outside the normal review path. The build identity is usually highly privileged and almost never monitored.' },
     ],
   },
+
+  /* ----------------------------------------- batch 1 (added 2026-11-22) */
+  {
+    slug: "first-logging-service", level: "fresher", topic: "logging",
+    prompt: "What is the one logging service you turn on first in a new cloud account, and why?",
+    answer: "The account's audit trail, the service that records who did what: every API call, who made it, from where, and whether it succeeded. I turn it on first because without it you are blind to your own account, and after an incident it is the difference between reconstructing what happened and guessing. It is also the thing attackers try to turn off.",
+    followUps: [
+      { prompt: "An attacker disables it. How would you know?",
+        answer: "The act of disabling it is itself a logged event, right up until it stops, so the last entry is a tell. That is why the logs should be delivered somewhere the account being watched cannot reach, so turning them off locally does not erase the trail." },
+      { prompt: "Logging everything gets expensive. How do you decide what to keep?",
+        answer: "Keep the management-plane trail, who-did-what, essentially forever and cheaply in cold storage, and be selective about high-volume data-plane logs. The audit trail is small and priceless; the per-object access logs are large and you keep what you would actually investigate." },
+    ],
+  },
+  {
+    slug: "leaked-access-key", level: "fresher", topic: "incident",
+    prompt: "A developer pasted a cloud access key into a public code repository. Walk me through the next hour.",
+    answer: "Rotate and revoke the key first, before anything else, because it is public and bots scrape for exactly this within minutes. Then work out what that key could do, how over-privileged it was, and pull the audit log to see whether it was already used and for what. Removing it from the repository is last and almost beside the point, since it is already copied.",
+    followUps: [
+      { prompt: "You revoke it and the audit log shows it was used from an unknown IP ten minutes ago. Now what?",
+        answer: "It is an incident, not a near miss. I scope what that key touched in those ten minutes, assume anything it could reach is compromised, and widen from there: new resources, new keys, changed permissions. The key being dead now does not undo what it did while alive." },
+      { prompt: "How do you stop the next one reaching the repo at all?",
+        answer: "Secret scanning on commits so a key is caught before it lands, short-lived credentials instead of long-lived keys, and making the easy path the safe one so developers are not tempted to paste a static key in the first place." },
+    ],
+  },
+  {
+    slug: "lock-down-root-account", level: "fresher", topic: "iam",
+    prompt: "The root or owner account of a cloud organisation: what do you lock down on day one?",
+    answer: "Hardware or app multi-factor on it, no daily use so it is reserved for the few things only it can do, no access keys attached to it, and alerting whenever it is used at all. The root account can undo every other control, so it is the one account where a compromise is total, and it should be boring and rarely touched.",
+    followUps: [
+      { prompt: "Why does it matter that root has no access keys?",
+        answer: "Because an access key is a long-lived credential that can be leaked, and on the root account that is catastrophic. A human logging in with MFA for a rare task is defensible; a static all-powerful key sitting in a config somewhere is not." },
+      { prompt: "You get an alert that root just logged in. What is your first question?",
+        answer: "Was it us? I want to know who, from where, and for what planned task, because a legitimate root login is a scheduled, announced, rare event. An unexplained one is treated as a compromise until proven otherwise." },
+    ],
+  },
+  {
+    slug: "public-disk-snapshot", level: "fresher", topic: "storage",
+    prompt: "A disk snapshot is shared publicly. Why does that matter more than it sounds?",
+    answer: "Because a snapshot is a copy of a whole disk: the operating system, the application, and whatever secrets, keys, and data were on it at the moment it was taken. A public snapshot is not a misconfigured setting, it is a data breach waiting for someone to mount it, and people do scan for them.",
+    followUps: [
+      { prompt: "How is this worse than a public storage bucket?",
+        answer: "A bucket exposes the objects someone put in it; a disk snapshot exposes everything, including the things nobody meant to be data: credentials in config files, tokens in memory dumps, private keys. The blast radius is the whole machine, not a folder." },
+      { prompt: "You make it private again. Is the incident over?",
+        answer: "No. If it was public you have to assume it was copied, so you rotate every credential that was on that disk and investigate what the exposed data could unlock. Making it private stops new access; it does not recall what already left." },
+    ],
+  },
+  {
+    slug: "cloud-privesc", level: "mid", topic: "privilege-escalation",
+    prompt: "In the cloud, how does an attacker turn a low-privilege foothold into admin, and how would you spot it?",
+    answer: "Usually through the identity layer, not an exploit: a role that can pass a more privileged role to a service, attach a policy to itself, create access keys for another identity, or update a function that already runs with high permissions. You spot it in the audit trail, where these are all logged API calls that look wrong for the identity making them, like a low-privilege user suddenly editing IAM.",
+    followUps: [
+      { prompt: "Which single permission would worry you most to hand out loosely?",
+        answer: "The ability to modify IAM itself, such as attaching policies or passing roles. It is the master key: anything that can change permissions can grant itself everything, so it is the one I watch and scope hardest." },
+      { prompt: "Your detection is only the audit log. Is that enough here?",
+        answer: "For this it is strong, because cloud privilege escalation is made of API calls and the log records them. The gap is speed: the log tells you after the fact, so the value is in alerting on the dangerous calls in near real time, not reading it next week." },
+    ],
+  },
+  {
+    slug: "find-everything-internet-facing", level: "mid", topic: "exposure",
+    prompt: "How do you find everything in a cloud account that is reachable from the internet?",
+    answer: "Not by looking at one thing: public IPs on instances, load balancers, storage buckets and their policies, managed databases with public access, API gateways, and functions with public URLs. It is an inventory problem more than a scanning problem, because the account can expose things in a dozen ways, and the one you forget is the one that bites.",
+    followUps: [
+      { prompt: "Why not just run an external port scan and call it done?",
+        answer: "A scan finds open ports on IPs you point it at, but it misses the managed services with their own endpoints, the buckets that are not ports at all, and anything that spun up after you scanned. The cloud exposes things a port scan never sees." },
+      { prompt: "How do you keep this current as the account changes daily?",
+        answer: "Make it continuous, not a one-off: query the provider's own inventory and configuration data on a schedule and alert on new public exposure. In a cloud that changes by the hour, a quarterly audit is a snapshot of a thing that has already moved." },
+    ],
+  },
+  {
+    slug: "why-many-cloud-accounts", level: "mid", topic: "architecture",
+    prompt: "Why do mature organisations use many cloud accounts instead of one big one, from a security view?",
+    answer: "To bound the blast radius. If production, development, and each team live in separate accounts, a compromise or a mistake in one does not reach the others, permissions stay scoped, and billing and ownership are clear. The cost is complexity: more to manage, and you need a way to govern them centrally, so it is a trade of simplicity for containment.",
+    followUps: [
+      { prompt: "What is the risk of getting the central governance wrong?",
+        answer: "You recreate the single big account through the back door: one over-powerful management account or role that can reach into all the others. If that is compromised, separation buys you nothing, so the governing layer is the thing you protect hardest." },
+      { prompt: "A small startup with one account asks if they are doing it wrong. Your answer?",
+        answer: "No, not yet. Many accounts earns its complexity at scale; for a small team one well-run account with clear separation inside it is fine. The mistake is copying a big company's structure before you have the size or the people to run it." },
+    ],
+  },
+  {
+    slug: "serverless-security-shift", level: "mid", topic: "serverless",
+    prompt: "What changes about security when the application is serverless functions instead of servers?",
+    answer: "You stop patching hosts, which is a real win, but the risk moves to the identity and the glue: each function has its own permissions that are easy to over-grant, functions are triggered by events that can be poisoned, and your dependencies and third-party packages become a larger part of your attack surface. You trade operating-system patching for permission hygiene and supply-chain care.",
+    followUps: [
+      { prompt: "Where do over-permissioned functions come from, and why do they matter?",
+        answer: "From copying a broad policy because it was easy and it worked. They matter because a compromised function inherits its permissions, so a function that only needed to read one bucket but was granted the account becomes a full foothold." },
+      { prompt: "What is event injection in this world?",
+        answer: "Trusting the trigger. A function fired by a file upload, a queue message, or an HTTP call is processing attacker-influenced input, and if it treats that input as trusted, the same injection problems you had on servers come back through the event instead of a form." },
+    ],
+  },
+
 ];

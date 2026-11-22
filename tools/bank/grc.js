@@ -126,4 +126,95 @@ export const GRC = [
         answer: 'No, and say it directly. Both tell a customer that you run a managed programme and that an independent party checked it. Neither is a guarantee, and a certified company can still be breached. Overselling this is how security loses the room the first time something goes wrong.' },
     ],
   },
+
+  /* ----------------------------------------- batch 1 (added 2026-11-22) */
+  {
+    slug: "cia-real-tradeoff", level: "fresher", topic: "fundamentals",
+    prompt: "The CIA triad gets recited a lot. Give me a real decision where confidentiality and availability actually pulled against each other.",
+    answer: "Locking an account after failed logins: it protects confidentiality by stopping a guesser, and it harms availability because a real user, or an attacker spraying known usernames, can lock people out. Or encryption where the only key holder leaves and the data is now safe and also unrecoverable. The triad is not a slogan, it is a set of trade-offs you have to actually choose between.",
+    followUps: [
+      { prompt: "How do you make that lockout decision, then?",
+        answer: "By the context: how sensitive the account is, how likely an attack is, and what being locked out costs. A banking admin and a public forum get different answers, which is the point, the right control depends on what you are protecting and from whom." },
+      { prompt: "Is one of the three ever simply more important?",
+        answer: "Depends entirely on the business. For a hospital system, availability can be life-or-death; for a secrets vault, confidentiality wins. Anyone who says one always leads has not had to make the trade with real consequences." },
+    ],
+  },
+  {
+    slug: "control-types-stolen-laptop", level: "fresher", topic: "controls",
+    prompt: "Preventive, detective, corrective: give me one real control of each for a stolen laptop, and which you would fund first.",
+    answer: "Preventive is full-disk encryption, so the thief gets a brick. Detective is an alert when the device checks in from somewhere new or is reported missing. Corrective is a remote wipe and re-issue. I fund encryption first, because detection and response after a loss are cold comfort if the data was readable the moment it left the building.",
+    followUps: [
+      { prompt: "Why not fund detection first, so you at least know?",
+        answer: "Because knowing a readable laptop is gone does not protect the data on it; it just tells you the breach already happened. Prevention changes the outcome, detection changes only your awareness of it, so for a loss you cannot undo, prevention earns the first rupee." },
+      { prompt: "The laptop was encrypted but the password was on a sticky note on it. Now what?",
+        answer: "Then the control did not operate, which is the whole lesson: a control on paper is not a control in practice. It becomes an awareness and enforcement problem, and in a report I would record it as a control that existed but failed to operate, which is different from one that was missing." },
+    ],
+  },
+  {
+    slug: "compliance-vs-risk", level: "fresher", topic: "risk",
+    prompt: "A control is required by a standard but makes no sense for your actual risk. What do you do?",
+    answer: "I do not just ignore it, and I do not blindly implement theatre either. I document why it does not fit, put a compensating control in place if the underlying intent still matters, and record a risk acceptance with an owner if it genuinely does not apply. Compliance and security are not the same thing, but you manage the gap openly rather than pretending it is not there.",
+    followUps: [
+      { prompt: "The auditor will not accept your compensating control. Then what?",
+        answer: "Then it becomes a business decision with the cost on the table: implement the required control anyway for the certification, or accept not having that certification. My job is to make the trade-off and its cost visible, not to quietly fail the audit or quietly fake the control." },
+      { prompt: "Where is the line between pragmatism and just dodging controls?",
+        answer: "Writing it down. A documented, owned, reasoned deviation is risk management; an undocumented one you hope nobody notices is negligence. The control you skipped is only defensible if you can show the thinking and someone signed for it." },
+    ],
+  },
+  {
+    slug: "what-counts-as-evidence", level: "fresher", topic: "assurance",
+    prompt: "An auditor asks for evidence that a control works. What counts, and what does not?",
+    answer: "What counts is proof it actually operated: logs showing it ran, tickets showing it was followed, configurations showing it is set, samples over a period rather than one lucky day. What does not count is the policy that says it should happen. The difference an auditor is testing is between saying you do something and showing that you did.",
+    followUps: [
+      { prompt: "You have the policy but no records that anyone followed it. What does that tell the auditor?",
+        answer: "That the control exists on paper and may not exist in practice, which is often worse than having no policy, because it shows the organisation knows what it should do and is not doing it. A policy with no evidence is a finding, not a defence." },
+      { prompt: "The control ran, but only because you knew the audit was coming. Honest evidence?",
+        answer: "No. A control that operates only when watched is not operating; it is a performance. Honest assurance samples across normal time, and if it only works under observation, the real finding is that it does not work." },
+    ],
+  },
+  {
+    slug: "risk-in-money-to-the-board", level: "mid", topic: "risk",
+    prompt: "The board asks how much cyber risk you have, in money. How do you answer honestly?",
+    answer: "In ranges with stated assumptions, not a single confident figure. I would frame it as likelihood times impact across the scenarios that actually threaten us, show the big drivers, and be explicit about what is estimated. A precise-sounding number invented to satisfy the question is worse than an honest range, because the board will treat false precision as fact and plan around it.",
+    followUps: [
+      { prompt: "The board wants one number, not a range. How do you handle that?",
+        answer: "I give a central estimate and immediately show the range around it, because the spread is the information. Collapsing it to one number hides the uncertainty that should drive how much they spend, so I answer the question without pretending the uncertainty is not there." },
+      { prompt: "Is this quantification worth doing if it is all estimates?",
+        answer: "Yes, if it is honest, because it turns vague fear into a comparable number that can be weighed against the cost of fixing it. The value is in the relative comparison and the conversation, not in the decimal places, and good estimation beats no estimation and beats fake precision." },
+    ],
+  },
+  {
+    slug: "who-declares-a-breach", level: "mid", topic: "incident",
+    prompt: "Who decides when an incident becomes a breach that must be reported, and why does that matter?",
+    answer: "It should be decided by defined criteria and a named owner agreed before anything happens, not argued out in the heat of the moment. It matters because reporting obligations come with clocks and legal exposure, and the decision is easier to get wrong, or to delay, exactly when everyone is stressed. Deciding who calls it and on what basis is itself a control.",
+    followUps: [
+      { prompt: "Why is deciding this in advance so important?",
+        answer: "Because in the middle of an incident there is pressure to downplay, and the regulatory clock may already be running. A criterion written in calm beats a judgement made in panic, and it protects the person who has to make the call from having to invent the rule under fire." },
+      { prompt: "Who should own that decision?",
+        answer: "Someone with the authority and the context to act, usually a defined incident lead with legal and leadership in the loop, named ahead of time. What you want to avoid is everyone assuming someone else is making the call while the clock runs out." },
+    ],
+  },
+  {
+    slug: "critical-vendor-wont-comply", level: "mid", topic: "vendors",
+    prompt: "A critical vendor will not meet your security requirements, but the business needs them. What is your actual move?",
+    answer: "I treat it as risk management, not a gate. I understand exactly what the vendor touches and what could go wrong, then reach for compensating controls on our side, contract terms that put obligations and liability in writing, and monitoring of the connection. If residual risk remains, it gets accepted explicitly by someone senior enough to own it. A flat no the business overrules anyway protects nobody.",
+    followUps: [
+      { prompt: "Is there a point where you do say no?",
+        answer: "When the residual risk after everything you can do is still unacceptable and the owner will not accept it in writing. The no has to be defensible and specific, tied to what cannot be mitigated, not a reflex because a questionnaire came back short." },
+      { prompt: "What is wrong with just refusing the vendor outright?",
+        answer: "The business often needs them anyway and will go around you, which leaves the risk in place and you out of the loop. Engaging to reduce and own the risk keeps you in the decision; refusing on principle gets you ignored and the risk unmanaged." },
+    ],
+  },
+  {
+    slug: "awareness-training-doesnt-work", level: "mid", topic: "awareness",
+    prompt: "Security awareness training mostly does not change behaviour. What would you do differently?",
+    answer: "Stop measuring completion and start measuring behaviour: phishing-report and click rates, not slides watched. Make it targeted and role-based so finance hears about invoice fraud and developers hear about secrets, keep it short and frequent rather than an annual marathon, and most of all make the secure path the easy one, because people route around friction no matter how much they were trained.",
+    followUps: [
+      { prompt: "Give me an example of making the secure path the easy one.",
+        answer: "A one-click report-phishing button that actually gets a response, or a password manager provided and set up so a strong unique password is less effort than reuse. When doing it right is easier than doing it wrong, behaviour changes without a lecture." },
+      { prompt: "How would you prove your programme is working?",
+        answer: "By movement in the behaviours over time: report rates up, click rates down, repeat offenders shrinking, and real reports arriving early. Those are outcomes; completion percentages are activity, and activity is not the same as a workforce that actually catches things." },
+    ],
+  },
+
 ];

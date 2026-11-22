@@ -126,4 +126,95 @@ export const NETWORK = [
         answer: 'Restore service with the least destructive lever: throttle or disconnect the one offending session rather than resetting the device and dropping three hundred people. Then say what the permanent fix is, capacity or split tunnelling or both, and what it costs. Fix now, design later, but do not let later never come.' },
     ],
   },
+
+  /* ----------------------------------------- batch 1 (added 2026-11-22) */
+  {
+    slug: "ports-on-a-web-server", level: "fresher", topic: "ports",
+    prompt: "Which ports would you expect open on a normal web server, and which one open would make you look twice?",
+    answer: "80 and 443 for the site itself, and probably 22 for the admins, ideally not from the whole internet. The one that makes me look twice is something like 3389 or a database port exposed publicly: remote desktop or a database should not be reachable from outside, and finding them open usually means a mistake or a foothold someone left.",
+    followUps: [
+      { prompt: "You find 3389 open to the world on it. What do you do?",
+        answer: "Treat it as an exposure first: get it firewalled to admin sources or behind a VPN, then check the logs for whether anyone has already been knocking, because an open RDP port on the internet is found by scanners within minutes." },
+      { prompt: "The team says it has been like that for a year with no problem. Does that reassure you?",
+        answer: "No. No problem usually means no one has looked, not that no one has been in. A year of exposure is a year of opportunity, so I would want the authentication logs before I believe nothing happened." },
+    ],
+  },
+  {
+    slug: "first-look-at-a-pcap", level: "fresher", topic: "traffic-analysis",
+    prompt: "I hand you a packet capture and say something is wrong, with no other context. What do you look at first?",
+    answer: "The shape before the detail: the protocol hierarchy to see what is actually in there, the conversations to see who is talking to whom and how much, and whether anything is on a port that does not match its protocol. I am looking for the odd one out, not reading every packet, because a capture is too big to read and the anomaly is usually in the summary.",
+    followUps: [
+      { prompt: "The protocol hierarchy shows a lot of DNS. Does that interest you?",
+        answer: "It can. A lot of DNS, especially long or odd query names to one domain, is a classic tunnelling or beaconing pattern. I would look at the query names and the destination before deciding it is just a busy resolver." },
+      { prompt: "You spot credentials in cleartext. How bad, and what do you do?",
+        answer: "Bad enough to act on: cleartext credentials on the wire mean anyone on the path has them. I note what protocol carried them, flag the application that should not be using it, and treat those credentials as compromised until rotated." },
+    ],
+  },
+  {
+    slug: "proxy-beaconing", level: "fresher", topic: "c2",
+    prompt: "A proxy log shows one host requesting the same URL every thirty seconds, each time a tiny response. Your read?",
+    answer: "That regularity is the tell. Humans and normal apps are bursty; a request on a fixed interval with a small, consistent response looks like a beacon checking in with a controller. I would not conclude command-and-control from one pattern, but it earns a close look at the destination and the process making the calls.",
+    followUps: [
+      { prompt: "The destination is a well-known cloud provider's domain. Does that clear it?",
+        answer: "No. Attackers hide behind reputable infrastructure precisely because people wave it through. The domain being trusted does not change that the timing looks automated; I still want to know what on that host is calling it." },
+      { prompt: "How would you confirm it is a beacon and not a legitimate poll?",
+        answer: "Look at the jitter and the payloads over time: a legitimate poll usually varies and does real work, a beacon tends to be metronomic with near-identical tiny exchanges until it gets a task. And I would tie it to a process, because a legitimate poller is something you can name." },
+    ],
+  },
+  {
+    slug: "arp-for-defenders", level: "fresher", topic: "layer2",
+    prompt: "What is ARP, and why should a defender care about it?",
+    answer: "ARP maps an IP address to a MAC address on a local network, so devices can actually deliver frames to each other. A defender cares because it has no authentication: a host can claim to be the gateway, and others will believe it. That is ARP spoofing, and it is how someone on the same LAN quietly puts themselves in the middle of traffic.",
+    followUps: [
+      { prompt: "How might you notice it happening?",
+        answer: "A MAC address suddenly mapping to an IP it never did, two IPs sharing a MAC, or a gateway's MAC changing. Switches and monitoring can flag it; on the wire it shows as a flurry of unsolicited ARP replies." },
+      { prompt: "It is the switch's job to stop this, is it not?",
+        answer: "Only if someone turned on the features: dynamic ARP inspection and DHCP snooping. Out of the box a flat LAN trusts ARP completely, so it is a configuration choice, not something you get for free." },
+    ],
+  },
+  {
+    slug: "where-to-place-a-sensor", level: "mid", topic: "monitoring",
+    prompt: "Where do you place a network sensor, and what do you miss at each spot?",
+    answer: "At the perimeter you see what enters and leaves but nothing host-to-host inside; in the core or at distribution you see east-west movement but can drown in volume; at the host you see everything for that host and nothing else. There is no single right spot, so the honest answer is a mix and being clear about the blind spot each one leaves.",
+    followUps: [
+      { prompt: "Most of your traffic is now encrypted. What does that do to the perimeter sensor?",
+        answer: "It takes away the payload. You still get who-talks-to-whom, volumes, timing, and destinations, which is a lot, but you stop seeing content. That is why metadata and endpoint telemetry matter more as encryption spreads." },
+      { prompt: "Given one sensor and a flat network, where do you put it?",
+        answer: "At the egress point, because the thing I least want to miss is data leaving and hosts calling out to a controller. Internal movement matters, but a sensor that watches the door catches the step that turns an intrusion into a breach." },
+    ],
+  },
+  {
+    slug: "decrypt-all-tls", level: "mid", topic: "tls-inspection",
+    prompt: "The business wants to decrypt all TLS so it can be inspected. Walk me through the trade-offs.",
+    answer: "You gain payload visibility, which is real. You also take on the risk of holding everyone's decrypted traffic, you break anything that pins certificates or expects end-to-end trust, you create a privacy and legal question around personal and health and banking traffic, and you add latency and a single point of failure. It is a legitimate control, but it is a decision with costs, not a free upgrade.",
+    followUps: [
+      { prompt: "What would you refuse to decrypt, and why?",
+        answer: "Traffic to banking, health, and other sensitive or regulated destinations, and anything where interception crosses a legal or privacy line. The point of inspection is defence, not building a honeypot of your own staff's private data." },
+      { prompt: "Something breaks after you turn it on. Where do you look first?",
+        answer: "Certificate pinning and applications that validate the chain themselves: mobile apps, updaters, and some APIs will refuse a middle certificate. The break is usually an app that was doing exactly what it was supposed to." },
+    ],
+  },
+  {
+    slug: "unassigned-ip-on-the-network", level: "mid", topic: "rogue-device",
+    prompt: "A device on the network has an IP you did not assign. How do you find it, and why do you care?",
+    answer: "I care because an unknown device is unknown risk: it could be a staff member's personal kit, a test box someone forgot, or something that should not be there at all. To find it I work from the IP to the MAC in the ARP or DHCP tables, then to the switch port it is plugged into, which gives me the physical location.",
+    followUps: [
+      { prompt: "It turns out to be a personal router someone plugged in. Still a problem?",
+        answer: "Yes. An unmanaged router can hand out its own addresses, bridge an untrusted network in, and create a path around your controls. Intent does not change the exposure, so it comes off the network and the policy gets a reminder." },
+      { prompt: "How would you stop unknown devices getting on in the first place?",
+        answer: "Network access control: require the port to authenticate the device before it gets anything but a quarantine network. Short of that, at least switch-port security and monitoring, so a new MAC is noticed rather than trusted." },
+    ],
+  },
+  {
+    slug: "public-site-under-ddos", level: "mid", topic: "ddos",
+    prompt: "Your public site looks like it is under a distributed denial-of-service. What can you actually do from the network side, and what can you not?",
+    answer: "First I work out whether it is volumetric, filling the pipe, or application-layer, exhausting the server with valid-looking requests, because the answer is different. Against volume you cannot win locally: you need upstream help from the ISP or a scrubbing or CDN provider to absorb it before it reaches your link. Against application-layer you have more room with rate limiting, filtering, and caching. The hard truth is that if the pipe is full, nothing you do on your own side empties it.",
+    followUps: [
+      { prompt: "The business asks why you cannot just block the attacking IPs. What do you tell them?",
+        answer: "Because there are too many, they change, and some are spoofed, and because blocking them still means the traffic arrived at your link and filled it. Blocking helps at the edges, but it does not solve a volumetric flood that is already saturating the connection." },
+      { prompt: "It eases off after an hour. Are you done?",
+        answer: "No. An hour of denial of service is sometimes cover for something else, so I check whether anything happened while attention was elsewhere, and I treat the respite as a chance to get scrubbing in place before it comes back." },
+    ],
+  },
+
 ];
