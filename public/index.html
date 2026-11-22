@@ -25,13 +25,33 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "SecMox",
-  "url": "https://secmox.com/",
-  "applicationCategory": "EducationalApplication",
-  "operatingSystem": "Web",
-  "description": "Interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.",
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" }
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://secmox.com/#org",
+      "name": "SecMox",
+      "url": "https://secmox.com/",
+      "logo": "https://secmox.com/apple-touch-icon.png",
+      "description": "SecMox is a cybersecurity and IT interview practice platform, built around the rounds people actually fail: the practical, the scenario, and the live grilling."
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://secmox.com/#website",
+      "name": "SecMox",
+      "url": "https://secmox.com/",
+      "publisher": { "@id": "https://secmox.com/#org" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "SecMox",
+      "url": "https://secmox.com/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "description": "Interview practice for IT and security roles, built around the rounds people actually fail: the practical, the scenario, and the live grilling.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+      "publisher": { "@id": "https://secmox.com/#org" }
+    }
+  ]
 }
 </script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
