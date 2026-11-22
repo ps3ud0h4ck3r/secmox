@@ -96,6 +96,7 @@ main > .sec:not(.hero-sec){position:relative;z-index:1}
   border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel);
   display:flex;gap:10px;align-items:baseline;width:fit-content;max-width:100%}
 .pin-eg span{color:var(--neon);flex:none}
+.pin-eg + .pin-eg{margin-top:6px}
 
 /* Stacked on a phone the pinning has nothing to pin against, so the section
    goes back to being four plain cards. */
