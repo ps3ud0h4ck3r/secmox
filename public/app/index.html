@@ -16,6 +16,8 @@
 <link rel="stylesheet" href="/css/splash.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
+
 
 <div class="imp-banner" id="impBanner" role="status" hidden>
   <span>Viewing as <strong id="impWho"></strong>. This is what they see, not you.</span>
@@ -76,7 +78,7 @@
 </nav>
 
 <div class="main">
-<main>
+<main id="main" tabindex="-1">
 
   <!-- ------------------------------------------------ signed out -->
   <section id="authView" class="view" hidden>
@@ -610,7 +612,7 @@
           <button class="inf ghost" id="labStepReveal" type="button">Reveal what a strong answer covers</button>
         </div>
         <div class="model" id="labStepModel" hidden>
-          <h4>What a strong answer covers</h4>
+          <h2>What a strong answer covers</h2>
           <p id="labStepModelText"></p>
         </div>
         <div class="lab-step-next" id="labStepNextWrap" hidden>

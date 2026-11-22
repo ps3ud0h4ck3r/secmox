@@ -33,6 +33,11 @@ body{
 a{color:var(--neon);text-decoration:none}
 a:hover{color:var(--neon-hi)}
 :focus-visible{outline:2px solid var(--neon);outline-offset:3px;border-radius:6px}
+/* Skip-to-content: off-screen until a keyboard user tabs to it. */
+.skip-link{position:absolute;left:12px;top:-60px;z-index:200;background:#29B6FF;color:#02121C;padding:10px 16px;border-radius:8px;font-weight:600;text-decoration:none;transition:top .12s ease}
+.skip-link:hover,.skip-link:focus{color:#02121C}
+.skip-link:focus{top:12px}
+main[tabindex="-1"]:focus{outline:none}
 [hidden]{display:none !important}
 ::selection{background:rgba(41,182,255,.35);color:#fff}
 

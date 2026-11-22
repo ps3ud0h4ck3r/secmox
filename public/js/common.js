@@ -120,8 +120,32 @@ export async function api(path, options = {}) {
 }
 
 export function say(el, text, kind) {
+  if (el && !el.hasAttribute('aria-live')) {
+    // Announce this status line to screen readers when it changes.
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('role', 'status');
+  }
   el.textContent = text || '';
   el.className = 'msg' + (kind ? ' ' + kind : '');
+}
+
+// Mark every status line present at load as a polite live region, so the
+// attribute is in place before its text first changes. say() covers any added
+// later, but having it up front makes the first update announce reliably.
+function markLiveRegions() {
+  for (const el of document.querySelectorAll('.msg')) {
+    if (!el.hasAttribute('aria-live')) {
+      el.setAttribute('aria-live', 'polite');
+      el.setAttribute('role', 'status');
+    }
+  }
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', markLiveRegions);
+  } else {
+    markLiveRegions();
+  }
 }
 
 export const ROLE_LABEL = {
