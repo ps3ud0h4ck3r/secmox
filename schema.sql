@@ -10,7 +10,17 @@ CREATE TABLE IF NOT EXISTS users (
   track         TEXT NOT NULL DEFAULT 'fresher',
   is_admin      INTEGER NOT NULL DEFAULT 0,
   platform_role TEXT,
+  target_role   TEXT,
   created_at    TEXT NOT NULL
+);
+
+-- One readiness reading per user per day, written when they open the dashboard.
+-- The trend line is built from these; history accrues a point at a time.
+CREATE TABLE IF NOT EXISTS readiness_snapshots (
+  user_id    TEXT NOT NULL,
+  day        TEXT NOT NULL,          -- YYYY-MM-DD (UTC)
+  readiness  INTEGER NOT NULL,       -- overall hold, 0-100
+  PRIMARY KEY (user_id, day)
 );
 
 -- Session ids are stored as a SHA-256 of the cookie token, so a dump of this

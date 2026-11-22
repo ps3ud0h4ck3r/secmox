@@ -107,9 +107,9 @@ export async function userForToken(db, token) {
     .prepare(
       `SELECT s.expires_at, s.impersonating_user_id,
               u.id AS u_id, u.email AS u_email, u.track AS u_track,
-              u.created_at AS u_created, u.platform_role AS u_role,
+              u.created_at AS u_created, u.platform_role AS u_role, u.target_role AS u_target,
               t.id AS t_id, t.email AS t_email, t.track AS t_track,
-              t.created_at AS t_created, t.platform_role AS t_role
+              t.created_at AS t_created, t.platform_role AS t_role, t.target_role AS t_target
          FROM sessions s
          JOIN users u ON u.id = s.user_id
          LEFT JOIN users t ON t.id = s.impersonating_user_id
@@ -125,8 +125,8 @@ export async function userForToken(db, token) {
 
   const impersonating = Boolean(row.impersonating_user_id && row.t_id);
   const eff = impersonating
-    ? { id: row.t_id, email: row.t_email, track: row.t_track, created_at: row.t_created, role: row.t_role }
-    : { id: row.u_id, email: row.u_email, track: row.u_track, created_at: row.u_created, role: row.u_role };
+    ? { id: row.t_id, email: row.t_email, track: row.t_track, created_at: row.t_created, role: row.t_role, target: row.t_target }
+    : { id: row.u_id, email: row.u_email, track: row.u_track, created_at: row.u_created, role: row.u_role, target: row.u_target };
 
   return {
     id: eff.id,
@@ -134,6 +134,7 @@ export async function userForToken(db, token) {
     track: eff.track,
     created_at: eff.created_at,
     platform_role: eff.role ?? null,
+    target_role: eff.target ?? null,
     is_admin: isContentAdmin(eff.role),
     impersonating,
     actor: impersonating

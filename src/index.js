@@ -318,6 +318,108 @@ app.get('/api/me', async (c) => {
   return c.json({ user: { ...user, orgs: results ?? [] } });
 });
 
+// The role a candidate is aiming for. Progress toward it is just that role's
+// readiness, read on the dashboard. Null clears it.
+app.post('/api/me/target', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  const role = body?.role ? String(body.role) : null;
+  if (role !== null && !ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  await c.env.DB.prepare('UPDATE users SET target_role = ? WHERE id = ?').bind(role, user.id).run();
+  return c.json({ ok: true, target_role: role });
+});
+
+// Dashboard aggregates that readiness does not already carry: how many reviews
+// are due, the last week of activity and the current streak, and the readiness
+// trend. Opening the dashboard also records today's reading, so the trend grows
+// a point a day.
+app.get('/api/dashboard', async (c) => {
+  const user = c.get('user');
+  const now = nowIso();
+  const vis = visibleSql('q', 'question');
+
+  // Reviews due now, counting only questions the user can still see.
+  const due = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS n
+       FROM review_schedule r JOIN questions q ON q.id = r.question_id
+      WHERE r.user_id = ? AND r.due_at <= ? AND ${vis}`,
+  )
+    .bind(user.id, now, user.id, user.id)
+    .first();
+
+  // Per-day attempt counts over the last 90 days, for the 7-day strip, the week
+  // total and the streak.
+  const ninety = new Date(Date.now() - 90 * 86400000).toISOString();
+  const byDay = await c.env.DB.prepare(
+    `SELECT date(created_at) AS d, COUNT(*) AS n
+       FROM attempts WHERE user_id = ? AND created_at >= ? GROUP BY d`,
+  )
+    .bind(user.id, ninety)
+    .all();
+  const counts = new Map((byDay.results ?? []).map((r) => [r.d, r.n]));
+
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const activity = [];
+  let weekTotal = 0;
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const day = iso(d);
+    const n = counts.get(day) || 0;
+    activity.push({ day, count: n });
+    weekTotal += n;
+  }
+  let streak = 0;
+  const cur = new Date();
+  if (!counts.has(iso(cur))) cur.setUTCDate(cur.getUTCDate() - 1);
+  while (counts.has(iso(cur))) {
+    streak += 1;
+    cur.setUTCDate(cur.getUTCDate() - 1);
+  }
+
+  // Today's overall readiness: across every visible question, how much the user
+  // can hold on their latest answer. Upsert it as today's snapshot.
+  const held = await c.env.DB.prepare(
+    `WITH latest AS (
+       SELECT question_id, self_rating,
+              ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY created_at DESC, id DESC) AS rn
+         FROM attempts WHERE user_id = ?
+     )
+     SELECT q.id, l.self_rating AS rating
+       FROM questions q LEFT JOIN latest l ON l.question_id = q.id AND l.rn = 1
+      WHERE ${vis}`,
+  )
+    .bind(user.id, user.id, user.id)
+    .all();
+  const rows = held.results ?? [];
+  const total = rows.length;
+  const points = rows.reduce((a, r) => a + (RATING_WEIGHT[r.rating] ?? 0), 0);
+  const overall = total ? Math.round((points / total) * 100) : 0;
+  const today = iso(new Date());
+  if (total) {
+    await c.env.DB.prepare(
+      `INSERT INTO readiness_snapshots (user_id, day, readiness) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, day) DO UPDATE SET readiness = excluded.readiness`,
+    )
+      .bind(user.id, today, overall)
+      .run();
+  }
+  const snaps = await c.env.DB.prepare(
+    'SELECT day, readiness FROM readiness_snapshots WHERE user_id = ? ORDER BY day ASC',
+  )
+    .bind(user.id)
+    .all();
+
+  return c.json({
+    target_role: user.target_role ?? null,
+    due: due?.n ?? 0,
+    streak,
+    week_total: weekTotal,
+    activity,
+    overall,
+    trend: (snaps.results ?? []).slice(-60),
+  });
+});
+
 // Everything the account holds, in one file. Their data, on request.
 app.get('/api/account/export', async (c) => {
   const user = c.get('user');
