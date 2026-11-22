@@ -275,4 +275,94 @@ export const SOC = [
     ],
   },
 
+  /* ----------------------------------------- batch 2 (added 2026-11-22) */
+  {
+    slug: "severity-gut-vs-tool", level: "fresher", topic: "severity", difficulty: 2,
+    prompt: "How do you decide an alert's severity when the tool's rating and your own read disagree?",
+    answer: "I go by what is actually at stake, not the label the tool shipped with. Severity is impact times how live it still is: what the affected asset is worth, who it touches, and whether the thing is still happening or already contained. The tool's rating is a starting opinion from someone who never saw your environment, so I weigh it and then decide, and I write down why I overrode it.",
+    followUps: [
+      { prompt: "The tool says critical, you think it is noise. You are junior. Do you downgrade it?",
+        answer: "I investigate enough to be sure before I touch the rating, and if I downgrade I record exactly why and leave the trail. Being junior means I show my working, not that I defer blindly, because a critical waved away without evidence is how real ones get missed." },
+      { prompt: "You think it is critical, the tool says low. What do you do?",
+        answer: "Escalate on my read, not the tool's. Under-rating is the more dangerous mistake, so I would rather be wrong raising it than wrong burying it, and I make the case with what I found rather than just a feeling." },
+    ],
+  },
+  {
+    slug: "handed-a-suspicious-file", level: "fresher", topic: "malware", difficulty: 1,
+    prompt: "A user sends you a file they think is malware. What do you do with it, and what do you not do?",
+    answer: "I do not open it on my own machine, and I do not double-click it anywhere that matters. I preserve it, hash it and check the hash against known-bad, look at it in a sandbox or detonation environment rather than live, and keep it contained the whole time. The mistake that ends careers early is running the thing you are trying to analyse on the box you are analysing it from.",
+    followUps: [
+      { prompt: "The hash is unknown to every feed. Is it safe, then?",
+        answer: "No. Unknown means nobody has reported it yet, which is exactly what a fresh or targeted sample looks like. I still detonate it in a sandbox and judge it by behaviour, because being new to the feeds is a reason for more caution, not less." },
+      { prompt: "How do you get it off the user's machine without making things worse?",
+        answer: "Carefully and with the original preserved: copy it in a contained way rather than forwarding it around, and if the machine might already be affected I treat the whole host, not just the file. Emailing malware to your team to 'take a look' is how it spreads inside the walls." },
+    ],
+  },
+  {
+    slug: "spf-dkim-dmarc", level: "fresher", topic: "email-auth", difficulty: 2,
+    prompt: "SPF, DKIM and DMARC: what does each actually tell you when you are staring at a suspicious email?",
+    answer: "SPF says whether the sending server was allowed to send for that domain. DKIM says whether the message was signed by the domain and not altered in transit. DMARC ties the two to the visible From address and tells the receiver what to do when they fail. Together they answer did this really come from who it claims, and a fail on the From domain is a strong tell, though a pass does not make the content safe.",
+    followUps: [
+      { prompt: "The email passes all three. Does that mean it is legitimate?",
+        answer: "No. It means it genuinely came from that domain, not that the domain is trustworthy or uncompromised. A real but hacked account, or a lookalike domain that set its own records up correctly, passes all three while still being an attack." },
+      { prompt: "DMARC says the domain's policy is 'none'. What does that tell you?",
+        answer: "That the owner is monitoring but not enforcing, so a spoofed message still gets delivered rather than rejected or quarantined. It is a configuration gap on their side, and it is why I cannot lean on DMARC alone to have stopped the mail." },
+    ],
+  },
+  {
+    slug: "signs-of-data-leaving", level: "fresher", topic: "exfil", difficulty: 2,
+    prompt: "What are the signs of data leaving that you would actually catch, and which ones would you miss?",
+    answer: "I would catch the obvious shapes: large or steady outbound transfers, uploads to personal cloud storage, a host talking to a destination it never did, odd volumes at odd hours. I would miss slow, low exfiltration dribbled out under the noise, data hidden in protocols I do not inspect like DNS or encrypted channels, and anything that leaves on a USB stick or a phone camera, which never touches the network at all.",
+    followUps: [
+      { prompt: "How would you catch the slow, low version?",
+        answer: "By baselining normal for each host and alerting on deviation over time rather than on a single big spike, and by watching cumulative volume to a destination, not just instantaneous rate. The patient attacker beats a threshold that only looks at one moment." },
+      { prompt: "The data left over DNS. How would that even work?",
+        answer: "By encoding the data into the names being looked up, so a stream of long odd subdomain queries to one domain carries the payload out a channel almost nobody blocks. The tell is the volume and shape of the DNS, which is why those TXT and long-name patterns are worth alerting on." },
+    ],
+  },
+  {
+    slug: "using-a-feed-without-drowning", level: "mid", topic: "threat-intel", difficulty: 2,
+    prompt: "You are given a feed of malicious IPs and hashes. How do you use it without drowning?",
+    answer: "Not by blocking everything on sight. I prioritise by relevance and confidence: which indicators match threats that actually target us, how fresh and how reliable the source is, and whether an indicator is specific enough to act on. Then I use it to enrich and hunt rather than to auto-block a million stale IPs, because a feed treated as a blocklist becomes noise and outages, not defence.",
+    followUps: [
+      { prompt: "Why not just block every IP on the list?",
+        answer: "Because the list is large, stale, and shared, so it includes recycled addresses now serving legitimate sites, and blocking them causes outages while the real attacker has already moved to a new one. Indicators age badly, so I use them to spot and investigate, not as a permanent wall." },
+      { prompt: "What makes one indicator more useful than another?",
+        answer: "How specific and how durable it is. A file hash or a unique domain is precise and worth acting on; a shared IP or a common user-agent is weak and ages fast. The pyramid-of-pain idea applies: the indicators that cost the attacker the most to change are the ones worth building detection on." },
+    ],
+  },
+  {
+    slug: "isolate-now-or-watch", level: "mid", topic: "containment", difficulty: 3,
+    prompt: "An endpoint is compromised. Do you isolate it now or watch it to learn more? Walk me through the call.",
+    answer: "It is a trade between stopping the bleeding and understanding the wound. I isolate immediately when the risk of spread or data loss is live, which is most of the time. I hold off and watch only when containment is already partial, the threat is not actively moving, and the intelligence from watching is worth the risk, and even then with a hand on the switch. The default is contain, because a learning exercise that becomes a breach is a bad trade.",
+    followUps: [
+      { prompt: "What would make you choose to watch rather than isolate?",
+        answer: "A contained-enough situation where isolating would tip off a sophisticated actor before I understand their scope, and where I have the monitoring to watch safely and pull the plug instantly. It is a senior call made with authority and a plan, not a junior analyst deciding to let an intrusion run." },
+      { prompt: "You isolate and the attacker had a second foothold you did not know about. What does that teach you?",
+        answer: "That containment is scoping, not a single action: isolating one host is the start, and the job is to find everywhere else they are before declaring it over. One foothold almost always implies looking for others, so I widen rather than close out." },
+    ],
+  },
+  {
+    slug: "buried-in-alerts", level: "mid", topic: "operations", difficulty: 2,
+    prompt: "Your team is buried in alerts. What do you change, structurally, beyond 'tune the rules'?",
+    answer: "I treat the volume as a design problem, not a stamina problem. That means killing or tuning the detections that never produce a true positive, enriching alerts so an analyst sees context instead of hunting for it, grouping related alerts into one incident instead of fifty tickets, and automating the rote triage steps. The goal is fewer, richer alerts that each deserve a human, not a faster treadmill.",
+    followUps: [
+      { prompt: "Which alerts do you kill first?",
+        answer: "The ones with a long history of firing and never being real: high volume, zero true positives, no path to tuning. Every one of those is tax on attention, and attention spent on noise is attention not spent on the alert that mattered. I kill them openly, with the data, not quietly." },
+      { prompt: "Is there a risk in turning detections off?",
+        answer: "Yes, a blind spot, so I do not just delete, I decide: tune it, replace it with something that fires only on the real pattern, or accept and document the gap. The point is that a detection nobody can act on is already a blind spot pretending to be coverage." },
+    ],
+  },
+  {
+    slug: "hunting-an-insider", level: "mid", topic: "insider", difficulty: 3,
+    prompt: "How is hunting an insider different from hunting an external attacker?",
+    answer: "The insider already has legitimate access, so there is no break-in to catch and no foreign foothold to find. The signal is misuse of normal access: reaching data outside their role, at odd times, in odd volumes, staging things to leave, or behaviour that changes around an event like a resignation. It is quieter, more about deviation from a person's own baseline than about known-bad, and it carries a human and legal weight an external hunt does not.",
+    followUps: [
+      { prompt: "What is the single hardest part?",
+        answer: "Telling misuse from a normal person doing their job slightly unusually. The base rate of real insiders is tiny and the false-positive cost is high, because accusing an innocent employee has real consequences, so the bar for acting has to be careful and evidence-led." },
+      { prompt: "How do you keep an insider investigation from becoming a witch hunt?",
+        answer: "Tight scope, documented reasons, need-to-know handling, and HR and legal in the loop from the start rather than an analyst quietly watching a colleague. The investigation is a controlled process with oversight, precisely because the power to surveil an employee is easy to abuse." },
+    ],
+  },
+
 ];

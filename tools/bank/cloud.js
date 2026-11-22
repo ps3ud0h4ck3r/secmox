@@ -207,4 +207,94 @@ export const CLOUD = [
     ],
   },
 
+  /* ----------------------------------------- batch 2 (added 2026-11-22) */
+  {
+    slug: "why-region-matters", level: "fresher", topic: "compliance", difficulty: 1,
+    prompt: "Why does the region a cloud resource lives in matter for security and compliance?",
+    answer: "Because where the data physically sits decides which laws apply to it, who can compel access to it, and often what your own customers are contractually promised. A bucket in the wrong region can breach a data-residency requirement without anyone attacking anything. Latency and availability matter too, but the security answer is that geography is jurisdiction, and jurisdiction is not a setting you can hand-wave.",
+    followUps: [
+      { prompt: "A developer spins a database up in a region you do not use. Is that a problem?",
+        answer: "Potentially a compliance one, even with no breach: it may put regulated data outside where it is allowed to live, and it is unmanaged shadow infrastructure nobody is watching. The fix is guardrails that restrict which regions can be used, not catching it after the fact." },
+      { prompt: "How do you stop resources being created in the wrong region at all?",
+        answer: "Policy at the account level that denies resource creation outside approved regions, so it is prevented rather than discovered later. Relying on people to remember the rule is how the one-off exception becomes a permanent liability." },
+    ],
+  },
+  {
+    slug: "encrypted-at-rest-protects-what", level: "fresher", topic: "encryption", difficulty: 2,
+    prompt: "'The data is encrypted at rest.' What does that actually protect you from, and what does it not?",
+    answer: "It protects against someone who gets the raw storage: a stolen disk, a leaked snapshot, a provider employee with physical access. It does not protect against someone who comes through the front door with valid access, because to the application and anyone with permission the data is transparently decrypted. Encryption at rest answers what if someone steals the drive, not what if someone steals the credentials.",
+    followUps: [
+      { prompt: "So if an attacker has the app's database credentials, does encryption at rest help?",
+        answer: "No. They are asking the system that holds the keys, and it hands back plaintext as designed. At-rest encryption is invisible to an authorised query, so against stolen credentials the control that matters is access, not encryption." },
+      { prompt: "When does encryption at rest genuinely save you, then?",
+        answer: "When the storage layer leaks on its own: a public snapshot, a decommissioned disk, a backup that walks out. In those cases the bytes are useless without the key, which is exactly the threat it is built for." },
+    ],
+  },
+  {
+    slug: "instance-has-a-public-ip", level: "fresher", topic: "exposure", difficulty: 2,
+    prompt: "An instance has a public IP. Is that a problem?",
+    answer: "Not by itself, but it is a question worth asking. A public IP means reachable from the internet, so the real question is what is listening and how well it is defended: a hardened, patched web server is meant to be public, a database or an admin service is not. So I do not treat a public IP as a verdict, I treat it as a prompt to check what it exposes and whether it should.",
+    followUps: [
+      { prompt: "How do you decide whether this one is fine or a risk?",
+        answer: "Look at what ports are open to the world, what is behind them, and whether that service is designed to face the internet. A public IP on a web tier is normal; the same on a management port is the finding." },
+      { prompt: "The developer says they need it public to work from home. Better way?",
+        answer: "Put the access behind something that authenticates first, a VPN or a bastion or an identity-aware proxy, rather than exposing the service itself. The need is remote access, and remote access does not require the whole service to sit open on the internet." },
+    ],
+  },
+  {
+    slug: "why-tagging-matters", level: "fresher", topic: "governance", difficulty: 2,
+    prompt: "Why do security people care about resource tagging?",
+    answer: "Because you cannot protect what you cannot find or attribute. Tags are how you know who owns a resource, what it is for, how sensitive it is, and whether it is in scope for a given control. In an environment that changes by the hour, untagged resources are the ones that get forgotten, left exposed, and discovered only in an incident. Tagging is unglamorous, but it is the backbone of knowing your own estate.",
+    followUps: [
+      { prompt: "Give me a security decision that depends on a tag.",
+        answer: "Who to call when a resource is compromised at 3am: an owner tag turns a mystery instance into a phone call. Or whether a bucket is allowed to hold regulated data, driven by a data-classification tag that a policy can enforce against." },
+      { prompt: "Tags are optional, so people skip them. How do you fix that?",
+        answer: "Make them non-optional where it counts: deny creation of resources without the required tags, so the estate stays attributable by construction. A tagging standard that relies on goodwill decays the moment someone is in a hurry." },
+    ],
+  },
+  {
+    slug: "stop-self-escalation", level: "mid", topic: "iam", difficulty: 3,
+    prompt: "How do you stop a team from granting themselves more cloud permissions than they should?",
+    answer: "By putting a ceiling above them that they cannot raise: a permission boundary or equivalent that caps what any identity in their scope can do, so even an admin within the team cannot exceed it. Combine that with separating who can change permissions from who uses them, and with alerting on identity-policy changes. The principle is that the power to grant access is itself a privilege, held above the people it governs.",
+    followUps: [
+      { prompt: "Why is 'just trust the team leads' not enough here?",
+        answer: "Because it is one compromised or mistaken account away from unlimited: if the people with access can also expand their own access, there is no real ceiling, only a polite agreement. A boundary enforced by the platform does not depend on everyone behaving." },
+      { prompt: "How would you catch an attempt to escalate, boundary or not?",
+        answer: "Alert on the dangerous identity actions: attaching policies, creating keys for others, assuming more privileged roles. Those are logged API calls, so a low-privileged identity suddenly editing permissions is a signal you can fire on in near real time." },
+    ],
+  },
+  {
+    slug: "vpc-peering-expanded-what", level: "mid", topic: "networking", difficulty: 2,
+    prompt: "Two cloud networks are peered. Security-wise, what did you just expand?",
+    answer: "The blast radius. Peering makes the two networks mutually reachable, so a compromise on either side now has a path to the other that it did not before. It is not transitive and it is not automatic access, but it is a new trust relationship, and the question I ask is what can now reach what, and is that limited to the few things that actually need to talk, or did you just merge two networks in effect.",
+    followUps: [
+      { prompt: "So what makes a peering safe rather than a liability?",
+        answer: "Scoping it: route and security rules that allow only the specific flows that need to cross, not blanket reachability. A peering with wide-open rules quietly turns two blast radii into one; a tightly scoped one connects just the two services that had to." },
+      { prompt: "A third network is peered to one of these two. Can it reach the other?",
+        answer: "Not through the peering itself, because peering is not transitive: it only connects the two directly peered networks. But people often add routes or gateways that create a path anyway, so I would check the actual routing, not assume the non-transitive rule saved me." },
+    ],
+  },
+  {
+    slug: "four-hundred-packages", level: "mid", topic: "supply-chain", difficulty: 3,
+    prompt: "Your cloud app pulls four hundred open-source packages. How do you think about that risk?",
+    answer: "As a trust problem I cannot eliminate, only manage. Every one of those packages, and their dependencies, is code I did not write running with my app's privileges, so a malicious or compromised one is a foothold. I think about it as: know what I actually depend on, pin and verify versions, watch for known vulnerabilities and sudden maintainer changes, and reduce the count where I can. The goal is not zero dependencies, it is not being surprised by them.",
+    followUps: [
+      { prompt: "What is the specific danger of a dependency's dependency?",
+        answer: "That you never chose it and may not know it is there, yet it runs with the same trust. Most of the four hundred are transitive, pulled in by something you did pick, so the risk hides a layer below the names in your own manifest." },
+      { prompt: "A popular package you use ships a malicious update. How would you even catch it?",
+        answer: "By not blindly taking latest: pin versions, review changes before upgrading, and watch for the signals, a new maintainer, an unexpected release, odd new network behaviour at build or run time. The defence is that an update is a change you vet, not something that flows in automatically." },
+    ],
+  },
+  {
+    slug: "cloud-backups-vs-ransomware", level: "mid", topic: "resilience", difficulty: 2,
+    prompt: "How do cloud backups survive ransomware, and how do they not?",
+    answer: "They survive it when they are genuinely out of reach of the thing that got compromised: a separate account or isolation boundary, immutable so they cannot be altered or deleted for a set period, and with their own access path. They do not survive when the same credentials that run production can also reach and delete the backups, because then the attacker encrypts the originals and wipes the copies in one move. A backup your attacker can delete is not a backup.",
+    followUps: [
+      { prompt: "Why is immutability the feature that matters most here?",
+        answer: "Because ransomware's move against backups is deletion or encryption, and immutability makes the data un-deletable and un-alterable for its retention window regardless of credentials. It takes the backups off the table even for an attacker holding admin." },
+      { prompt: "You have backups but never tried restoring. What is the risk?",
+        answer: "That they do not actually work when you need them: wrong scope, corrupt, missing a dependency, or so slow the business is down for days anyway. An untested backup is a hope, not a control, so the restore has to be rehearsed before the bad day, not during it." },
+    ],
+  },
+
 ];

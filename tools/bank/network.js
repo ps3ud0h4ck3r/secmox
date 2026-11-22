@@ -217,4 +217,94 @@ export const NETWORK = [
     ],
   },
 
+  /* ----------------------------------------- batch 2 (added 2026-11-22) */
+  {
+    slug: "which-osi-layer-attacks-live", level: "fresher", topic: "fundamentals", difficulty: 1,
+    prompt: "The OSI model gets memorised. Which layer do most of the attacks you would actually see live at, and why?",
+    answer: "Layer 7, the application layer, because that is where the data and the logic are and where the humans interact. Most of what a defender deals with day to day, phishing, web exploits, malware, is application-layer, not clever packet craft. The lower layers matter, but the model is most useful to me as a way to say which layer a given problem and its fix live at, not as a list to recite.",
+    followUps: [
+      { prompt: "Give me an attack that genuinely lives lower down.",
+        answer: "ARP spoofing at layer 2 to get in the middle of a LAN, or a SYN flood at layer 4 exhausting connection state. They are real, but they need local access or volume, which is why they are less of the daily diet than a layer-7 phishing link." },
+      { prompt: "Why does knowing the layer actually help you respond?",
+        answer: "Because it tells you where the control and the fix belong: a layer-7 problem is not solved by a layer-3 firewall rule. Naming the layer stops people reaching for the wrong tool, like trying to block an application flaw at the network edge." },
+    ],
+  },
+  {
+    slug: "vlan-is-not-segmentation", level: "fresher", topic: "segmentation", difficulty: 2,
+    prompt: "What is a VLAN, and why is 'we have VLANs' not the same as 'we are segmented'?",
+    answer: "A VLAN logically splits one physical switch into separate broadcast domains, so devices on different VLANs are not on the same local network. But VLANs only separate; segmentation is about controlling what is allowed to cross between them. If everything routes freely between your VLANs, you have tidy addressing and no security boundary, because the separation means nothing without rules enforcing it.",
+    followUps: [
+      { prompt: "So what turns VLANs into real segmentation?",
+        answer: "Policy at the boundary: a firewall or access control between the VLANs that permits only the traffic that should cross and denies the rest. The VLAN is the line on the map; the enforcement is the fence. Without the fence, the line is decorative." },
+      { prompt: "How would you test whether two segments are actually separated?",
+        answer: "Try to reach across: from a host in one segment, see what you can actually talk to in another, on which ports. If I can reach things I should not, the segmentation exists on the diagram and not in the traffic, which is the gap that matters." },
+    ],
+  },
+  {
+    slug: "corporate-wifi-real-vs-theatre", level: "fresher", topic: "wireless", difficulty: 2,
+    prompt: "What actually protects a corporate wireless network, and what is theatre?",
+    answer: "Real protection is strong authentication, ideally per-user via enterprise authentication rather than one shared password, modern encryption, and treating wireless as untrusted so it does not drop straight onto the crown jewels. Theatre is hiding the network name and filtering by MAC address: the name is trivial to discover and MAC addresses are trivial to spoof, so both feel like security and stop nobody who is trying.",
+    followUps: [
+      { prompt: "Why is a single shared Wi-Fi password a problem at a company?",
+        answer: "Because it never really leaves: ex-staff know it, it gets shared, and you cannot revoke one person without changing it for everyone. Per-user authentication means access is tied to an identity you can turn off, which is the whole point in an organisation." },
+      { prompt: "Where should corporate Wi-Fi sit in the network?",
+        answer: "Behind the same controls as any other untrusted entry, not bridged straight into the internal network. Treat the person on Wi-Fi as outside until they authenticate to what they need, because the air does not have a wall around it." },
+    ],
+  },
+  {
+    slug: "lots-of-icmp", level: "fresher", topic: "protocols", difficulty: 2,
+    prompt: "A host is sending a lot of ICMP. Innocent or not?",
+    answer: "Usually innocent, sometimes not. ICMP is normal network plumbing, pings and path messages, so volume alone is not alarming. What interests me is shape: large or oddly sized ICMP payloads, a steady stream to one external host, or ICMP where it has no business being can be a covert channel or tunnel. So I do not panic at ICMP, I look at whether this ICMP is carrying more than it should.",
+    followUps: [
+      { prompt: "How would ICMP be used to smuggle data?",
+        answer: "By stuffing payload into the data field of echo packets, which many networks pass without inspecting, so a host quietly tunnels traffic or exfiltrates in and out over ping. The tell is payload size and regularity that normal diagnostics would never produce." },
+      { prompt: "Would you just block ICMP to be safe?",
+        answer: "Not blanket, because some of it is load-bearing: block the wrong type and you break path MTU discovery and troubleshooting. I would restrict and monitor it rather than kill it, because the cure of blocking all ICMP causes its own quiet outages." },
+    ],
+  },
+  {
+    slug: "what-zero-trust-actually-changes", level: "mid", topic: "zero-trust", difficulty: 3,
+    prompt: "Everyone says zero trust. What does it actually change about how you build a network?",
+    answer: "It drops the idea that being inside the network means being trusted. Instead of a hard perimeter and a soft inside, every request is authenticated and authorised on its own merits, per user and per device, regardless of where it comes from. In practice that means identity becomes the real boundary, internal traffic is no longer trusted by default, and access is least-privilege and verified continuously rather than granted once at the door.",
+    followUps: [
+      { prompt: "What is the most common way zero trust goes wrong in practice?",
+        answer: "Buying a product and calling it done. Zero trust is an architecture and a discipline, not a box: if you still have a flat trusted internal network behind the shiny access gateway, you have the label and not the model." },
+      { prompt: "Does zero trust mean the perimeter firewall is pointless now?",
+        answer: "No, it means it is no longer sufficient. The firewall still reduces exposure and noise, but you stop treating everything behind it as safe. It is one layer, not the whole strategy, which is the shift zero trust is really making." },
+    ],
+  },
+  {
+    slug: "netflow-but-no-pcap", level: "mid", topic: "forensics", difficulty: 2,
+    prompt: "You have netflow but no packet capture. What can you still investigate, and what is lost?",
+    answer: "Netflow gives me the who, when, how much and how long of every conversation: which hosts talked, on what ports, in which direction, and the volumes over time. That is enough to spot beaconing, exfiltration shapes, scanning, and lateral movement. What is lost is content: I cannot see what was actually said, read a payload, or pull the exact file, so I can say this host sent a lot to that one but not what was in it.",
+    followUps: [
+      { prompt: "A host exfiltrated data and you only have netflow. What can you still say?",
+        answer: "That it happened, when, to where, and roughly how much: the metadata tells the story of a transfer even without the contents. For scoping an incident that is often enough to act, even if I cannot show the exact bytes that left." },
+      { prompt: "Given that gap, would you add full packet capture everywhere?",
+        answer: "No, it is expensive and storage-hungry, so I would place it selectively at high-value choke points and lean on netflow and endpoint data for the breadth. Capturing everything everywhere is a cost and a privacy liability that rarely pays for itself." },
+    ],
+  },
+  {
+    slug: "two-thousand-rule-base", level: "mid", topic: "firewall", difficulty: 2,
+    prompt: "You are handed a firewall rulebase with two thousand rules. How do you find the dangerous ones?",
+    answer: "I hunt for the rules that quietly undo everything else: any-to-any or any-service permits, overly broad source or destination ranges, rules allowing inbound from the internet to internal services, and anything with no owner or comment. Then the dead weight: shadowed rules never hit, expired temporary rules that became permanent, and duplicates. Two thousand rules is usually a dozen that are dangerous and a long tail of cruft.",
+    followUps: [
+      { prompt: "What makes an 'any-any' rule so bad in a long rulebase?",
+        answer: "It silently overrides the careful rules around it: a broad permit near the top means the specific denies below it never get evaluated. One lazy rule can make the other nineteen hundred decorative, which is why I look for those first." },
+      { prompt: "How do you safely remove a rule you think is dead?",
+        answer: "Check the hit counters and logs to confirm it really takes no traffic, disable rather than delete first so it is reversible, and watch for fallout before removing it for good. A rule that looks dead but carries one critical flow at month-end is how a cleanup becomes an outage." },
+    ],
+  },
+  {
+    slug: "east-west-blind-spot", level: "mid", topic: "architecture", difficulty: 3,
+    prompt: "Why is east-west traffic the blind spot everyone talks about, and what do you actually do about it?",
+    answer: "Because the classic defences watch the perimeter, the north-south door, while most tools and sensors never see host-to-host traffic inside. Once an attacker is in, they move sideways through that unwatched space freely. What you do about it is bring visibility and control inside: segment so lateral paths are limited, instrument internal traffic so movement is logged, and stop assuming the inside is safe just because it is behind the firewall.",
+    followUps: [
+      { prompt: "Microsegmentation is the usual answer. What is the catch?",
+        answer: "Operational cost and complexity: done to the extreme it becomes a maze of policies nobody can maintain, and a policy you cannot maintain fails open. I would segment by real trust boundaries that match how the business works, not chase per-host purity that collapses under its own weight." },
+      { prompt: "If you could only add one thing to see east-west, what would it be?",
+        answer: "Logging of internal authentication and connections, because lateral movement is mostly made of logons and connections between hosts that do not normally talk. Even without full packet capture, that record turns an invisible sideways crawl into something you can follow." },
+    ],
+  },
+
 ];

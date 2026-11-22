@@ -217,4 +217,94 @@ export const GRC = [
     ],
   },
 
+  /* ----------------------------------------- batch 2 (added 2026-11-22) */
+  {
+    slug: "gap-analysis-vs-audit", level: "fresher", topic: "assurance", difficulty: 1,
+    prompt: "What is a gap analysis, and how is it different from an audit?",
+    answer: "A gap analysis is you honestly measuring yourself against a standard to find where you fall short, so you know what to fix before anyone formal shows up. An audit is someone, often independent, formally testing whether you meet the requirement and recording the verdict. The difference is purpose and teeth: a gap analysis is a private to-do list you own; an audit is an external judgement you answer to. You do the first so the second goes well.",
+    followUps: [
+      { prompt: "Can the same person do both?",
+        answer: "They can do a gap analysis, but a credible audit, especially a certification one, needs independence: you cannot objectively grade your own homework and have anyone trust the mark. For internal improvement, self-assessment is fine; for assurance to others, the separation is the point." },
+      { prompt: "A gap analysis finds forty gaps. What do you do first?",
+        answer: "Rank them by risk, not by how easy they are to close: fix what actually exposes you most, not what is quickest to tick. Forty gaps sorted by convenience is how the important ones stay open while the trivial ones get the attention." },
+    ],
+  },
+  {
+    slug: "data-classification-why-it-fails", level: "fresher", topic: "data", difficulty: 2,
+    prompt: "Why does data classification matter, and why do most schemes fail?",
+    answer: "It matters because you cannot apply the right protection to everything equally, so you have to know what is sensitive to spend effort where it counts. Most schemes fail because they are too complicated for people to use: five tiers with fuzzy definitions mean nobody classifies consistently, everything gets marked low to avoid friction or high to be safe, and the labels stop meaning anything. A classification scheme lives or dies on whether an ordinary employee can apply it without thinking hard.",
+    followUps: [
+      { prompt: "So what does a scheme that actually works look like?",
+        answer: "Few levels, clear examples, and defaults that make the easy path the right one. Three tiers people can tell apart beats five they cannot, because a scheme is only as good as the consistency of the humans applying it a hundred times a day." },
+      { prompt: "Why is 'classify everything as confidential to be safe' a problem?",
+        answer: "Because if everything is sensitive, nothing is: you cannot prioritise protection, costs balloon, and people start ignoring the label because it is on things that plainly do not need it. Over-classification quietly destroys the signal the scheme exists to create." },
+    ],
+  },
+  {
+    slug: "bcp-vs-dr", level: "fresher", topic: "resilience", difficulty: 2,
+    prompt: "Business continuity versus disaster recovery: what is the difference, with an example?",
+    answer: "Business continuity is the whole plan for keeping the business running through a disruption; disaster recovery is the narrower, usually technical, piece about restoring systems and data. If a flood takes out your office, disaster recovery is getting the servers and data back online; business continuity is how staff keep serving customers meanwhile, from where, with what manual workarounds. DR is a subset: recovering IT is necessary but not the same as keeping the business alive.",
+    followUps: [
+      { prompt: "A company has a great DR plan but no BCP. What breaks?",
+        answer: "They can restore the systems but have not worked out how people actually operate in the meantime, where staff go, how they take orders, who talks to customers, so the technology comes back to a business that seized up around it. Recovered servers do not help if nobody planned how the humans keep working." },
+      { prompt: "What two numbers anchor a DR plan, and what do they mean?",
+        answer: "Recovery time objective, how fast you must be back, and recovery point objective, how much data you can afford to lose measured in time. Together they say be running again within X and lose no more than Y of data, and they drive what the recovery has to be capable of." },
+    ],
+  },
+  {
+    slug: "what-makes-consent-valid", level: "fresher", topic: "privacy", difficulty: 2,
+    prompt: "Under a privacy law like India's DPDP, what makes consent actually valid?",
+    answer: "Consent has to be a real, informed, freely given yes to a specific purpose, not a default you have to hunt to switch off. That means telling the person plainly what you will do with their data and why, in language they understand, asking for it rather than assuming it, tying it to defined purposes rather than everything forever, and letting them withdraw it as easily as they gave it. Consent buried in a wall of text or pre-ticked is not consent, it is a liability.",
+    followUps: [
+      { prompt: "A pre-ticked 'I agree' box: valid consent?",
+        answer: "No. Consent has to be an affirmative act by the person, so a box they must untick is the opposite, agreement assumed rather than given. It fails the freely-given and the clear-action test at once." },
+      { prompt: "Someone withdraws consent. What has to happen?",
+        answer: "You have to be able to act on it: stop the processing that relied on that consent and make withdrawal as easy as granting was. If your systems cannot actually find and stop using that person's data, the right to withdraw is only words, and that gap is itself the finding." },
+    ],
+  },
+  {
+    slug: "turning-risk-appetite-into-something-usable", level: "mid", topic: "risk", difficulty: 3,
+    prompt: "What is risk appetite, and how do you turn a board's vague answer into something usable?",
+    answer: "Risk appetite is how much risk the organisation is willing to accept to pursue its goals. Boards tend to answer in vibes, we are conservative, so my job is to translate that into thresholds people can actually apply: concrete statements about what losses, downtime, or exposure are acceptable in which areas, tied to real numbers and categories. The test is whether an analyst three levels down can look at a risk and know, from the stated appetite, whether to accept it or escalate.",
+    followUps: [
+      { prompt: "The board says 'we have no appetite for risk.' What do you tell them?",
+        answer: "That zero risk means doing nothing, which is not an option, so the real question is which risks and how much, where. I help them say it in trade-offs: we will not accept risks that threaten customer data or safety, and we will accept measured operational risk to move fast. Vague absolutes are unusable; prioritised trade-offs are policy." },
+      { prompt: "How does risk appetite actually change a day-to-day decision?",
+        answer: "It sets the line for who can accept what. A risk inside appetite can be signed off locally; one outside it has to escalate. Without that line, every decision is an argument, and risks get accepted by whoever is most tired, not by whoever should own them." },
+    ],
+  },
+  {
+    slug: "soc2-type-1-vs-2", level: "mid", topic: "assurance", difficulty: 2,
+    prompt: "SOC 2 Type I versus Type II: which does a customer actually want from you, and why?",
+    answer: "Type I says your controls are designed properly at a single point in time; Type II says they actually operated effectively over a period, usually several months. A customer doing real due diligence wants Type II, because design on paper is cheap and what they care about is that the controls worked day after day, not that they looked right on one Tuesday. Type I is a reasonable first step for a young company, but it is a promise, where Type II is evidence.",
+    followUps: [
+      { prompt: "A startup has only a Type I. Is that a dealbreaker?",
+        answer: "Not necessarily, if they are early and have a Type II window in progress, because everyone starts somewhere. I would read it as design is in place, operation is unproven, and weigh it with where the company is, rather than reject it outright or treat it as equal to a Type II." },
+      { prompt: "Why can a company not just keep renewing Type I and skip Type II?",
+        answer: "Because a serious customer will stop accepting it: repeatedly proving only the design, never the operation, starts to look like avoidance. Type I over and over says we keep checking the blueprint and never the building, and buyers notice." },
+    ],
+  },
+  {
+    slug: "overlapping-frameworks", level: "mid", topic: "frameworks", difficulty: 3,
+    prompt: "You have to comply with three overlapping frameworks. How do you avoid doing everything three times?",
+    answer: "By controlling once and mapping to many. Most frameworks ask for the same underlying things in different words, access control, logging, incident response, so I build a single set of real controls and a mapping that shows how each one satisfies the relevant requirement in each framework. Then evidence is collected once and pointed at three sets of requirements. The waste comes from treating each framework as its own universe; the saving comes from seeing that they mostly overlap.",
+    followUps: [
+      { prompt: "What is the risk of mapping frameworks together carelessly?",
+        answer: "Claiming a control covers a requirement it does not quite meet, so a gap hides inside a tidy-looking map. The mapping has to be honest about where a framework asks for something extra, or you pass three audits on paper and fail the one that reads closely." },
+      { prompt: "Where does the overlap approach break down?",
+        answer: "At the edges where a framework genuinely demands something specific the others do not, a particular control, a particular report. Those you handle individually, so the right model is one shared core plus a small set of framework-specific extras, not one-size-fits-all." },
+    ],
+  },
+  {
+    slug: "two-hundred-open-exceptions", level: "mid", topic: "operations", difficulty: 2,
+    prompt: "Your exception process has two hundred open exceptions. What does that tell you, and what do you do?",
+    answer: "That the policy and the reality have drifted apart: when there are two hundred standing exceptions, the exception has become the norm, and either the controls are unworkable or nobody is closing them. I would triage them by risk, find the clusters, because a hundred exceptions to one control means that control is wrong or unimplementable, and either fix the policy to match a sane reality or actually remediate and close. A pile of permanent exceptions is risk you have quietly accepted without deciding to.",
+    followUps: [
+      { prompt: "A hundred of them are against the same control. What does that mean?",
+        answer: "That the control, not the hundred teams, is the problem: when everyone needs an exception to the same rule, the rule is unworkable or wrong for the environment. The fix is to redesign that control, not to keep rubber-stamping exceptions to it." },
+      { prompt: "Exceptions have no expiry date. Why is that dangerous?",
+        answer: "Because a temporary exception with no end becomes permanent by default, and the risk it was meant to time-box just lives on unreviewed. Every exception needs an owner and a review date, or the backlog is really a list of risks nobody is accountable for anymore." },
+    ],
+  },
+
 ];
