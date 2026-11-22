@@ -154,10 +154,18 @@ async function loadRoster(cid, into) {
       return;
     }
 
+    const bar = document.createElement('div');
+    bar.className = 'cohort-note-row';
     const note = document.createElement('p');
     note.className = 'cohort-note';
     note.textContent = `Coverage is of the ${total} questions your learners can see. Readiness is how much they hold on what they have faced.`;
-    into.append(note);
+    const dl = document.createElement('a');
+    dl.className = 'inf ghost small';
+    dl.href = `/api/org/${orgId()}/cohorts/${cid}/report.csv`;
+    dl.textContent = 'Download CSV';
+    dl.setAttribute('download', '');
+    bar.append(note, dl);
+    into.append(bar);
 
     const table = document.createElement('table');
     table.className = 'cohort-table';

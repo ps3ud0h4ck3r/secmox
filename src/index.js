@@ -1781,55 +1781,54 @@ app.post('/api/org/:orgId/cohorts/:cid/delete', async (c) => {
 
 // A cohort's roster with each learner's readiness: how much they have practised
 // (attempts, questions seen, coverage of the bank) and how solid it is (held
-// percentage on what they have faced). This is the trainer dashboard.
-app.get('/api/org/:orgId/cohorts/:cid', async (c) => {
-  const orgId = c.req.param('orgId');
-  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
-  const cid = c.req.param('cid');
-  const cohort = await c.env.DB.prepare('SELECT id, name FROM cohorts WHERE id = ? AND org_id = ?')
-    .bind(cid, orgId)
-    .first();
-  if (!cohort) return fail(c, 404, 'No such cohort.');
-
+// percentage on what they have faced). Shared by the JSON dashboard and the CSV
+// export. Returns null when the cohort is not this company's.
+async function cohortReadiness(db, orgId, cid) {
+  const cohort = await db.prepare('SELECT id, name FROM cohorts WHERE id = ? AND org_id = ?').bind(cid, orgId).first();
+  if (!cohort) return null;
   // How many questions this company's learners can see: global not hidden, plus
   // the company's own private questions. The coverage denominator.
-  const totalRow = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM questions q
-      WHERE (q.org_id IS NULL OR q.org_id = ?)
-        AND q.id NOT IN (SELECT content_id FROM org_hidden_content WHERE org_id = ? AND kind = 'question')`,
-  )
+  const totalRow = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM questions q
+        WHERE (q.org_id IS NULL OR q.org_id = ?)
+          AND q.id NOT IN (SELECT content_id FROM org_hidden_content WHERE org_id = ? AND kind = 'question')`,
+    )
     .bind(orgId, orgId)
     .first();
   const total = totalRow?.n ?? 0;
 
-  const mem = await c.env.DB.prepare(
-    `SELECT u.id, u.email, u.target_role
-       FROM cohort_members cm JOIN users u ON u.id = cm.user_id
-      WHERE cm.cohort_id = ? ORDER BY u.email`,
-  )
+  const mem = await db
+    .prepare(
+      `SELECT u.id, u.email, u.target_role
+         FROM cohort_members cm JOIN users u ON u.id = cm.user_id
+        WHERE cm.cohort_id = ? ORDER BY u.email`,
+    )
     .bind(cid)
     .all();
   const members = mem.results ?? [];
-  if (!members.length) return c.json({ cohort, total, members: [] });
+  if (!members.length) return { cohort, total, members: [] };
 
   const ids = members.map((m) => m.id);
   const ph = ids.map(() => '?').join(', ');
-  const held = await c.env.DB.prepare(
-    `WITH latest AS (
-       SELECT user_id, question_id, self_rating,
-              ROW_NUMBER() OVER (PARTITION BY user_id, question_id ORDER BY created_at DESC, id DESC) AS rn
-         FROM attempts WHERE user_id IN (${ph})
-     )
-     SELECT user_id, COUNT(*) AS seen,
-            SUM(CASE self_rating WHEN 'got_it' THEN 1.0 WHEN 'shaky' THEN 0.5 ELSE 0 END) AS points
-       FROM latest WHERE rn = 1 GROUP BY user_id`,
-  )
+  const held = await db
+    .prepare(
+      `WITH latest AS (
+         SELECT user_id, question_id, self_rating,
+                ROW_NUMBER() OVER (PARTITION BY user_id, question_id ORDER BY created_at DESC, id DESC) AS rn
+           FROM attempts WHERE user_id IN (${ph})
+       )
+       SELECT user_id, COUNT(*) AS seen,
+              SUM(CASE self_rating WHEN 'got_it' THEN 1.0 WHEN 'shaky' THEN 0.5 ELSE 0 END) AS points
+         FROM latest WHERE rn = 1 GROUP BY user_id`,
+    )
     .bind(...ids)
     .all();
-  const activity = await c.env.DB.prepare(
-    `SELECT user_id, COUNT(*) AS attempts, MAX(created_at) AS last_active
-       FROM attempts WHERE user_id IN (${ph}) GROUP BY user_id`,
-  )
+  const activity = await db
+    .prepare(
+      `SELECT user_id, COUNT(*) AS attempts, MAX(created_at) AS last_active
+         FROM attempts WHERE user_id IN (${ph}) GROUP BY user_id`,
+    )
     .bind(...ids)
     .all();
   const heldBy = new Map((held.results ?? []).map((r) => [r.user_id, r]));
@@ -1850,7 +1849,39 @@ app.get('/api/org/:orgId/cohorts/:cid', async (c) => {
       last_active: a?.last_active ?? null,
     };
   });
-  return c.json({ cohort, total, members: rows });
+  return { cohort, total, members: rows };
+}
+
+app.get('/api/org/:orgId/cohorts/:cid', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const data = await cohortReadiness(c.env.DB, orgId, c.req.param('cid'));
+  if (!data) return fail(c, 404, 'No such cohort.');
+  return c.json(data);
+});
+
+// The same readiness, as a CSV a trainer can hand to a manager. A GET so a
+// plain download link carries the session cookie.
+app.get('/api/org/:orgId/cohorts/:cid/report.csv', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const data = await cohortReadiness(c.env.DB, orgId, c.req.param('cid'));
+  if (!data) return fail(c, 404, 'No such cohort.');
+  const esc = (v) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [['learner', 'target_role', 'attempts', 'questions_seen', 'coverage_pct', 'readiness_pct', 'last_active'].join(',')];
+  for (const m of data.members) {
+    lines.push([m.email, m.target_role ?? '', m.attempts, m.seen, m.coverage, m.readiness, m.last_active ?? ''].map(esc).join(','));
+  }
+  const file = (data.cohort.name || 'cohort').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  return new Response(lines.join('\n') + '\n', {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${file || 'cohort'}-readiness.csv"`,
+    },
+  });
 });
 
 // Add a company member to a cohort by email. They must already be in the
@@ -1930,6 +1961,50 @@ app.post('/api/org/:orgId/invites', async (c) => {
 
   const origin = new URL(c.req.url).origin;
   return c.json({ ok: true, link: `${origin}/join/?token=${token}`, email });
+});
+
+// Invite many at once: paste or upload a list of emails, pick one role. Returns
+// a link per created invite (tokens are shown only at creation), plus who was
+// skipped (already in the company) and which addresses were invalid. Until
+// email sending lands, the links are distributed by hand.
+app.post('/api/org/:orgId/invites/bulk', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const role = (body?.role ?? '').toString();
+  if (!ORG_ROLES.has(role)) return fail(c, 400, 'Pick a role for them.');
+  const raw = Array.isArray(body?.emails) ? body.emails : String(body?.emails ?? '').split(/[\s,;]+/);
+  const emails = [...new Set(raw.map((e) => normalizeEmail(e)).filter(Boolean))].slice(0, 200);
+  if (!emails.length) return fail(c, 400, 'Add at least one email.');
+
+  const origin = new URL(c.req.url).origin;
+  const created = [];
+  const skipped = [];
+  const invalid = [];
+  for (const email of emails) {
+    if (!emailLooksValid(email)) {
+      invalid.push(email);
+      continue;
+    }
+    const inOrg = await c.env.DB.prepare(
+      'SELECT 1 FROM org_members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? AND u.email = ?',
+    )
+      .bind(orgId, email)
+      .first();
+    if (inOrg) {
+      skipped.push(email);
+      continue;
+    }
+    const token = randomHex(24);
+    await c.env.DB.prepare(
+      `INSERT INTO invites (id, org_id, email, role, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(newId('inv'), orgId, email, role, await sha256Hex(token), inDays(INVITE_DAYS), nowIso())
+      .run();
+    created.push({ email, link: `${origin}/join/?token=${token}` });
+  }
+  return c.json({ created, skipped, invalid });
 });
 
 app.post('/api/org/:orgId/invites/:inviteId/revoke', async (c) => {

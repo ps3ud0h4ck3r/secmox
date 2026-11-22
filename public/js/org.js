@@ -99,6 +99,56 @@ async function loadInvites() {
   }
 }
 
+function renderBulk(out) {
+  const box = $('bulkResults');
+  box.replaceChildren();
+  box.hidden = false;
+
+  const summary = document.createElement('p');
+  summary.className = 'bulk-summary';
+  const parts = [`${out.created.length} invited`];
+  if (out.skipped.length) parts.push(`${out.skipped.length} already in`);
+  if (out.invalid.length) parts.push(`${out.invalid.length} invalid`);
+  summary.textContent = parts.join(' · ');
+  box.append(summary);
+
+  if (out.created.length) {
+    const copyAll = document.createElement('button');
+    copyAll.type = 'button';
+    copyAll.className = 'inf ghost small';
+    copyAll.textContent = 'Copy all links';
+    copyAll.addEventListener('click', () => {
+      navigator.clipboard?.writeText(out.created.map((x) => `${x.email}\t${x.link}`).join('\n')).catch(() => {});
+    });
+    box.append(copyAll);
+
+    const list = document.createElement('div');
+    list.className = 'bulk-links';
+    for (const x of out.created) {
+      const row = document.createElement('div');
+      row.className = 'bulk-link-row';
+      const em = document.createElement('span');
+      em.className = 'bulk-link-email';
+      em.textContent = x.email;
+      const link = document.createElement('code');
+      link.textContent = x.link;
+      row.append(em, link);
+      list.append(row);
+    }
+    box.append(list);
+  }
+
+  if (out.skipped.length || out.invalid.length) {
+    const note = document.createElement('p');
+    note.className = 'sub bulk-skip';
+    const bits = [];
+    if (out.skipped.length) bits.push(`Already in: ${out.skipped.join(', ')}`);
+    if (out.invalid.length) bits.push(`Invalid: ${out.invalid.join(', ')}`);
+    note.textContent = bits.join('.  ');
+    box.append(note);
+  }
+}
+
 function wire() {
   $('inviteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -120,6 +170,27 @@ function wire() {
       say($('inviteMsg'), err.message, 'err');
     }
     $('inviteSend').disabled = false;
+  });
+
+  $('bulkForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emails = $('bulkEmails').value.trim();
+    if (!emails) return say($('bulkMsg'), 'Paste at least one email.', 'err');
+    $('bulkSend').disabled = true;
+    say($('bulkMsg'), 'Inviting.');
+    try {
+      const out = await api(`/api/org/${orgId}/invites/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({ emails, role: $('bulkRole').value }),
+      });
+      renderBulk(out);
+      $('bulkEmails').value = '';
+      say($('bulkMsg'), '');
+      await loadInvites();
+    } catch (err) {
+      say($('bulkMsg'), err.message, 'err');
+    }
+    $('bulkSend').disabled = false;
   });
 
   $('copyLink').addEventListener('click', async () => {
