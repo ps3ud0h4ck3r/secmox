@@ -5,6 +5,7 @@ import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
 import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
 import { loadDashboard, setDashboardHandlers } from './dashboard.js';
+import { loadTracks, openTrack, setTrackHandlers } from './tracks.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -19,6 +20,9 @@ const state = {
   rungBox: null,
   mode: 'in',
   nudged: false,
+  // A company-track run: a fixed, ordered queue of question objects played in
+  // place of the usual next-question engine. null means ordinary practice.
+  run: null,
 };
 // This sitting's honest tally. In-memory only: it resets when the page reloads,
 // so it is a sense of momentum, not a streak to protect.
@@ -30,7 +34,8 @@ wirePasswordToggles();
 /* ------------------------------------------------------------- views */
 
 const VIEWS = ['authView', 'forgotView', 'resetView', 'dashboardView', 'practiceView', 'labsView',
-  'labView', 'scenariosView', 'scenarioView', 'readinessView', 'mockView', 'accountView'];
+  'labView', 'scenariosView', 'scenarioView', 'tracksView', 'trackView', 'readinessView',
+  'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -50,7 +55,10 @@ function show(view) {
   $('tabsNav').hidden = !chromeOn;
   $('topHead').hidden = chromeOn;
   const marked =
-    view === 'labView' ? 'labsView' : view === 'scenarioView' ? 'scenariosView' : view;
+    view === 'labView' ? 'labsView'
+    : view === 'scenarioView' ? 'scenariosView'
+    : view === 'trackView' ? 'tracksView'
+    : view;
   for (const tab of $('tabsNav').querySelectorAll('[data-view]')) {
     if (tab.dataset.view === marked) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
@@ -76,7 +84,14 @@ $('tabsNav').addEventListener('click', (e) => {
   } else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();
-  } else startPractice();
+  } else if (tab.dataset.view === 'tracksView') {
+    show('tracksView');
+    loadTracks();
+  } else {
+    // Clicking Practice is a move to free practice, so it ends any track run.
+    endRun();
+    startPractice();
+  }
 });
 
 // Only when arriving from another view. Skipping a question or changing a
@@ -100,6 +115,57 @@ setScenarioHandlers({
 });
 wireScenario();
 wireReadiness();
+
+// Company tracks: opening one shows its overview; starting it loads the curated
+// questions into a run that the practice loop walks in order.
+setTrackHandlers({
+  openTrack: async (slug) => {
+    await splash({
+      quick: true,
+      note: 'opening the track',
+      work: (async () => {
+        if (await openTrack(slug)) show('trackView');
+      })(),
+    });
+  },
+  startRun: (questions, meta) => startTrackRun(questions, meta),
+});
+
+$('backToTracks').addEventListener('click', () => {
+  show('tracksView');
+  loadTracks();
+});
+
+// A run is a fixed, ordered queue of questions from one track. It overrides the
+// next-question engine until it is exhausted or exited.
+function startTrackRun(questions, meta) {
+  state.run = { questions, idx: 0, meta };
+  show('practiceView');
+  loadQuestion();
+}
+
+function endRun() {
+  state.run = null;
+  $('runBar').hidden = true;
+}
+
+function renderRunBar() {
+  const run = state.run;
+  if (!run) {
+    $('runBar').hidden = true;
+    return;
+  }
+  $('runTag').textContent = `${run.meta.company} · ${run.meta.title}`;
+  const done = Math.min(run.idx, run.questions.length);
+  $('runProg').textContent = `${Math.min(run.idx + 1, run.questions.length)} of ${run.questions.length}`;
+  if (done >= run.questions.length) $('runProg').textContent = `${run.questions.length} of ${run.questions.length} · complete`;
+  $('runBar').hidden = false;
+}
+
+$('runExit').addEventListener('click', () => {
+  endRun();
+  loadQuestion();
+});
 
 // When a platform account is viewing as someone, a banner stays up the whole
 // time and the only way out is the exit, which clears it server-side and
@@ -347,7 +413,46 @@ function resetCard() {
   say($('qMsg'), '');
 }
 
+// Paint a question object (same shape from /api/next or a track run) onto the
+// card. The run/engine decides which question; this just renders it.
+function renderQuestion(q, note) {
+  $('reveal').hidden = false;
+  state.question = q;
+  const diffWord = { 1: 'easy', 2: 'medium', 3: 'hard' }[q.difficulty];
+  $('qMeta').textContent =
+    `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}` + (diffWord ? ` / ${diffWord}` : '');
+  $('qPrompt').textContent = q.prompt;
+  $('qDepth').textContent = q.follow_up_count
+    ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
+    : 'no follow-ups';
+  if (note) say($('qMsg'), note);
+}
+
+// In a track run the next question comes from the curated queue, in order, with
+// the practice filters ignored. When the queue runs out the run is done.
+function loadFromRun() {
+  resetCard();
+  const run = state.run;
+  renderRunBar();
+  if (run.idx >= run.questions.length) {
+    state.question = null;
+    $('reveal').hidden = true;
+    $('rateRow').hidden = true;
+    $('qMeta').textContent = 'run complete';
+    $('qPrompt').textContent =
+      `That is the whole ${run.meta.company} ${run.meta.title} run — ${run.questions.length} ` +
+      `question${run.questions.length > 1 ? 's' : ''}. Exit the run for free practice, or open another track.`;
+    $('qDepth').textContent = '';
+    return;
+  }
+  renderQuestion(
+    run.questions[run.idx],
+    `${run.meta.company} ${run.meta.title} · question ${run.idx + 1} of ${run.questions.length}. Answer it cold.`,
+  );
+}
+
 async function loadQuestion() {
+  if (state.run) return loadFromRun();
   resetCard();
   $('qPrompt').textContent = 'Loading a question.';
   $('qMeta').textContent = 'loading';
@@ -375,23 +480,15 @@ async function loadQuestion() {
       }
       return;
     }
-    $('reveal').hidden = false;
-    state.question = out.question;
-    const q = out.question;
-    const diffWord = { 1: 'easy', 2: 'medium', 3: 'hard' }[q.difficulty];
-    $('qMeta').textContent =
-      `${ROLE_LABEL[q.role] || q.role} / ${q.level} / ${q.topic}` + (diffWord ? ` / ${diffWord}` : '');
-    $('qPrompt').textContent = q.prompt;
-    $('qDepth').textContent = q.follow_up_count
-      ? `${q.follow_up_count} follow-up${q.follow_up_count > 1 ? 's' : ''} waiting`
-      : 'no follow-ups';
-    if (out.mode === 'weak') {
-      say($('qMsg'), 'A weak spot: you marked this missed or shaky last time. Hold it now.');
-    } else if (out.mode === 'due') {
-      say($('qMsg'), 'Back on schedule. Enough time has passed to see if it stuck.');
-    } else if (out.mode === 'review') {
-      say($('qMsg'), 'Nothing new left with these filters, so here is the weakest one to keep warm.');
-    }
+    const note =
+      out.mode === 'weak'
+        ? 'A weak spot: you marked this missed or shaky last time. Hold it now.'
+        : out.mode === 'due'
+          ? 'Back on schedule. Enough time has passed to see if it stuck.'
+          : out.mode === 'review'
+            ? 'Nothing new left with these filters, so here is the weakest one to keep warm.'
+            : '';
+    renderQuestion(out.question, note);
   } catch (err) {
     if (err.status === 401) return needsAuth();
     say($('qMsg'), err.message, 'err');
@@ -530,6 +627,7 @@ $('rateRow').addEventListener('click', async (e) => {
     if (btn.dataset.rate in session) session[btn.dataset.rate] += 1;
     renderSession();
     buttons.forEach((b) => (b.disabled = false));
+    if (state.run) state.run.idx += 1;
     await loadQuestion();
     loadCoverage();
   } catch (err) {
@@ -539,14 +637,25 @@ $('rateRow').addEventListener('click', async (e) => {
   }
 });
 
-$('skip').addEventListener('click', loadQuestion);
-$('fRole').addEventListener('change', loadQuestion);
-$('fLevel').addEventListener('change', loadQuestion);
-$('fDiff').addEventListener('change', loadQuestion);
+// In a run, Skip moves to the next curated question instead of a fresh draw.
+$('skip').addEventListener('click', () => {
+  if (state.run) state.run.idx += 1;
+  loadQuestion();
+});
+
+// Touching any filter is a move to free practice, so it ends the current run.
+function filterChanged() {
+  endRun();
+  loadQuestion();
+}
+$('fRole').addEventListener('change', filterChanged);
+$('fLevel').addEventListener('change', filterChanged);
+$('fDiff').addEventListener('change', filterChanged);
 
 $('fWeak').addEventListener('click', () => {
   const on = $('fWeak').getAttribute('aria-pressed') === 'true';
   setWeak(!on);
+  endRun();
   loadQuestion();
 });
 
@@ -622,6 +731,7 @@ document.addEventListener('keydown', (e) => {
 
 // Deep-link from the readiness role-fit block: drill one role's weak spots.
 async function startDrill(role) {
+  endRun();
   $('fRole').value = role || '';
   setWeak(true);
   show('practiceView');

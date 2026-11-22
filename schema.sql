@@ -262,3 +262,26 @@ CREATE TABLE IF NOT EXISTS org_hidden_content (
   created_at TEXT NOT NULL,
   PRIMARY KEY (org_id, kind, content_id)
 );
+
+-- Company interview tracks. A curated, ordered run of existing questions shaped
+-- around how a given company and role tends to interview. Global content
+-- (org_id is not modelled here; tracks are platform-wide for now). question_ids
+-- is a JSON array of question ids in drill order; rounds and focus are JSON too.
+-- tier is 'free' for every track today; the column lets a paid plan gate some
+-- later without a migration.
+CREATE TABLE IF NOT EXISTS company_tracks (
+  id           TEXT PRIMARY KEY,
+  slug         TEXT NOT NULL UNIQUE,
+  company      TEXT NOT NULL,
+  role         TEXT NOT NULL,
+  level        TEXT NOT NULL,
+  title        TEXT NOT NULL,
+  blurb        TEXT NOT NULL,
+  tier         TEXT NOT NULL DEFAULT 'free',
+  rounds       TEXT NOT NULL,
+  focus        TEXT NOT NULL,
+  prep         TEXT NOT NULL,
+  question_ids TEXT NOT NULL,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_company_tracks_role ON company_tracks(role, level);

@@ -1042,6 +1042,104 @@ app.post('/api/scenario-attempts/:id/score', async (c) => {
   return c.json({ ok: true, covered: ticked.length, out_of: attempt.out_of });
 });
 
+/* ------------------------------------------------------- company tracks */
+
+const parseJson = (s, fallback) => {
+  try { return JSON.parse(s); } catch { return fallback; }
+};
+
+// The company tracks: curated, ordered runs of existing questions shaped around
+// how a given company and role tends to interview. Optional role filter. Each
+// card carries how many of its questions the candidate has already attempted,
+// so progress shows without opening it.
+app.get('/api/tracks', async (c) => {
+  const user = c.get('user');
+  const role = c.req.query('role');
+  const roleOk = ROLES.has(role);
+  const { results } = await c.env.DB.prepare(
+    `SELECT t.id, t.slug, t.company, t.role, t.level, t.title, t.blurb, t.tier,
+            json_array_length(t.question_ids) AS q_total,
+            (SELECT COUNT(DISTINCT a.question_id)
+               FROM attempts a
+               JOIN json_each(t.question_ids) je ON je.value = a.question_id
+              WHERE a.user_id = ?) AS q_done
+       FROM company_tracks t
+      ${roleOk ? 'WHERE t.role = ?' : ''}
+      ORDER BY t.company`,
+  )
+    .bind(...(roleOk ? [user.id, role] : [user.id]))
+    .all();
+  return c.json({ tracks: results ?? [] });
+});
+
+// One track in full: its rounds, focus and prep, plus the curated questions in
+// order. Questions are filtered through the same visibility gate as everywhere
+// else, so a question a company has hidden from its learners simply drops out of
+// the run rather than leaking in. Each question carries the candidate's last
+// self-rating so the client can mark what is already solid.
+app.get('/api/tracks/:slug', async (c) => {
+  const user = c.get('user');
+  const slug = c.req.param('slug');
+  const track = await c.env.DB.prepare(
+    `SELECT id, slug, company, role, level, title, blurb, tier, rounds, focus, prep, question_ids
+       FROM company_tracks WHERE slug = ?`,
+  )
+    .bind(slug)
+    .first();
+  if (!track) return fail(c, 404, 'No such track.');
+
+  const ids = parseJson(track.question_ids, []);
+  let questions = [];
+  if (ids.length) {
+    const placeholders = ids.map(() => '?').join(', ');
+    const { results } = await c.env.DB.prepare(
+      `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty,
+              (SELECT COUNT(*) FROM follow_ups f WHERE f.question_id = q.id) AS follow_up_count
+         FROM questions q
+        WHERE q.id IN (${placeholders}) AND ${visibleSql('q', 'question')}`,
+    )
+      .bind(...ids, user.id, user.id)
+      .all();
+    const byId = new Map((results ?? []).map((r) => [r.id, r]));
+
+    // Latest self-rating per question for this user, so the run can show what is
+    // already solid versus still shaky.
+    const rated = await c.env.DB.prepare(
+      `WITH latest AS (
+         SELECT question_id, self_rating,
+                ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY created_at DESC, id DESC) AS rn
+           FROM attempts WHERE user_id = ? AND question_id IN (${placeholders})
+       )
+       SELECT question_id, self_rating FROM latest WHERE rn = 1`,
+    )
+      .bind(user.id, ...ids)
+      .all();
+    const ratingById = new Map((rated.results ?? []).map((r) => [r.question_id, r.self_rating]));
+
+    // Preserve the curated order; drop anything hidden or retired.
+    questions = ids
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((q) => ({ ...q, last_rating: ratingById.get(q.id) ?? null }));
+  }
+
+  return c.json({
+    track: {
+      slug: track.slug,
+      company: track.company,
+      role: track.role,
+      level: track.level,
+      title: track.title,
+      blurb: track.blurb,
+      tier: track.tier,
+      rounds: parseJson(track.rounds, []),
+      focus: parseJson(track.focus, []),
+      prep: track.prep,
+    },
+    questions,
+  });
+});
+
 /* ---------------------------------------------------------------- admin */
 
 app.get('/api/admin/questions', async (c) => {
