@@ -312,6 +312,26 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .soon-foot{margin-top:4px}
 @media(max-width:720px){.soon-grid{grid-template-columns:1fr}}
 
+/* ----------------------------------------------------- dashboard */
+
+.dash-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:4px 0 30px}
+.dash-stat{border:1px solid var(--line);border-radius:12px;padding:20px;background:var(--panel);
+  display:flex;flex-direction:column;gap:6px}
+.ds-label{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.ds-value{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--neon);line-height:1.05}
+.ds-sub{font-size:13px;color:var(--dim)}
+.dash-h{margin:0 0 12px;font-size:18px}
+.dash-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.dash-card{text-align:left;border:1px solid var(--line);border-radius:12px;padding:20px 22px;
+  background:var(--panel);cursor:pointer;color:var(--text);transition:border-color .15s,background .15s}
+.dash-card:hover{border-color:rgba(41,182,255,.5);background:var(--raise)}
+.dash-card.primary{border-color:rgba(41,182,255,.45);background:linear-gradient(180deg,#0B1A2A,#08101A)}
+.dash-card h3{margin:0 0 6px;font-size:17px}
+.dash-card p{margin:0;font-size:14.5px;color:var(--dim)}
+.side-site{font-family:var(--mono);font-size:12px;color:var(--faint);text-decoration:none;display:block;margin-bottom:12px}
+.side-site:hover{color:var(--neon)}
+@media(max-width:720px){.dash-stats{grid-template-columns:1fr}.dash-actions{grid-template-columns:1fr}}
+
 /* ------------------------------------------------- practice strip */
 
 .prac-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;

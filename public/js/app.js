@@ -4,6 +4,7 @@ import { splash } from './splash.js';
 import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
 import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
+import { loadDashboard, setDashboardHandlers } from './dashboard.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -28,8 +29,8 @@ wirePasswordToggles();
 
 /* ------------------------------------------------------------- views */
 
-const VIEWS = ['authView', 'forgotView', 'resetView', 'practiceView', 'labsView', 'labView',
-  'scenariosView', 'scenarioView', 'readinessView', 'mockView', 'accountView'];
+const VIEWS = ['authView', 'forgotView', 'resetView', 'dashboardView', 'practiceView', 'labsView',
+  'labView', 'scenariosView', 'scenarioView', 'readinessView', 'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -60,7 +61,10 @@ function show(view) {
 $('tabsNav').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-view]');
   if (!tab) return;
-  if (tab.dataset.view === 'accountView') openAccount();
+  if (tab.dataset.view === 'dashboardView') {
+    show('dashboardView');
+    loadDashboard();
+  } else if (tab.dataset.view === 'accountView') openAccount();
   else if (tab.dataset.view === 'scenariosView') {
     show('scenariosView');
     loadScenarios();
@@ -303,9 +307,10 @@ async function enterApp() {
   $('tabOrg').hidden = !(state.user.orgs || []).some((o) => o.role === 'org_admin');
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
-  show('practiceView');
-  // Neither rejects: both report their own failure in place.
-  await Promise.all([loadQuestion(), loadCoverage()]);
+  // Land on the dashboard, but pre-warm practice so switching there is instant.
+  show('dashboardView');
+  // None reject: each reports its own failure in place.
+  await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
 }
 
 function resetCard() {
@@ -603,6 +608,21 @@ async function startDrill(role) {
   await splash({ work: loadQuestion(), quick: true, note: 'opening your weak spots' });
 }
 setReadinessHandlers({ onDrill: startDrill });
+
+setDashboardHandlers({
+  navigate: (view) => $('tabsNav').querySelector(`[data-view="${view}"]`)?.click(),
+  drill: () => startDrill(),
+});
+
+// The sidebar logo is a home button when signed in: it goes to the dashboard,
+// not back out to the public site. Signed out, the href carries to the landing
+// page as normal.
+$('brandHome').addEventListener('click', (e) => {
+  if (state.user) {
+    e.preventDefault();
+    $('tabsNav').querySelector('[data-view="dashboardView"]').click();
+  }
+});
 
 async function loadCoverage() {
   try {

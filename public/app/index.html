@@ -32,12 +32,14 @@
 <div class="shell">
 
 <nav class="side" id="tabsNav" aria-label="Sections" hidden>
-  <a class="brand" href="/" aria-label="SecMox home">
+  <a class="brand" href="/" id="brandHome" aria-label="Go to your dashboard">
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" stroke="#29B6FF" stroke-width="2"/><path d="M11 13 L16 10 L21 13 V19 L16 22 L11 19 Z" fill="#29B6FF"/></svg>
     <span class="wordmark">SecMox</span>
   </a>
   <div class="side-links">
-    <button class="side-link" type="button" data-view="practiceView" aria-current="page">
+    <button class="side-link" type="button" data-view="dashboardView" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="10" width="8" height="11" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg>Dashboard</button>
+    <button class="side-link" type="button" data-view="practiceView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Practice</button>
     <button class="side-link" type="button" data-view="labsView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>Labs</button>
@@ -55,6 +57,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>Admin</a>
   </div>
   <div class="side-foot" id="headActions" hidden>
+    <a class="side-site" href="/">View the site &#8599;</a>
     <span class="side-label">SIGNED IN AS</span>
     <span class="whoami" id="whoEmail"></span>
     <button class="inf ghost small" id="signOut" type="button">Sign out</button>
@@ -158,6 +161,16 @@
   </section>
 
   <!-- ------------------------------------------------- signed in -->
+  <section id="dashboardView" class="view" hidden>
+    <p class="kicker">&gt; home</p>
+    <h1>Your dashboard</h1>
+    <p class="sub" id="dashHello">Where you stand, and the fastest next move.</p>
+    <div class="dash-stats" id="dashStats"></div>
+    <h2 class="dash-h">Next moves</h2>
+    <div class="dash-actions" id="dashActions"></div>
+    <p class="msg" id="dashMsg"></p>
+  </section>
+
   <section id="practiceView" class="view" hidden>
     <p class="kicker">&gt; question bank</p>
     <h1>Practice</h1>
