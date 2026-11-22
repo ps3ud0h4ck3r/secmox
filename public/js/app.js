@@ -385,8 +385,10 @@ async function enterApp() {
 
   // A first-time learner names a role and level before anything else, so the
   // dashboard and the first question are already aimed. Everyone else lands on
-  // the dashboard.
-  if (!state.user.onboarded_at) {
+  // the dashboard. forceOnboard (from ?onboard=1 or the Account re-aim) brings
+  // the screen back on demand, since it is otherwise first-run only.
+  if (forceOnboard || !state.user.onboarded_at) {
+    forceOnboard = false;
     enterOnboarding();
     return;
   }
@@ -402,6 +404,9 @@ async function enterApp() {
 /* ------------------------------------------------------- onboarding */
 
 const obPick = { role: null, level: null };
+// When true, enterApp shows onboarding even for an already-onboarded user, so
+// the first-run screen is reachable again (via ?onboard=1 or the re-aim button).
+let forceOnboard = false;
 
 function enterOnboarding() {
   obPick.role = state.user.target_role ?? null;
@@ -469,6 +474,10 @@ async function saveOnboard(payload) {
 }
 
 function wireOnboard() {
+  // Re-aim from the Account page: show the onboarding screen again, pre-filled
+  // with the current target and level.
+  $('reaimGo').addEventListener('click', () => enterOnboarding());
+
   $('obStart').addEventListener('click', async () => {
     if (!obPick.role) return;
     $('obStart').disabled = true;
@@ -1084,6 +1093,12 @@ async function loadCoverage() {
   const wantsNew = params.get('new');
   if (wantsNew) window.history.replaceState({}, '', window.location.pathname);
   setMode(wantsNew ? 'up' : 'in');
+
+  // ?onboard=1 brings the first-run screen back for an already-onboarded user.
+  if (params.get('onboard') === '1') {
+    forceOnboard = true;
+    window.history.replaceState({}, '', window.location.pathname);
+  }
 
   // Ask first, then decide whether to show anything. Wrapping the session
   // check itself would make every signed-out visitor sit through a logo on
