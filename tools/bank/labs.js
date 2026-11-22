@@ -134,6 +134,7 @@ Northfield IT Helpdesk
 export const LABS = [
   {
     slug: 'ssh-brute-to-persistence',
+    difficulty: 1,
     title: 'Three failures, one success, and then what',
     role: 'soc',
     level: 'fresher',
@@ -174,6 +175,7 @@ export const LABS = [
 
   {
     slug: 'dns-txt-exfil',
+    difficulty: 3,
     title: 'Something is talking in TXT records',
     role: 'network',
     level: 'mid',
@@ -214,6 +216,7 @@ export const LABS = [
 
   {
     slug: 'phish-header-read',
+    difficulty: 2,
     title: 'Read the headers, not the signature',
     role: 'soc',
     level: 'fresher',

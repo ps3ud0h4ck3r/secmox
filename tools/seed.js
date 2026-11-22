@@ -60,9 +60,9 @@ const labBlocks = LABS.map((lab) => {
   const id = `lab_${lab.role}_${lab.slug}`;
   const bytes = Buffer.byteLength(lab.artifact, 'utf8');
   const lines = [
-    'INSERT OR REPLACE INTO labs (id, title, role, level, brief, artifact_kind, artifact_name, is_free, created_at) VALUES (' +
+    'INSERT OR REPLACE INTO labs (id, title, role, level, brief, artifact_kind, artifact_name, is_free, difficulty, created_at) VALUES (' +
       [id, lab.title, lab.role, lab.level, lab.brief, lab.artifact_kind, lab.artifact_name].map(q).join(', ') +
-      `, ${lab.is_free ? 1 : 0}, ${q(now)});`,
+      `, ${lab.is_free ? 1 : 0}, ${lab.difficulty || 1}, ${q(now)});`,
     'INSERT OR REPLACE INTO lab_artifacts (lab_id, body, bytes) VALUES (' +
       [q(id), q(lab.artifact), bytes].join(', ') + ');',
     `DELETE FROM lab_tasks WHERE lab_id = ${q(id)};`,

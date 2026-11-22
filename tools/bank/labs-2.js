@@ -198,6 +198,7 @@ svc-backup,Backup Service,-,AWS Prod,AdministratorAccess,2021-03-17,2026-11-19,S
 export const LABS_2 = [
   {
     slug: 'alert-queue-triage',
+    difficulty: 2,
     title: 'Eighteen alerts, one shift, pick your order',
     role: 'soc',
     level: 'fresher',
@@ -238,6 +239,7 @@ export const LABS_2 = [
 
   {
     slug: 'psexec-lateral',
+    difficulty: 3,
     title: 'One service account, three servers, ninety seconds apart',
     role: 'soc',
     level: 'mid',
@@ -278,6 +280,7 @@ export const LABS_2 = [
 
   {
     slug: 'webshell-in-access-log',
+    difficulty: 1,
     title: 'The scan that found something',
     role: 'network',
     level: 'fresher',
@@ -318,6 +321,7 @@ export const LABS_2 = [
 
   {
     slug: 'nmap-what-first',
+    difficulty: 2,
     title: 'Nine ports open. Where do you start?',
     role: 'pentest',
     level: 'fresher',
@@ -358,6 +362,7 @@ export const LABS_2 = [
 
   {
     slug: 'idor-and-mass-assignment',
+    difficulty: 3,
     title: 'Same token, someone else\'s invoice',
     role: 'pentest',
     level: 'mid',
@@ -398,6 +403,7 @@ export const LABS_2 = [
 
   {
     slug: 'leaked-key-in-the-trail',
+    difficulty: 2,
     title: 'The deploy key woke up in another country',
     role: 'cloud',
     level: 'mid',
@@ -438,6 +444,7 @@ export const LABS_2 = [
 
   {
     slug: 'access-review-extract',
+    difficulty: 1,
     title: 'Sign here to say this access is correct',
     role: 'grc',
     level: 'fresher',
