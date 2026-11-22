@@ -21,14 +21,13 @@
       <span class="pill-tag">console</span></a>
     <div class="head-actions">
       <span class="whoami" id="whoEmail"></span>
-      <span class="pill-tag" id="whoRole"></span>
     </div>
   </div>
 </header>
 
 <nav class="wrap tabs-nav" aria-label="Sections">
   <a class="tab" href="/app/">Practice</a>
-  <a class="tab" href="/admin/" id="toAdmin" hidden>Content</a>
+  <a class="tab" href="/admin/">Admin</a>
   <a class="tab" href="/console/" aria-current="page">Console</a>
 </nav>
 
@@ -37,94 +36,78 @@
   <section id="denied" class="view" hidden>
     <h1>Not your area</h1>
     <p class="sub">The console is for platform accounts. If that should be you, sign in with the right account.</p>
-    <a class="inf" href="/app/">Go to practice</a>
+    <a class="inf ghost" href="/app/">Go to practice</a>
   </section>
 
   <section id="main" class="view" hidden>
+    <p class="kicker">&gt; god mode</p>
     <h1>Platform console</h1>
-    <p class="sub" id="consoleSub">Everything, across everyone. This sits above the per-company world.</p>
+    <p class="sub">Everything, everywhere. Create tenants and accounts, hand out roles, and view the portal as anyone to see exactly what they see. Nobody you view as is told, and only you can read the trail.</p>
 
-    <div class="stats" id="overview"></div>
+    <div class="con-tabs" role="tablist">
+      <button class="con-tab" data-pane="overview" type="button" aria-selected="true">Overview</button>
+      <button class="con-tab" data-pane="tenants" type="button" aria-selected="false">Tenants</button>
+      <button class="con-tab" data-pane="users" type="button" aria-selected="false">Users</button>
+      <button class="con-tab" data-pane="log" type="button" aria-selected="false">View-as log</button>
+    </div>
 
-    <div class="editor" id="orgSection" hidden>
-      <div class="console-head">
-        <h2>Companies</h2>
-        <span class="cta-note">A company is a tenant. Its people and private content stay inside it.</span>
-      </div>
+    <!-- Overview -->
+    <section class="con-pane" id="pane-overview">
+      <div class="con-stats" id="conStats"></div>
+    </section>
 
-      <form id="orgForm" class="org-create" novalidate>
-        <input id="orgName" placeholder="Company name, e.g. Craw Security" autocomplete="off" required>
-        <label class="check-row" for="orgSandbox"><input type="checkbox" id="orgSandbox"><span>Sandbox</span></label>
-        <button class="inf" type="submit" id="orgCreate">Create company</button>
+    <!-- Tenants -->
+    <section class="con-pane" id="pane-tenants" hidden>
+      <form class="con-form" id="orgForm">
+        <h2>Create a tenant</h2>
+        <div class="con-row">
+          <input id="orgName" placeholder="Company name, e.g. Byte Cyber Labs" aria-label="Company name" required>
+          <label class="con-check"><input type="checkbox" id="orgSandbox"> Sandbox</label>
+          <button class="inf ghost" id="orgCreate" type="submit">Create tenant</button>
+        </div>
+        <p class="msg" id="orgMsg"></p>
       </form>
-      <p class="msg" id="orgMsg"></p>
+      <div class="con-list" id="orgList"></div>
+    </section>
 
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Slug</th><th>Members</th><th>Kind</th><th>Created</th></tr>
-          </thead>
-          <tbody id="orgRows"></tbody>
-        </table>
-      </div>
-
-      <div class="org-addmember">
-        <h3>Add a member</h3>
-        <form id="memberForm" class="org-create" novalidate>
-          <select id="memberOrg"></select>
-          <input id="memberEmail" type="email" placeholder="their@email.com" autocomplete="off" required>
-          <select id="memberRole">
-            <option value="org_admin">Company admin</option>
-            <option value="trainer">Trainer</option>
-            <option value="learner">Learner</option>
+    <!-- Users -->
+    <section class="con-pane" id="pane-users" hidden>
+      <form class="con-form" id="userForm">
+        <h2>Create an account</h2>
+        <div class="con-row">
+          <input id="newEmail" type="email" placeholder="email@tenant.com" aria-label="New account email" required>
+          <input id="newPass" type="text" placeholder="password (min 10)" aria-label="New account password" required>
+          <select id="newPlatform" aria-label="Platform role">
+            <option value="">Plain user</option>
+            <option value="developer">Developer</option>
+            <option value="business">Business</option>
+            <option value="owner">Owner</option>
           </select>
-          <button class="inf ghost" type="submit" id="memberAdd">Add</button>
-        </form>
-        <p class="cta-note">The account must already exist. People who do not yet have one come in through invites, next.</p>
-        <p class="msg" id="memberMsg"></p>
+          <select id="newOrg" aria-label="Attach to tenant"><option value="">No tenant</option></select>
+          <select id="newOrgRole" aria-label="Role in tenant">
+            <option value="learner">Learner</option>
+            <option value="trainer">Trainer</option>
+            <option value="org_admin">Org admin</option>
+          </select>
+          <button class="inf ghost" id="userCreate" type="submit">Create account</button>
+        </div>
+        <p class="msg" id="userFormMsg"></p>
+      </form>
+      <div class="con-row con-search">
+        <input id="userSearch" type="search" placeholder="Search accounts by email" aria-label="Search accounts">
       </div>
-    </div>
-
-    <div class="editor">
-      <div class="console-head">
-        <h2>Everyone on the platform</h2>
-        <input id="userSearch" type="search" placeholder="Search by email" autocomplete="off">
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Email</th><th>Platform</th><th>Track</th><th>Questions</th><th>Scenarios</th><th>Labs</th><th>Last seen</th><th>Joined</th><th class="act-col" id="actCol" hidden>Set role</th></tr>
-          </thead>
-          <tbody id="userRows"></tbody>
-        </table>
-      </div>
+      <div class="con-list" id="userList"></div>
       <p class="msg" id="userMsg"></p>
-    </div>
+    </section>
 
-    <div class="editor" id="impSection">
-      <div class="console-head">
-        <h2>View-as history</h2>
-        <span class="cta-note" id="impScope"></span>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Who</th><th>Viewed as</th><th>Reason</th><th>Started</th><th>Duration</th></tr>
-          </thead>
-          <tbody id="impRows"></tbody>
-        </table>
-      </div>
-    </div>
+    <!-- View-as log -->
+    <section class="con-pane" id="pane-log" hidden>
+      <p class="sub">Every view-as you have run. This trail is yours alone; the people you viewed were never shown anything.</p>
+      <div class="con-list" id="logList"></div>
+    </section>
   </section>
 
 </main>
-
-<footer class="site-foot">
-  <div class="wrap foot-row">
-    <span>Platform console. Actions here reach every account and every company.</span>
-    <a href="/app/">Back to practice</a>
-  </div>
-</footer>
 
 <script type="module" src="/js/console.js"></script>
 </body>

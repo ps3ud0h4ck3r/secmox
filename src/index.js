@@ -2092,6 +2092,22 @@ app.post('/api/console/orgs', async (c) => {
   return c.json({ ok: true, id, slug });
 });
 
+// A company's roster, so the owner can see who is in a tenant and view-as any
+// of them to experience that company's portal.
+app.get('/api/console/orgs/:id/members', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner manages companies.');
+  const rows = await c.env.DB.prepare(
+    `SELECT u.id, u.email, m.role, m.created_at,
+            (SELECT COUNT(*) FROM attempts a WHERE a.user_id = u.id) AS attempts
+       FROM org_members m JOIN users u ON u.id = m.user_id
+      WHERE m.org_id = ?
+      ORDER BY CASE m.role WHEN 'org_admin' THEN 0 WHEN 'trainer' THEN 1 ELSE 2 END, u.email`,
+  )
+    .bind(c.req.param('id'))
+    .all();
+  return c.json({ members: rows.results ?? [] });
+});
+
 // Bootstrap a company's first admin (or add any member) by email. The account
 // must already exist; invites handle people who do not yet.
 app.post('/api/console/orgs/:id/members', async (c) => {
@@ -2114,6 +2130,56 @@ app.post('/api/console/orgs/:id/members', async (c) => {
     .bind(org.id, user.id, role, nowIso())
     .run();
   return c.json({ ok: true });
+});
+
+// Owner only: mint an account directly, for provisioning a demo tenant or a
+// platform teammate without a self-signup. Optionally attach it to a company
+// with an org role in the same call, so populating a tenant is one action.
+// Accounts made here are marked onboarded, so viewing-as them lands on the
+// working portal rather than the first-run flow.
+app.post('/api/console/users', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner can create accounts.');
+  const body = await c.req.json().catch(() => null);
+  if (!body) return fail(c, 400, 'Send JSON.');
+
+  const email = normalizeEmail(body.email);
+  if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
+  const problem = passwordProblem(body.password);
+  if (problem) return fail(c, 400, problem);
+  const track = TRACKS.has(body.track) ? body.track : 'fresher';
+  const platformRole =
+    body.platform_role && ASSIGNABLE.has(String(body.platform_role)) ? String(body.platform_role) : null;
+
+  const existing = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  if (existing) return fail(c, 409, 'That email is already registered.');
+
+  const { salt, hash, iterations } = await hashNewPassword(body.password);
+  const id = newId('usr');
+  const now = nowIso();
+  await c.env.DB.prepare(
+    `INSERT INTO users (id, email, password_hash, password_salt, iterations, track, is_admin, platform_role, onboarded_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, email, hash, salt, iterations, track, isContentAdmin(platformRole) ? 1 : 0, platformRole, now, now)
+    .run();
+
+  // Optional one-shot company attach.
+  let attached = null;
+  const orgId = body.org_id ? String(body.org_id) : null;
+  const orgRole = body.org_role ? String(body.org_role) : null;
+  if (orgId && ORG_ROLES.has(orgRole)) {
+    const org = await c.env.DB.prepare('SELECT id FROM orgs WHERE id = ?').bind(orgId).first();
+    if (org) {
+      await c.env.DB.prepare(
+        `INSERT INTO org_members (org_id, user_id, role, created_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(org_id, user_id) DO UPDATE SET role = excluded.role`,
+      )
+        .bind(orgId, id, orgRole, now)
+        .run();
+      attached = { org_id: orgId, role: orgRole };
+    }
+  }
+  return c.json({ ok: true, id, email, platform_role: platformRole, attached }, 201);
 });
 
 // The view-as trail. The owner sees every impersonation ever; a developer or

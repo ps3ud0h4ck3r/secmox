@@ -377,6 +377,7 @@ $('delForm').addEventListener('submit', async (e) => {
 async function enterApp() {
   $('whoEmail').textContent = state.user.email;
   $('tabAdmin').hidden = !state.user.is_admin;
+  $('tabConsole').hidden = !['owner', 'developer', 'business'].includes(state.user.platform_role);
   $('tabOrg').hidden = !(state.user.orgs || []).some((o) => o.role === 'org_admin');
   setRoleBadge(state.user.platform_role);
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
