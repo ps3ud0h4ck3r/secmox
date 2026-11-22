@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin      INTEGER NOT NULL DEFAULT 0,
   platform_role TEXT,
   target_role   TEXT,
+  onboarded_at  TEXT,
   created_at    TEXT NOT NULL
 );
 

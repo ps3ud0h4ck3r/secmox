@@ -33,8 +33,8 @@ wirePasswordToggles();
 
 /* ------------------------------------------------------------- views */
 
-const VIEWS = ['authView', 'forgotView', 'resetView', 'dashboardView', 'practiceView', 'labsView',
-  'labView', 'scenariosView', 'scenarioView', 'tracksView', 'trackView', 'readinessView',
+const VIEWS = ['authView', 'forgotView', 'resetView', 'onboardView', 'dashboardView', 'practiceView',
+  'labsView', 'labView', 'scenariosView', 'scenarioView', 'tracksView', 'trackView', 'readinessView',
   'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
@@ -69,6 +69,9 @@ function show(view) {
 $('tabsNav').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-view]');
   if (!tab) return;
+  // Navigating away from a first run counts as skipping onboarding, so it does
+  // not nag on the next login. Fire and forget; the navigation proceeds.
+  if (state.user && !state.user.onboarded_at) saveOnboard({});
   if (tab.dataset.view === 'dashboardView') {
     show('dashboardView');
     loadDashboard();
@@ -115,6 +118,7 @@ setScenarioHandlers({
 });
 wireScenario();
 wireReadiness();
+wireOnboard();
 
 // Company tracks: opening one shows its overview; starting it loads the curated
 // questions into a run that the practice loop walks in order.
@@ -374,10 +378,109 @@ async function enterApp() {
   setRoleBadge(state.user.platform_role);
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
+
+  // A first-time learner names a role and level before anything else, so the
+  // dashboard and the first question are already aimed. Everyone else lands on
+  // the dashboard.
+  if (!state.user.onboarded_at) {
+    enterOnboarding();
+    return;
+  }
   // Land on the dashboard, but pre-warm practice so switching there is instant.
   show('dashboardView');
   // None reject: each reports its own failure in place.
   await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
+}
+
+/* ------------------------------------------------------- onboarding */
+
+const obPick = { role: null, level: null };
+
+function enterOnboarding() {
+  obPick.role = state.user.target_role ?? null;
+  obPick.level = state.user.track === 'mid' ? 'mid' : state.user.track === 'fresher' ? 'fresher' : null;
+  const roles = [
+    ['soc', 'SOC analyst', 'Watch, triage and respond. The most common first security job.'],
+    ['pentest', 'Penetration testing', 'Find the holes before attackers do. Hands-on and offensive.'],
+    ['network', 'Network security', 'Defend how traffic moves and what is allowed to cross.'],
+    ['cloud', 'Cloud security', 'Lock down identity, storage and config across cloud accounts.'],
+    ['grc', 'GRC', 'Governance, risk and compliance. Frameworks, audits and policy.'],
+  ];
+  const box = $('obRoles');
+  box.replaceChildren(
+    ...roles.map(([id, label, blurb]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ob-role';
+      b.dataset.role = id;
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      const span = document.createElement('span');
+      span.textContent = blurb;
+      b.append(strong, span);
+      if (id === obPick.role) b.setAttribute('aria-pressed', 'true');
+      b.addEventListener('click', () => {
+        obPick.role = id;
+        [...box.children].forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+        refreshOnboard();
+      });
+      return b;
+    }),
+  );
+  const levels = $('obLevels');
+  [...levels.children].forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.level === obPick.level));
+    b.onclick = () => {
+      obPick.level = b.dataset.level;
+      [...levels.children].forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+      refreshOnboard();
+    };
+  });
+  say($('obMsg'), '');
+  refreshOnboard();
+  show('onboardView');
+}
+
+function refreshOnboard() {
+  // A role is enough to begin; level defaults sensibly if they leave it.
+  $('obStart').disabled = !obPick.role;
+}
+
+// Marks the user onboarded so the flow never shows again, saving whatever they
+// picked. Returns false if the save failed, so the caller can keep them here.
+async function saveOnboard(payload) {
+  try {
+    const out = await api('/api/me/onboard', { method: 'POST', body: JSON.stringify(payload) });
+    state.user.onboarded_at = new Date().toISOString();
+    if (out.target_role !== undefined) state.user.target_role = out.target_role;
+    if (out.track) state.user.track = out.track;
+    return true;
+  } catch (err) {
+    say($('obMsg'), err.message, 'err');
+    return false;
+  }
+}
+
+function wireOnboard() {
+  $('obStart').addEventListener('click', async () => {
+    if (!obPick.role) return;
+    $('obStart').disabled = true;
+    const level = obPick.level || 'fresher';
+    const ok = await saveOnboard({ role: obPick.role, level });
+    if (!ok) { $('obStart').disabled = false; return; }
+    // Guided straight to the first question in their chosen role.
+    $('fRole').value = obPick.role;
+    $('fLevel').value = level;
+    show('practiceView');
+    await splash({ work: Promise.all([loadQuestion(), loadCoverage(), loadDashboard()]), quick: true, note: 'lining up your first question' });
+  });
+
+  $('obSkip').addEventListener('click', async () => {
+    const ok = await saveOnboard({});
+    if (!ok) return;
+    show('dashboardView');
+    await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
+  });
 }
 
 // Platform roles get a badge so a privileged account never looks like a plain

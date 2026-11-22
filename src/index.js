@@ -329,6 +329,26 @@ app.post('/api/me/target', async (c) => {
   return c.json({ ok: true, target_role: role });
 });
 
+// First-run onboarding: the learner names the role they are aiming for and
+// their level, and we mark them onboarded so it never shows again. role and
+// level are optional (skip still onboards), but validated when present.
+app.post('/api/me/onboard', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => ({}));
+  const role = body?.role ? String(body.role) : null;
+  const level = body?.level ? String(body.level) : null;
+  if (role !== null && !ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  if (level !== null && !TRACKS.has(level)) return fail(c, 400, 'Unknown level.');
+
+  const sets = ['onboarded_at = ?'];
+  const args = [nowIso()];
+  if (role !== null) { sets.push('target_role = ?'); args.push(role); }
+  if (level !== null) { sets.push('track = ?'); args.push(level); }
+  args.push(user.id);
+  await c.env.DB.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).bind(...args).run();
+  return c.json({ ok: true, target_role: role ?? user.target_role ?? null, track: level ?? user.track });
+});
+
 // Dashboard aggregates that readiness does not already carry: how many reviews
 // are due, the last week of activity and the current streak, and the readiness
 // trend. Opening the dashboard also records today's reading, so the trend grows

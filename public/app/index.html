@@ -163,6 +163,36 @@
     </div>
   </section>
 
+  <!-- ------------------------------------------------- first run -->
+  <section id="onboardView" class="view" hidden>
+    <p class="kicker">&gt; welcome</p>
+    <h1>Let us aim your prep</h1>
+    <p class="sub">Pick the role you are targeting and where you are right now. Both are easy to change later. This just points you at the right questions to start.</p>
+
+    <fieldset class="ob-group">
+      <legend>Which role are you aiming for?</legend>
+      <div class="ob-roles" id="obRoles"></div>
+    </fieldset>
+
+    <fieldset class="ob-group">
+      <legend>Where are you right now?</legend>
+      <div class="ob-levels" id="obLevels">
+        <button type="button" class="ob-level" data-level="fresher">
+          <strong>Fresher</strong><span>0 to 2 years. Fundamentals and the questions a first round opens with.</span>
+        </button>
+        <button type="button" class="ob-level" data-level="mid">
+          <strong>Mid-level</strong><span>2 to 7 years. Deeper scenarios and the calls a second round pushes on.</span>
+        </button>
+      </div>
+    </fieldset>
+
+    <div class="ob-actions">
+      <button type="button" class="btn" id="obStart" disabled>Start practising</button>
+      <button type="button" class="tab" id="obSkip">Skip for now</button>
+    </div>
+    <p class="msg" id="obMsg"></p>
+  </section>
+
   <!-- ------------------------------------------------- signed in -->
   <section id="dashboardView" class="view" hidden>
     <p class="kicker">&gt; home</p>
