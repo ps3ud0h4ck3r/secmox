@@ -15,66 +15,125 @@ export function setLabHandlers({ needsAuth, openLab }) {
 
 /* ----------------------------------------------------------- the list */
 
+// Level (who it is for) and difficulty (how hard it is) are two different
+// axes: a fresher lab can be medium, a mid lab can be hard. Both are filterable
+// and both are sortable, so a candidate can warm up easy or go straight for the
+// hard ones.
+const DIFF_LABEL = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+let allLabs = [];
+let wired = false;
+const labView = { role: '', level: '', diff: '', sort: 'diff-asc' };
+
+function labCard(lab) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'lab-card';
+
+  const top = document.createElement('div');
+  top.className = 'lab-top';
+  const tag = document.createElement('span');
+  tag.className = 'lab-tag';
+  tag.setAttribute('aria-hidden', 'true');
+  const ext = String(lab.artifact_name || '').split('.').pop();
+  tag.textContent = (ext && ext !== lab.artifact_name ? ext : 'lab').slice(0, 4).toUpperCase();
+  const head = document.createElement('div');
+  const h = document.createElement('h3');
+  h.textContent = lab.title;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  for (const bit of [
+    ROLE_LABEL[lab.role] || lab.role,
+    lab.artifact_name,
+    `${lab.tasks} task${lab.tasks === 1 ? '' : 's'}`,
+  ]) {
+    const s = document.createElement('span');
+    s.textContent = bit;
+    meta.append(s);
+  }
+  head.append(h, meta);
+  top.append(tag, head);
+
+  const foot = document.createElement('div');
+  foot.className = 'lab-foot';
+  const lvl = document.createElement('span');
+  lvl.className = 'lvl' + (lab.level === 'mid' ? ' mid' : '');
+  lvl.textContent = lab.level === 'mid' ? 'Mid-level' : lab.level === 'fresher' ? 'Fresher' : lab.level;
+  foot.append(lvl);
+  if (lab.difficulty) {
+    const diff = document.createElement('span');
+    diff.className = 'diff d' + lab.difficulty;
+    diff.textContent = DIFF_LABEL[lab.difficulty] || '';
+    foot.append(diff);
+  }
+  if (lab.done) {
+    const done = document.createElement('span');
+    done.className = 'done';
+    done.textContent = 'Solved';
+    foot.append(done);
+  }
+  const go = document.createElement('span');
+  go.className = 'go';
+  go.textContent = lab.done ? 'Review lab' : 'Open lab';
+  foot.append(go);
+
+  card.append(top, foot);
+  card.addEventListener('click', () => onOpenLab(lab.id));
+  return card;
+}
+
+function render() {
+  const v = labView;
+  const lvl = (l) => (l.level === 'mid' ? 1 : 0);
+  const byTitle = (a, b) => a.title.localeCompare(b.title);
+  const rows = allLabs
+    .filter(
+      (l) =>
+        (!v.role || l.role === v.role) &&
+        (!v.level || l.level === v.level) &&
+        (!v.diff || String(l.difficulty) === v.diff),
+    )
+    .sort((a, b) => {
+      if (v.sort === 'diff-desc') return b.difficulty - a.difficulty || byTitle(a, b);
+      if (v.sort === 'level-asc') return lvl(a) - lvl(b) || a.difficulty - b.difficulty || byTitle(a, b);
+      if (v.sort === 'level-desc') return lvl(b) - lvl(a) || a.difficulty - b.difficulty || byTitle(a, b);
+      return a.difficulty - b.difficulty || byTitle(a, b); // diff-asc default
+    });
+
+  if (!rows.length) {
+    $('labList').replaceChildren();
+    say($('labsMsg'), 'No labs match those filters. Widen them.');
+    return;
+  }
+  say($('labsMsg'), '');
+  $('labList').replaceChildren(...rows.map(labCard));
+}
+
+function wireControls() {
+  const apply = () => {
+    labView.role = $('lfRole').value;
+    labView.level = $('lfLevel').value;
+    labView.diff = $('lfDiff').value;
+    labView.sort = $('lfSort').value;
+    render();
+  };
+  ['lfRole', 'lfLevel', 'lfDiff', 'lfSort'].forEach((id) => $(id).addEventListener('change', apply));
+}
+
 export async function loadLabs() {
   say($('labsMsg'), '');
   try {
     const out = await api('/api/labs');
-    if (!out.labs.length) {
+    allLabs = out.labs || [];
+    if (!wired) {
+      wireControls();
+      wired = true;
+    }
+    if (!allLabs.length) {
       say($('labsMsg'), 'No labs yet. Add the first one from the admin page.');
       $('labList').replaceChildren();
       return;
     }
-    const cards = out.labs.map((lab) => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'lab-card';
-
-      const top = document.createElement('div');
-      top.className = 'lab-top';
-      const tag = document.createElement('span');
-      tag.className = 'lab-tag';
-      tag.setAttribute('aria-hidden', 'true');
-      const ext = String(lab.artifact_name || '').split('.').pop();
-      tag.textContent = (ext && ext !== lab.artifact_name ? ext : 'lab').slice(0, 4).toUpperCase();
-      const head = document.createElement('div');
-      const h = document.createElement('h3');
-      h.textContent = lab.title;
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      for (const bit of [
-        ROLE_LABEL[lab.role] || lab.role,
-        lab.artifact_name,
-        `${lab.tasks} task${lab.tasks === 1 ? '' : 's'}`,
-      ]) {
-        const s = document.createElement('span');
-        s.textContent = bit;
-        meta.append(s);
-      }
-      head.append(h, meta);
-      top.append(tag, head);
-
-      const foot = document.createElement('div');
-      foot.className = 'lab-foot';
-      const lvl = document.createElement('span');
-      lvl.className = 'lvl' + (lab.level === 'mid' ? ' mid' : '');
-      lvl.textContent = lab.level === 'mid' ? 'Mid-level' : lab.level === 'fresher' ? 'Fresher' : lab.level;
-      foot.append(lvl);
-      if (lab.done) {
-        const done = document.createElement('span');
-        done.className = 'done';
-        done.textContent = 'Solved';
-        foot.append(done);
-      }
-      const go = document.createElement('span');
-      go.className = 'go';
-      go.textContent = lab.done ? 'Review lab' : 'Open lab';
-      foot.append(go);
-
-      card.append(top, foot);
-      card.addEventListener('click', () => onOpenLab(lab.id));
-      return card;
-    });
-    $('labList').replaceChildren(...cards);
+    render();
   } catch (err) {
     if (err.status === 401) return onNeedsAuth();
     say($('labsMsg'), err.message, 'err');

@@ -801,3 +801,15 @@ INSERT INTO scenario_points (id, scenario_id, ord, label, detail) VALUES ('sc_ne
 INSERT INTO scenario_points (id, scenario_id, ord, label, detail) VALUES ('sc_network_temp-any-any-rule_p5', 'sc_network_temp-any-any-rule', 5, 'Narrows in stages with logging left on', 'Two or three deliberate steps, each individually reversible, beats one confident change.');
 INSERT INTO scenario_points (id, scenario_id, ord, label, detail) VALUES ('sc_network_temp-any-any-rule_p6', 'sc_network_temp-any-any-rule', 6, 'Writes a rollback someone else can run at 2am', 'A rollback that needs its author awake and thinking is not a rollback.');
 INSERT INTO scenario_points (id, scenario_id, ord, label, detail) VALUES ('sc_network_temp-any-any-rule_p7', 'sc_network_temp-any-any-rule', 7, 'Raises expiry and ownership as the real fix', 'The comment field was written in good faith and nothing acted on it. Temporary rules need enforced expiry, because comments have never removed a rule.');
+
+-- Lab difficulty (1 easy, 2 medium, 3 hard), independent of level.
+UPDATE labs SET difficulty = 1 WHERE id = 'lab_grc_access-review-extract';
+UPDATE labs SET difficulty = 1 WHERE id = 'lab_network_webshell-in-access-log';
+UPDATE labs SET difficulty = 1 WHERE id = 'lab_soc_ssh-brute-to-persistence';
+UPDATE labs SET difficulty = 2 WHERE id = 'lab_pentest_nmap-what-first';
+UPDATE labs SET difficulty = 2 WHERE id = 'lab_soc_phish-header-read';
+UPDATE labs SET difficulty = 2 WHERE id = 'lab_soc_alert-queue-triage';
+UPDATE labs SET difficulty = 2 WHERE id = 'lab_cloud_leaked-key-in-the-trail';
+UPDATE labs SET difficulty = 3 WHERE id = 'lab_network_dns-txt-exfil';
+UPDATE labs SET difficulty = 3 WHERE id = 'lab_pentest_idor-and-mass-assignment';
+UPDATE labs SET difficulty = 3 WHERE id = 'lab_soc_psexec-lateral';

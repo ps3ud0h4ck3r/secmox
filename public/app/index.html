@@ -227,6 +227,45 @@
     <p class="kicker">&gt; labs</p>
     <h1>Browser labs</h1>
     <p class="sub">A real artifact and the questions somebody would ask you about it. Read the evidence first; the answers are behind a button for a reason.</p>
+    <div class="controls" id="labControls">
+      <div>
+        <label for="lfRole">Role</label>
+        <select id="lfRole">
+          <option value="">All roles</option>
+          <option value="soc">SOC analyst</option>
+          <option value="pentest">Penetration testing</option>
+          <option value="network">Network security</option>
+          <option value="cloud">Cloud security</option>
+          <option value="grc">GRC</option>
+        </select>
+      </div>
+      <div>
+        <label for="lfLevel">Level</label>
+        <select id="lfLevel">
+          <option value="">All levels</option>
+          <option value="fresher">Fresher</option>
+          <option value="mid">Mid-level</option>
+        </select>
+      </div>
+      <div>
+        <label for="lfDiff">Difficulty</label>
+        <select id="lfDiff">
+          <option value="">Any difficulty</option>
+          <option value="1">Easy</option>
+          <option value="2">Medium</option>
+          <option value="3">Hard</option>
+        </select>
+      </div>
+      <div>
+        <label for="lfSort">Sort</label>
+        <select id="lfSort">
+          <option value="diff-asc">Difficulty: easy first</option>
+          <option value="diff-desc">Difficulty: hard first</option>
+          <option value="level-asc">Level: fresher first</option>
+          <option value="level-desc">Level: mid first</option>
+        </select>
+      </div>
+    </div>
     <div class="lab-list" id="labList"></div>
     <p class="msg" id="labsMsg"></p>
   </section>

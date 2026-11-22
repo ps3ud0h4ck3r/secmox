@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS labs (
   artifact_kind TEXT NOT NULL,          -- log | table
   artifact_name TEXT NOT NULL,
   is_free       INTEGER NOT NULL DEFAULT 0,
+  difficulty    INTEGER NOT NULL DEFAULT 1,  -- 1 easy | 2 medium | 3 hard; independent of level
   org_id        TEXT,
   created_at    TEXT NOT NULL
 );

@@ -740,7 +740,7 @@ const MAX_ARTIFACT_BYTES = 600_000;
 app.get('/api/labs', async (c) => {
   const user = c.get('user');
   const { results } = await c.env.DB.prepare(
-    `SELECT l.id, l.title, l.role, l.level, l.artifact_kind, l.artifact_name, l.is_free,
+    `SELECT l.id, l.title, l.role, l.level, l.difficulty, l.artifact_kind, l.artifact_name, l.is_free,
             (SELECT COUNT(*) FROM lab_tasks t WHERE t.lab_id = l.id) AS tasks,
             (SELECT COUNT(*) FROM lab_attempts a WHERE a.lab_id = l.id AND a.user_id = ?) AS done
        FROM labs l
