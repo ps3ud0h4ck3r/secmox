@@ -311,6 +311,25 @@ tbody tr:hover td{background:rgba(41,182,255,.04)}
 .soon-note::before{content:"note: ";font-family:var(--mono);font-size:12px}
 .soon-foot{margin-top:4px}
 @media(max-width:720px){.soon-grid{grid-template-columns:1fr}}
+
+/* ------------------------------------------------- practice strip */
+
+.prac-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin:0 0 14px}
+.kbd-hint{margin:0;font-family:var(--mono);font-size:12px;color:var(--faint)}
+.kbd-hint kbd{font-family:var(--mono);font-size:11px;color:var(--dim);border-radius:4px;
+  padding:1px 6px;background:var(--raise)}
+.session-bar{display:flex;gap:14px;font-family:var(--mono);font-size:12.5px;flex-wrap:wrap}
+.session-bar span{display:inline-flex;align-items:center;gap:6px}
+.session-bar span::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.session-bar .s-total{color:var(--dim)}
+.session-bar .s-total::before{display:none}
+.session-bar .s-got_it{color:var(--mint)}
+.session-bar .s-got_it::before{background:var(--mint)}
+.session-bar .s-shaky{color:#FFC24D}
+.session-bar .s-shaky::before{background:#FFC24D}
+.session-bar .s-missed{color:#FF7A7A}
+.session-bar .s-missed::before{background:#FF7A7A}
 .fit-row.b-ready .fit-num,.fit-row.b-ready .fit-band{color:var(--neon-hi)}
 .fit-row.b-ready .fit-fill{background:var(--neon-hi)}
 .fit-row.b-close .fit-num,.fit-row.b-close .fit-band{color:var(--neon)}

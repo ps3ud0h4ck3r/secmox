@@ -17,7 +17,11 @@ const state = {
   phase: 'hidden',
   rungBox: null,
   mode: 'in',
+  nudged: false,
 };
+// This sitting's honest tally. In-memory only: it resets when the page reloads,
+// so it is a sense of momentum, not a streak to protect.
+const session = { total: 0, got_it: 0, shaky: 0, missed: 0 };
 let resetToken = null;
 
 wirePasswordToggles();
@@ -309,7 +313,9 @@ function resetCard() {
   state.rung = 0;
   state.phase = 'hidden';
   state.rungBox = null;
+  state.nudged = false;
   $('qAnswer').value = '';
+  $('qAnswer').readOnly = false;
   $('answerArea').hidden = true;
   $('answerArea').replaceChildren();
   $('rateRow').hidden = true;
@@ -380,10 +386,23 @@ $('reveal').addEventListener('click', async () => {
 
   // Step 1: reveal the main answer, then hand over to the ladder.
   if (state.phase === 'hidden') {
+    // Retrieval is the whole point, so an empty answer gets one gentle nudge
+    // before the answer opens. One tap more and it reveals anyway; nobody is
+    // forced to type.
+    if (!$('qAnswer').value.trim() && !state.nudged) {
+      state.nudged = true;
+      say($('qMsg'), 'Try it first, even roughly. Pulling it from memory is where the practice is. Tap again to reveal.');
+      return;
+    }
     $('reveal').disabled = true;
     try {
       const out = await api(`/api/questions/${state.question.id}/answer`);
       state.followUps = out.follow_ups || [];
+      // Lock what you wrote the moment you look, so the self-rating is honest:
+      // you are grading the answer you actually gave, not one tidied up after.
+      $('qAnswer').readOnly = true;
+      $('qAnswer').blur();
+      say($('qMsg'), '');
 
       const block = document.createElement('div');
       block.className = 'answer-block';
@@ -483,6 +502,9 @@ $('rateRow').addEventListener('click', async (e) => {
         depth_reached: state.rung,
       }),
     });
+    session.total += 1;
+    if (btn.dataset.rate in session) session[btn.dataset.rate] += 1;
+    renderSession();
     buttons.forEach((b) => (b.disabled = false));
     await loadQuestion();
     loadCoverage();
@@ -507,6 +529,71 @@ function setWeak(on) {
   $('fWeak').setAttribute('aria-pressed', String(on));
   $('fWeak').classList.toggle('on', on);
 }
+
+// This sitting's tally, shown once the first question is rated.
+function renderSession() {
+  const bar = $('sessionBar');
+  if (!session.total) {
+    bar.hidden = true;
+    return;
+  }
+  const parts = [
+    ['total', `${session.total} answered`],
+    ['got_it', `${session.got_it} got it`],
+    ['shaky', `${session.shaky} shaky`],
+    ['missed', `${session.missed} missed`],
+  ];
+  bar.replaceChildren(
+    ...parts.map(([k, text]) => {
+      const s = document.createElement('span');
+      s.className = 's-' + k;
+      s.textContent = text;
+      return s;
+    }),
+  );
+  bar.hidden = false;
+}
+
+// Keyboard flow: a drilling tool should not need the mouse. Only acts while
+// the practice view is open, and leaves normal typing in the answer box alone
+// except for the reveal chord.
+document.addEventListener('keydown', (e) => {
+  if ($('practiceView').hidden) return;
+
+  // A locked (post-reveal) answer box is not really "typing", so number-key
+  // rating should work even if focus is still sitting in it.
+  const inAnswer = e.target === $('qAnswer') && !$('qAnswer').readOnly;
+  const revealReady = !$('reveal').hidden && !$('reveal').disabled;
+
+  // Reveal / advance from anywhere, including the answer box: Ctrl or Cmd + Enter.
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (revealReady) {
+      e.preventDefault();
+      $('reveal').click();
+    }
+    return;
+  }
+  // Single-key shortcuts only when no modifier is held and not mid-typing.
+  if (e.ctrlKey || e.metaKey || e.altKey || inAnswer) return;
+
+  if (e.key === '1' || e.key === '2' || e.key === '3') {
+    if ($('rateRow').hidden) return;
+    const rate = { 1: 'got_it', 2: 'shaky', 3: 'missed' }[e.key];
+    const btn = $('rateRow').querySelector(`[data-rate="${rate}"]`);
+    if (btn && !btn.disabled) {
+      e.preventDefault();
+      btn.click();
+    }
+  } else if (e.key === 'Enter' || e.key === 'n' || e.key === 'N') {
+    if (revealReady) {
+      e.preventDefault();
+      $('reveal').click();
+    }
+  } else if (e.key === 's' || e.key === 'S') {
+    e.preventDefault();
+    $('skip').click();
+  }
+});
 
 // Deep-link from the readiness role-fit block: drill one role's weak spots.
 async function startDrill(role) {
