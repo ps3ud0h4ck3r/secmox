@@ -305,12 +305,28 @@ async function enterApp() {
   $('whoEmail').textContent = state.user.email;
   $('tabAdmin').hidden = !state.user.is_admin;
   $('tabOrg').hidden = !(state.user.orgs || []).some((o) => o.role === 'org_admin');
+  setRoleBadge(state.user.platform_role);
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
   // Land on the dashboard, but pre-warm practice so switching there is instant.
   show('dashboardView');
   // None reject: each reports its own failure in place.
   await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
+}
+
+// Platform roles get a badge so a privileged account never looks like a plain
+// one. A normal learner has no platform role and no badge.
+const ROLE_BADGE = { owner: 'Owner', developer: 'Developer', business: 'Business' };
+function setRoleBadge(role) {
+  const badge = $('roleBadge');
+  const label = ROLE_BADGE[role];
+  if (!label) {
+    badge.hidden = true;
+    return;
+  }
+  badge.textContent = label;
+  badge.className = 'role-badge role-' + role;
+  badge.hidden = false;
 }
 
 function resetCard() {
