@@ -137,10 +137,20 @@ function renderBulk(out) {
   const summary = document.createElement('p');
   summary.className = 'bulk-summary';
   const parts = [`${out.created.length} invited`];
+  if (out.emailed) parts.push(`${out.emailed} emailed`);
   if (out.skipped.length) parts.push(`${out.skipped.length} already in`);
   if (out.invalid.length) parts.push(`${out.invalid.length} invalid`);
   summary.textContent = parts.join(' · ');
   box.append(summary);
+
+  if (out.created.length) {
+    const hint = document.createElement('p');
+    hint.className = 'sub';
+    hint.textContent = out.emailed
+      ? 'Invites were emailed. The links below are a backup you can share directly.'
+      : 'Email is not set up yet, so share these links directly.';
+    box.append(hint);
+  }
 
   if (out.created.length) {
     const copyAll = document.createElement('button');
@@ -194,7 +204,7 @@ function wire() {
       $('inviteEmail').value = '';
       $('inviteLink').textContent = out.link;
       $('inviteLinkWrap').hidden = false;
-      say($('inviteMsg'), '');
+      say($('inviteMsg'), out.emailed ? `Invite emailed to ${out.email}.` : '', out.emailed ? 'ok' : '');
       await loadInvites();
     } catch (err) {
       say($('inviteMsg'), err.message, 'err');

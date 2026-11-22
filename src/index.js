@@ -25,7 +25,7 @@ import {
   isContentAdmin,
   verifyPassword,
 } from './auth.js';
-import { mailConfigured, resetEmail, sendMail } from './mail.js';
+import { mailConfigured, resetEmail, inviteEmail, sendMail, sendMailBatch } from './mail.js';
 import { RATING_WEIGHT, nextReview, inDays, readinessBand } from './scoring.js';
 
 const app = new Hono();
@@ -2043,13 +2043,24 @@ app.post('/api/org/:orgId/invites', async (c) => {
     .run();
 
   const origin = new URL(c.req.url).origin;
-  return c.json({ ok: true, link: `${origin}/join/?token=${token}`, email });
+  const link = `${origin}/join/?token=${token}`;
+
+  // Email it straight to them when mail is on; otherwise the admin hands the
+  // link over themselves, exactly as before.
+  let emailed = false;
+  if (mailConfigured(c.env)) {
+    const org = await c.env.DB.prepare('SELECT name FROM orgs WHERE id = ?').bind(orgId).first();
+    const { subject, text } = inviteEmail(link, org?.name, INVITE_DAYS);
+    const r = await sendMail(c.env, { to: email, subject, text });
+    emailed = r.sent;
+  }
+  return c.json({ ok: true, link, email, emailed });
 });
 
 // Invite many at once: paste or upload a list of emails, pick one role. Returns
 // a link per created invite (tokens are shown only at creation), plus who was
-// skipped (already in the company) and which addresses were invalid. Until
-// email sending lands, the links are distributed by hand.
+// skipped (already in the company) and which addresses were invalid. When mail
+// is on, each invite is also emailed; the links still come back as a fallback.
 app.post('/api/org/:orgId/invites/bulk', async (c) => {
   const orgId = c.req.param('orgId');
   if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
@@ -2087,7 +2098,19 @@ app.post('/api/org/:orgId/invites/bulk', async (c) => {
       .run();
     created.push({ email, link: `${origin}/join/?token=${token}` });
   }
-  return c.json({ created, skipped, invalid });
+
+  // One batched send for the whole list when mail is on.
+  let emailed = 0;
+  if (mailConfigured(c.env) && created.length) {
+    const org = await c.env.DB.prepare('SELECT name FROM orgs WHERE id = ?').bind(orgId).first();
+    const messages = created.map((x) => {
+      const { subject, text } = inviteEmail(x.link, org?.name, INVITE_DAYS);
+      return { to: x.email, subject, text };
+    });
+    const r = await sendMailBatch(c.env, messages);
+    emailed = r.sent;
+  }
+  return c.json({ created, skipped, invalid, emailed, mailed: mailConfigured(c.env) });
 });
 
 app.post('/api/org/:orgId/invites/:inviteId/revoke', async (c) => {
