@@ -264,6 +264,55 @@ export async function throttleClear(db, keys) {
   }
 }
 
+// General fixed-window rate limiter, for actions that have no "fail" signal of
+// their own (signup, password-reset request, reset submit). Counts every call
+// under `key` inside the window and blocks once it passes `limit`. Reuses the
+// auth_throttle table; callers namespace their keys (e.g. 'signup:ip:1.2.3.4')
+// so they never collide with the sign-in throttle's bare ip:/email: keys.
+// Returns the seconds to wait when over the limit, otherwise 0.
+export async function rateLimit(db, key, limit, windowMinutes) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - windowMinutes * 60_000);
+  const row = await db
+    .prepare('SELECT fails, first_fail FROM auth_throttle WHERE key = ?')
+    .bind(key)
+    .first();
+
+  // No row, or the window has rolled over: start a fresh window at 1.
+  if (!row || new Date(row.first_fail) < windowStart) {
+    await db
+      .prepare(
+        `INSERT INTO auth_throttle (key, fails, first_fail, locked_until) VALUES (?, 1, ?, NULL)
+         ON CONFLICT(key) DO UPDATE SET fails = 1, first_fail = excluded.first_fail, locked_until = NULL`,
+      )
+      .bind(key, now.toISOString())
+      .run();
+    return 0;
+  }
+
+  if (row.fails >= limit) {
+    const resetAt = new Date(new Date(row.first_fail).getTime() + windowMinutes * 60_000);
+    return Math.max(Math.ceil((resetAt - now) / 1000), 1);
+  }
+
+  await db.prepare('UPDATE auth_throttle SET fails = fails + 1 WHERE key = ?').bind(key).run();
+  return 0;
+}
+
+// Best-effort housekeeping so the table does not grow without bound. Drops rows
+// whose window closed over a day ago and are not actively locked. Called with a
+// low probability from the open auth routes, so it costs almost nothing.
+export async function purgeThrottle(db) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  await db
+    .prepare(
+      `DELETE FROM auth_throttle
+        WHERE first_fail < ? AND (locked_until IS NULL OR locked_until < ?)`,
+    )
+    .bind(cutoff, new Date().toISOString())
+    .run();
+}
+
 /* ----------------------------------------------------------- validation */
 
 export function normalizeEmail(value) {

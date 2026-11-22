@@ -13,6 +13,8 @@ import {
   normalizeEmail,
   passwordProblem,
   randomHex,
+  rateLimit,
+  purgeThrottle,
   readCookie,
   sessionCookie,
   sha256Hex,
@@ -36,6 +38,27 @@ const fail = (c, status, message) => c.json({ error: message }, status);
 const tokenFrom = (c) => readCookie(c.req.header('cookie'), SESSION_COOKIE);
 const clientIp = (c) => c.req.header('cf-connecting-ip') || 'unknown';
 const nowIso = () => new Date().toISOString();
+
+// A 429 with a Retry-After header, phrased for a person rather than a crawler.
+const tooMany = (c, seconds) => {
+  const mins = Math.ceil(seconds / 60);
+  c.header('Retry-After', String(seconds));
+  return fail(c, 429, `Too many attempts. Try again in about ${mins} minute${mins > 1 ? 's' : ''}.`);
+};
+
+// Guard an open auth route against abuse. Returns a 429 response to return
+// early, or null to carry on. Each limit keeps its own namespace in the throttle
+// table. Housekeeping runs occasionally so stale rows do not pile up.
+async function guardAuth(c, limits) {
+  if (Math.random() < 0.02) {
+    await purgeThrottle(c.env.DB).catch(() => {});
+  }
+  for (const [key, limit, windowMinutes] of limits) {
+    const wait = await rateLimit(c.env.DB, key, limit, windowMinutes);
+    if (wait) return tooMany(c, wait);
+  }
+  return null;
+}
 
 /* --------------------------------------------------------------- headers */
 
@@ -103,6 +126,14 @@ app.post('/api/auth/signup', async (c) => {
   const email = normalizeEmail(body.email);
   if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
 
+  // Cap how many accounts one address or one network can open in an hour, so the
+  // table of users cannot be flooded from a single source.
+  const blocked = await guardAuth(c, [
+    [`signup:ip:${clientIp(c)}`, 5, 60],
+    [`signup:email:${email}`, 3, 60],
+  ]);
+  if (blocked) return blocked;
+
   const problem = passwordProblem(body.password);
   if (problem) return fail(c, 400, problem);
 
@@ -135,10 +166,7 @@ app.post('/api/auth/login', async (c) => {
   const keys = [`ip:${clientIp(c)}`, `email:${email}`];
 
   const lockedFor = await throttleCheck(c.env.DB, keys);
-  if (lockedFor) {
-    const mins = Math.ceil(lockedFor / 60);
-    return fail(c, 429, `Too many attempts. Try again in about ${mins} minute${mins > 1 ? 's' : ''}.`);
-  }
+  if (lockedFor) return tooMany(c, lockedFor);
 
   const user = await c.env.DB.prepare(
     'SELECT id, email, track, is_admin, platform_role, password_hash, password_salt, iterations FROM users WHERE email = ?',
@@ -209,6 +237,16 @@ app.post('/api/auth/forgot', async (c) => {
   const said = { ok: true, message: 'If that address has an account, a reset link is on its way.' };
   if (!emailLooksValid(email)) return c.json(said);
 
+  // This route sends mail, so it is a way to flood an inbox or burn through the
+  // mail quota. Cap it per network and, tighter, per target address. The cap is
+  // on the submitted address alone, so a 429 here still says nothing about
+  // whether that address has an account.
+  const blocked = await guardAuth(c, [
+    [`forgot:ip:${clientIp(c)}`, 5, 15],
+    [`forgot:email:${email}`, 3, 60],
+  ]);
+  if (blocked) return blocked;
+
   const user = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (!user) return c.json(said);
 
@@ -232,6 +270,11 @@ app.post('/api/auth/forgot', async (c) => {
 app.post('/api/auth/reset', async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return fail(c, 400, 'Send JSON.');
+
+  // Reset tokens are long random hex, so guessing is already hopeless, but cap
+  // submissions per network anyway to keep anyone from hammering the endpoint.
+  const blocked = await guardAuth(c, [[`reset:ip:${clientIp(c)}`, 10, 15]]);
+  if (blocked) return blocked;
 
   const problem = passwordProblem(body.password);
   if (problem) return fail(c, 400, problem);
@@ -260,6 +303,11 @@ app.post('/api/auth/password', async (c) => {
 
   const problem = passwordProblem(body.next);
   if (problem) return fail(c, 400, problem);
+
+  // Changing the password checks the current one, so it is a guess surface for
+  // anyone who already has the session. Cap it per account.
+  const blocked = await guardAuth(c, [[`pwchange:uid:${user.id}`, 10, 15]]);
+  if (blocked) return blocked;
 
   const row = await c.env.DB.prepare(
     'SELECT password_hash, password_salt, iterations FROM users WHERE id = ?',
