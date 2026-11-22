@@ -3,11 +3,14 @@
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
 
-  // Static files are served first; anything with no matching file
-  // (every /api/* route) falls through to the Worker.
+  // Static files are served by the assets binding; /api/* goes to the app.
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Every request reaches the Worker first so the old workers.dev host can
+    // redirect to secmox.com; src/index.js hands non-API paths straight back
+    // to the assets.
+    "run_worker_first": true
   },
 
   "d1_databases": [

@@ -2569,4 +2569,24 @@ app.all('*', (c) => {
   return c.text('Not found', 404);
 });
 
-export default app;
+// The old workers.dev address now redirects to secmox.com, path and query kept,
+// so links already shared keep working. Preview URLs (*-secmox...) are left
+// alone so preview deploys stay testable. run_worker_first sends every request
+// here first, which is what lets static pages redirect too; everything that is
+// not the old host goes on exactly as before: /api/* to the app, the rest to
+// the static assets.
+const OLD_HOST = 'secmox.superakash.workers.dev';
+const NEW_ORIGIN = 'https://secmox.com';
+
+export default {
+  fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (url.hostname === OLD_HOST) {
+      return Response.redirect(NEW_ORIGIN + url.pathname + url.search, 301);
+    }
+    if (!url.pathname.startsWith('/api/') && env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
+    return app.fetch(request, env, ctx);
+  },
+};
