@@ -99,6 +99,36 @@ async function loadInvites() {
   }
 }
 
+// undefined = no pending change, null = remove, string = a new data URL.
+let pendingLogo;
+
+function showLogo(logo) {
+  const box = $('brandPreview');
+  box.replaceChildren();
+  if (logo) {
+    const img = document.createElement('img');
+    img.src = logo;
+    img.alt = 'Company logo';
+    box.append(img);
+  } else {
+    const span = document.createElement('span');
+    span.className = 'brand-empty';
+    span.textContent = 'No logo yet';
+    box.append(span);
+  }
+}
+
+async function loadBranding() {
+  try {
+    const { logo } = await api(`/api/org/${orgId}/branding`);
+    showLogo(logo);
+    pendingLogo = undefined;
+    $('brandSave').disabled = true;
+  } catch (_) {
+    /* branding is optional; leave the empty state */
+  }
+}
+
 function renderBulk(out) {
   const box = $('bulkResults');
   box.replaceChildren();
@@ -193,6 +223,50 @@ function wire() {
     $('bulkSend').disabled = false;
   });
 
+  $('brandFile').addEventListener('change', () => {
+    const file = $('brandFile').files?.[0];
+    if (!file) return;
+    if (file.size > 90 * 1024) {
+      say($('brandMsg'), 'That image is over 90 KB. Pick a smaller one.', 'err');
+      $('brandFile').value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingLogo = reader.result;
+      showLogo(pendingLogo);
+      $('brandSave').disabled = false;
+      say($('brandMsg'), 'Ready to save.', 'ok');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $('brandSave').addEventListener('click', async () => {
+    if (pendingLogo === undefined) return;
+    $('brandSave').disabled = true;
+    try {
+      await api(`/api/org/${orgId}/branding`, { method: 'POST', body: JSON.stringify({ logo: pendingLogo }) });
+      pendingLogo = undefined;
+      say($('brandMsg'), 'Saved. Your learners will see it.', 'ok');
+    } catch (err) {
+      say($('brandMsg'), err.message, 'err');
+      $('brandSave').disabled = false;
+    }
+  });
+
+  $('brandRemove').addEventListener('click', async () => {
+    try {
+      await api(`/api/org/${orgId}/branding`, { method: 'POST', body: JSON.stringify({ logo: null }) });
+      showLogo(null);
+      $('brandFile').value = '';
+      pendingLogo = undefined;
+      $('brandSave').disabled = true;
+      say($('brandMsg'), 'Removed.', 'ok');
+    } catch (err) {
+      say($('brandMsg'), err.message, 'err');
+    }
+  });
+
   $('copyLink').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText($('inviteLink').textContent);
@@ -205,7 +279,7 @@ function wire() {
 
   $('orgPick').addEventListener('change', async () => {
     orgId = $('orgPick').value;
-    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadOrgContent()]);
+    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadBranding(), loadOrgContent()]);
   });
 
   setupOrgContent(() => orgId);
@@ -235,7 +309,7 @@ function wire() {
       );
     }
     wire();
-    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadOrgContent()]);
+    await Promise.all([loadMembers(), loadInvites(), loadCohorts(), loadBranding(), loadOrgContent()]);
     $('main').hidden = false;
   } catch (err) {
     if (err.status === 401) {

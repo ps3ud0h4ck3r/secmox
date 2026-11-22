@@ -226,6 +226,7 @@ CREATE TABLE IF NOT EXISTS orgs (
   plan        TEXT NOT NULL DEFAULT 'pilot',
   status      TEXT NOT NULL DEFAULT 'active',
   is_sandbox  INTEGER NOT NULL DEFAULT 0,
+  logo        TEXT,
   created_at  TEXT NOT NULL
 );
 

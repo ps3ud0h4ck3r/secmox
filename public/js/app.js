@@ -379,6 +379,7 @@ async function enterApp() {
   $('tabAdmin').hidden = !state.user.is_admin;
   $('tabConsole').hidden = !['owner', 'developer', 'business'].includes(state.user.platform_role);
   $('tabOrg').hidden = !(state.user.orgs || []).some((o) => o.role === 'org_admin');
+  setOrgBrand(state.user.orgs);
   setRoleBadge(state.user.platform_role);
   if (state.user.track === 'mid') $('fLevel').value = 'mid';
   else if (state.user.track === 'fresher') $('fLevel').value = 'fresher';
@@ -399,6 +400,28 @@ async function enterApp() {
   show('dashboardView');
   // None reject: each reports its own failure in place.
   await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
+}
+
+// A learner who belongs to a company sees its logo and name in the sidebar, so
+// the app feels like their programme.
+function setOrgBrand(orgs) {
+  const org = (orgs || []).find((o) => o.name);
+  const wrap = $('orgBrand');
+  if (!org) {
+    wrap.hidden = true;
+    return;
+  }
+  $('orgBrandName').textContent = org.name;
+  // The logo img is built here (never a src-less img sitting in the markup).
+  const existing = wrap.querySelector('img');
+  if (existing) existing.remove();
+  if (org.logo) {
+    const img = document.createElement('img');
+    img.src = org.logo;
+    img.alt = '';
+    wrap.prepend(img);
+  }
+  wrap.hidden = false;
 }
 
 /* ------------------------------------------------------- onboarding */

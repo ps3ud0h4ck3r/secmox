@@ -309,7 +309,7 @@ app.post('/api/account/delete', async (c) => {
 app.get('/api/me', async (c) => {
   const user = c.get('user');
   const { results } = await c.env.DB.prepare(
-    `SELECT m.org_id, m.role, o.name, o.slug
+    `SELECT m.org_id, m.role, o.name, o.slug, o.logo
        FROM org_members m JOIN orgs o ON o.id = m.org_id
       WHERE m.user_id = ? ORDER BY o.name`,
   )
@@ -1918,6 +1918,35 @@ app.post('/api/org/:orgId/cohorts/:cid/members/:uid/remove', async (c) => {
     .bind(cid, c.req.param('uid'))
     .run();
   return c.json({ ok: true });
+});
+
+/* ----------------------------------------------------------- branding */
+
+app.get('/api/org/:orgId/branding', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgStaff(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const org = await c.env.DB.prepare('SELECT name, logo FROM orgs WHERE id = ?').bind(orgId).first();
+  if (!org) return fail(c, 404, 'No such company.');
+  return c.json({ name: org.name, logo: org.logo ?? null });
+});
+
+// A company logo its learners see in the app. Stored as a small base64 data URI
+// (img-src allows data:); raster formats only, size-capped. null clears it.
+app.post('/api/org/:orgId/branding', async (c) => {
+  const orgId = c.req.param('orgId');
+  if (!(await isOrgAdmin(c.env.DB, c.get('user'), orgId))) return fail(c, 403, 'Not your company.');
+  const body = await c.req.json().catch(() => null);
+  const raw = body?.logo;
+  let logo = null;
+  if (raw !== null && raw !== undefined && raw !== '') {
+    logo = String(raw);
+    if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(logo)) {
+      return fail(c, 400, 'Upload a PNG, JPG, WebP or GIF.');
+    }
+    if (logo.length > 140000) return fail(c, 400, 'That image is too large. Keep it under about 100 KB.');
+  }
+  await c.env.DB.prepare('UPDATE orgs SET logo = ? WHERE id = ?').bind(logo, orgId).run();
+  return c.json({ ok: true, logo });
 });
 
 app.get('/api/org/:orgId/invites', async (c) => {
