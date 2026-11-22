@@ -24,6 +24,9 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 let allScenarios = [];
 let scWired = false;
 const scView = { role: '', level: '', status: '', sort: 'level-asc' };
+// scenario_id -> Set(point_id) the learner keeps missing, so the rubric can
+// flag them on the next attempt.
+let blindByScenario = new Map();
 
 function scenarioCard(sc) {
   const card = document.createElement('button');
@@ -107,12 +110,53 @@ function scWireControls() {
   ['scfRole', 'scfLevel', 'scfStatus', 'scfSort'].forEach((id) => $(id).addEventListener('change', apply));
 }
 
+function renderBlind(spots) {
+  blindByScenario = new Map();
+  for (const s of spots) {
+    if (!blindByScenario.has(s.scenario_id)) blindByScenario.set(s.scenario_id, new Set());
+    blindByScenario.get(s.scenario_id).add(s.point_id);
+  }
+  const panel = $('scBlind');
+  if (!spots.length) {
+    panel.hidden = true;
+    return;
+  }
+  const list = $('scBlindList');
+  list.replaceChildren(
+    ...spots.map((s) => {
+      const li = document.createElement('li');
+      li.className = 'blind-item';
+      li.dataset.id = s.scenario_id;
+
+      const label = document.createElement('span');
+      label.className = 'blind-label';
+      label.textContent = s.label;
+
+      const meta = document.createElement('span');
+      meta.className = 'blind-meta';
+      meta.textContent = `${s.scenario_title} · missed ${s.missed} of ${s.total}`;
+
+      li.append(label, meta);
+      li.addEventListener('click', () => onOpen(s.scenario_id));
+      return li;
+    }),
+  );
+  panel.hidden = false;
+}
+
 export async function loadScenarios() {
   const list = $('scList');
   list.textContent = 'Loading scenarios.';
   try {
-    const { scenarios } = await api('/api/scenarios');
-    allScenarios = scenarios || [];
+    // The list and the blind spots are independent; one failing should not take
+    // the other down.
+    const [listRes, blindRes] = await Promise.allSettled([
+      api('/api/scenarios'),
+      api('/api/scenarios/blindspots'),
+    ]);
+    if (listRes.status === 'rejected') throw listRes.reason;
+    allScenarios = listRes.value.scenarios || [];
+    renderBlind(blindRes.status === 'fulfilled' ? blindRes.value.blindspots || [] : []);
     if (!scWired) {
       scWireControls();
       scWired = true;
@@ -180,6 +224,14 @@ function renderRubric(points) {
     const body = document.createElement('span');
     const label = document.createElement('strong');
     label.textContent = point.label;
+    // Flag a point the learner has left uncovered across past attempts.
+    if (blindByScenario.get(current?.id)?.has(point.id)) {
+      row.classList.add('sc-point-blind');
+      const flag = document.createElement('span');
+      flag.className = 'sc-point-flag';
+      flag.textContent = 'missed before';
+      label.append(' ', flag);
+    }
     const detail = document.createElement('span');
     detail.className = 'sc-point-detail';
     detail.textContent = point.detail;

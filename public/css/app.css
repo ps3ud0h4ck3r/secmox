@@ -552,3 +552,25 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 @media (max-width:640px){
   .track-grid{grid-template-columns:1fr}
 }
+
+/* ---------------------------------------------- scenario blind spots */
+
+/* Rubric points the learner keeps missing. Amber for "worth your attention",
+   full borders only (no single-side accent on a rounded box). */
+.blind{border:1px solid rgba(255,194,77,.3);border-radius:12px;padding:18px 20px;margin-bottom:24px;
+  background:linear-gradient(180deg,rgba(255,194,77,.06),transparent)}
+.blind-head{font-size:15px;font-family:var(--mono);color:var(--amber);letter-spacing:.03em;margin:0 0 4px}
+.blind-sub{color:var(--dim);font-size:13px;line-height:1.5;margin:0 0 14px;max-width:70ch}
+.blind-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.blind-item{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:11px 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  cursor:pointer;transition:border-color .15s ease}
+.blind-item:hover{border-color:rgba(255,194,77,.55)}
+.blind-label{font-weight:600;min-width:0}
+.blind-meta{font-family:var(--mono);font-size:12px;color:var(--faint);white-space:nowrap}
+
+/* The same points flagged inside the rubric on the next attempt. */
+.sc-point-blind{border-radius:8px}
+.sc-point-flag{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--amber);
+  background:rgba(255,194,77,.12);border-radius:999px;padding:2px 8px;vertical-align:middle}

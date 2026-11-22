@@ -955,6 +955,67 @@ app.get('/api/scenarios', async (c) => {
   return c.json({ scenarios: results ?? [] });
 });
 
+// Recurring blind spots: rubric points the learner keeps failing to cover.
+// covered_ids records what they ticked per attempt; a point in the rubric but
+// not in covered_ids was missed. For a scenario attempted more than once, a
+// blind spot is a point missed in the latest scored attempt and in at least
+// half of all scored attempts — a pattern, not a one-off bad run. Registered
+// before /api/scenarios/:id so the literal path is not swallowed as an id.
+app.get('/api/scenarios/blindspots', async (c) => {
+  const user = c.get('user');
+  const attempts = await c.env.DB.prepare(
+    `SELECT a.scenario_id, a.covered_ids, a.created_at, s.title
+       FROM scenario_attempts a JOIN scenarios s ON s.id = a.scenario_id
+      WHERE a.user_id = ? AND a.scored_at IS NOT NULL AND ${visibleSql('s', 'scenario')}
+      ORDER BY a.created_at ASC`,
+  )
+    .bind(user.id, user.id, user.id)
+    .all();
+
+  // Group scored attempts by scenario, oldest to newest.
+  const byScenario = new Map();
+  for (const a of attempts.results ?? []) {
+    let covered;
+    try { covered = new Set(JSON.parse(a.covered_ids)); } catch { covered = new Set(); }
+    if (!byScenario.has(a.scenario_id)) byScenario.set(a.scenario_id, { title: a.title, runs: [] });
+    byScenario.get(a.scenario_id).runs.push(covered);
+  }
+
+  // Only scenarios tried more than once can show a pattern. Pull their points.
+  const multi = [...byScenario.entries()].filter(([, v]) => v.runs.length >= 2);
+  const spots = [];
+  if (multi.length) {
+    const ids = multi.map(([sid]) => sid);
+    const placeholders = ids.map(() => '?').join(', ');
+    const pts = await c.env.DB.prepare(
+      `SELECT id, scenario_id, ord, label FROM scenario_points
+        WHERE scenario_id IN (${placeholders}) ORDER BY ord`,
+    )
+      .bind(...ids)
+      .all();
+    const pointsByScenario = new Map();
+    for (const p of pts.results ?? []) {
+      if (!pointsByScenario.has(p.scenario_id)) pointsByScenario.set(p.scenario_id, []);
+      pointsByScenario.get(p.scenario_id).push(p);
+    }
+
+    for (const [sid, { title, runs }] of multi) {
+      const latest = runs[runs.length - 1];
+      const total = runs.length;
+      for (const p of pointsByScenario.get(sid) ?? []) {
+        if (latest.has(p.id)) continue; // got it last time, not a live blind spot
+        const missed = runs.reduce((n, r) => n + (r.has(p.id) ? 0 : 1), 0);
+        if (missed * 2 >= total) {
+          spots.push({ scenario_id: sid, point_id: p.id, scenario_title: title, label: p.label, missed, total });
+        }
+      }
+    }
+    spots.sort((a, b) => b.missed - a.missed || b.total - a.total);
+  }
+
+  return c.json({ blindspots: spots.slice(0, 12) });
+});
+
 // The brief, and the point labels only. The model answer and what each point
 // is really asking for stay on the server until something has been written,
 // otherwise the reveal is one network tab away and the exercise is pointless.
