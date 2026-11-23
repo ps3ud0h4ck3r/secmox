@@ -6,6 +6,7 @@ import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
 import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
 import { loadDashboard, setDashboardHandlers } from './dashboard.js';
 import { loadTracks, openTrack, setTrackHandlers } from './tracks.js';
+import { openScore } from './score.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -38,7 +39,7 @@ wirePasswordToggles();
 
 const VIEWS = ['authView', 'forgotView', 'resetView', 'onboardView', 'dashboardView', 'practiceView',
   'labsView', 'labView', 'scenariosView', 'scenarioView', 'tracksView', 'trackView', 'readinessView',
-  'mockView', 'accountView'];
+  'scoreView', 'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -85,6 +86,9 @@ $('tabsNav').addEventListener('click', (e) => {
   } else if (tab.dataset.view === 'readinessView') {
     show('readinessView');
     loadReadiness();
+  } else if (tab.dataset.view === 'scoreView') {
+    show('scoreView');
+    openScore();
   } else if (tab.dataset.view === 'mockView') {
     show('mockView');
   } else if (tab.dataset.view === 'labsView') {

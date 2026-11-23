@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { RATING_WEIGHT, nextReview, inDays, readinessBand } from '../src/scoring.js';
+import {
+  RATING_WEIGHT,
+  nextReview,
+  inDays,
+  readinessBand,
+  gradeObjective,
+  objectiveScore,
+  scoreBand,
+} from '../src/scoring.js';
 
 describe('RATING_WEIGHT', () => {
   it('weights got_it full, shaky half, missed nothing', () => {
@@ -56,5 +64,46 @@ describe('readinessBand', () => {
     expect(readinessBand(87, 10)).toBe('close');
     expect(readinessBand(88, 10)).toBe('ready');
     expect(readinessBand(100, 10)).toBe('ready');
+  });
+});
+
+describe('gradeObjective', () => {
+  it('checks index equality for mcq and pick', () => {
+    expect(gradeObjective('mcq', 2, 2)).toBe(true);
+    expect(gradeObjective('mcq', 2, 1)).toBe(false);
+    expect(gradeObjective('pick', 0, 0)).toBe(true);
+  });
+  it('requires the exact sequence for order', () => {
+    expect(gradeObjective('order', [2, 1, 0, 3, 4], [2, 1, 0, 3, 4])).toBe(true);
+    expect(gradeObjective('order', [2, 1, 0], [2, 0, 1])).toBe(false);
+    expect(gradeObjective('order', [0, 1], [0])).toBe(false);
+    expect(gradeObjective('order', [0, 1], 0)).toBe(false);
+  });
+});
+
+describe('objectiveScore', () => {
+  it('is 0 with no items', () => {
+    expect(objectiveScore([])).toBe(0);
+  });
+  it('is 1000 when everything is correct', () => {
+    expect(objectiveScore([{ weight: 1, correct: true }, { weight: 3, correct: true }])).toBe(1000);
+  });
+  it('weights harder items more', () => {
+    // Easy right (1), hard wrong (3): 1 of 4 possible -> 250.
+    expect(objectiveScore([{ weight: 1, correct: true }, { weight: 3, correct: false }])).toBe(250);
+    // Easy wrong, hard right: 3 of 4 -> 750.
+    expect(objectiveScore([{ weight: 1, correct: false }, { weight: 3, correct: true }])).toBe(750);
+  });
+});
+
+describe('scoreBand', () => {
+  it('maps the 0..1000 score to a band', () => {
+    expect(scoreBand(0)).toBe('cold');
+    expect(scoreBand(299)).toBe('cold');
+    expect(scoreBand(300)).toBe('shaky');
+    expect(scoreBand(500)).toBe('building');
+    expect(scoreBand(700)).toBe('close');
+    expect(scoreBand(850)).toBe('ready');
+    expect(scoreBand(1000)).toBe('ready');
   });
 });

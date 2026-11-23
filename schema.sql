@@ -326,3 +326,38 @@ CREATE TABLE IF NOT EXISTS cohort_members (
   PRIMARY KEY (cohort_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_cohort_members_user ON cohort_members(user_id);
+
+-- Objective, auto-scored items: one right answer the machine can check, so a
+-- score built on them needs no human or AI grading and cannot be self-inflated.
+-- These power the SecMox Score. type is 'mcq' (pick one), 'pick' (pick the right
+-- line from a block) or 'order' (arrange steps). options is a JSON array of
+-- strings; answer is a JSON index (mcq/pick) or ordered array of indices (order).
+CREATE TABLE IF NOT EXISTS objective_items (
+  id         TEXT PRIMARY KEY,
+  role       TEXT NOT NULL,
+  topic      TEXT NOT NULL,
+  difficulty INTEGER NOT NULL DEFAULT 1,
+  type       TEXT NOT NULL,
+  prompt     TEXT NOT NULL,
+  body       TEXT,
+  options    TEXT NOT NULL,
+  answer     TEXT NOT NULL,
+  explain    TEXT,
+  org_id     TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_objitems_role ON objective_items(role);
+
+-- A completed SecMox Score run. id is the public token used by the verify page,
+-- so it is shown to anyone the holder shares the link with.
+CREATE TABLE IF NOT EXISTS score_results (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL,
+  role          TEXT NOT NULL,
+  score         INTEGER NOT NULL,
+  items_total   INTEGER NOT NULL,
+  items_correct INTEGER NOT NULL,
+  detail        TEXT,
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scoreresults_user ON score_results(user_id, created_at);

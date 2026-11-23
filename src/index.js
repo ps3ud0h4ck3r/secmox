@@ -26,7 +26,15 @@ import {
   verifyPassword,
 } from './auth.js';
 import { mailConfigured, resetEmail, inviteEmail, sendMail, sendMailBatch } from './mail.js';
-import { RATING_WEIGHT, nextReview, inDays, readinessBand } from './scoring.js';
+import {
+  RATING_WEIGHT,
+  nextReview,
+  inDays,
+  readinessBand,
+  gradeObjective,
+  objectiveScore,
+  scoreBand,
+} from './scoring.js';
 
 const app = new Hono();
 
@@ -122,7 +130,12 @@ const OPEN_ROUTES = new Set([
 ]);
 
 app.use('/api/*', async (c, next) => {
-  if (OPEN_ROUTES.has(new URL(c.req.url).pathname)) return next();
+  const pathname = new URL(c.req.url).pathname;
+  if (OPEN_ROUTES.has(pathname)) return next();
+  // A published SecMox Score is meant to be shared, so its verify endpoint is
+  // public. Only the GET under this prefix; starting and submitting a run stay
+  // behind auth.
+  if (c.req.method === 'GET' && pathname.startsWith('/api/score/r/')) return next();
   const user = await userForToken(c.env.DB, tokenFrom(c));
   if (!user) return fail(c, 401, 'Sign in to continue.');
   c.set('user', user);
@@ -148,6 +161,125 @@ app.use('/api/console/*', async (c, next) => {
 function signIn(c, token) {
   c.header('Set-Cookie', sessionCookie(token, SESSION_DAYS * 86400));
 }
+
+/* -------------------------------------------------------------- score */
+
+// How many objective items a single Score run draws, at most. With a small bank
+// this takes everything available for the role; as the bank grows it samples.
+const SCORE_ITEMS_N = 12;
+
+// Start a run: objective items for a role, with the answer keys stripped out.
+app.get('/api/score/items', async (c) => {
+  const role = c.req.query('role');
+  if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  const rows = await c.env.DB.prepare(
+    `SELECT id, topic, difficulty, type, prompt, body, options
+       FROM objective_items WHERE role = ? AND org_id IS NULL
+       ORDER BY RANDOM() LIMIT ?`,
+  )
+    .bind(role, SCORE_ITEMS_N)
+    .all();
+  const items = (rows.results || []).map((r) => ({
+    id: r.id,
+    topic: r.topic,
+    difficulty: r.difficulty,
+    type: r.type,
+    prompt: r.prompt,
+    body: r.body || null,
+    options: JSON.parse(r.options),
+  }));
+  return c.json({ role, count: items.length, items });
+});
+
+// Grade a run server-side (the client never holds the answer keys), store the
+// result under a shareable id, and return the SecMox Score.
+app.post('/api/score/submit', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  const role = body?.role;
+  if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  const answers = Array.isArray(body?.answers) ? body.answers : [];
+  const ids = [...new Set(answers.map((a) => a?.id).filter((x) => typeof x === 'string'))].slice(0, 50);
+  if (!ids.length) return fail(c, 400, 'No answers to grade.');
+
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await c.env.DB.prepare(
+    `SELECT id, difficulty, type, answer, explain FROM objective_items
+       WHERE role = ? AND org_id IS NULL AND id IN (${placeholders})`,
+  )
+    .bind(role, ...ids)
+    .all();
+  const byId = new Map((rows.results || []).map((r) => [r.id, r]));
+
+  const graded = [];
+  const review = [];
+  let correct = 0;
+  for (const a of answers) {
+    const it = byId.get(a?.id);
+    if (!it) continue;
+    const ans = JSON.parse(it.answer);
+    const ok = gradeObjective(it.type, ans, a.choice);
+    if (ok) correct += 1;
+    graded.push({ weight: it.difficulty || 1, correct: ok });
+    // Safe to reveal now the answer is in: feeds the post-run review.
+    review.push({ id: it.id, correct: ok, answer: ans, explain: it.explain || '' });
+  }
+  if (!graded.length) return fail(c, 400, 'No valid items.');
+
+  const score = objectiveScore(graded);
+  const band = scoreBand(score);
+  const id = randomHex(16);
+  await c.env.DB.prepare(
+    `INSERT INTO score_results (id, user_id, role, score, items_total, items_correct, detail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, user.id, role, score, graded.length, correct, JSON.stringify({ band }), nowIso())
+    .run();
+
+  return c.json({ id, role, score, band, correct, total: graded.length, review });
+});
+
+// A learner's own recent runs, best per role first for the dashboard.
+app.get('/api/score/mine', async (c) => {
+  const user = c.get('user');
+  const rows = await c.env.DB.prepare(
+    `SELECT id, role, score, items_total, items_correct, created_at
+       FROM score_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
+  )
+    .bind(user.id)
+    .all();
+  const runs = (rows.results || []).map((r) => ({
+    id: r.id,
+    role: r.role,
+    score: r.score,
+    band: scoreBand(r.score),
+    total: r.items_total,
+    correct: r.items_correct,
+    date: r.created_at,
+  }));
+  return c.json({ runs });
+});
+
+// Public verify page data. The holder shares the link deliberately. No name is
+// shown yet: accounts carry only an email, which must not appear on a public
+// page, so a display identity waits for user profiles.
+app.get('/api/score/r/:id', async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT role, score, items_total, items_correct, created_at
+       FROM score_results WHERE id = ?`,
+  )
+    .bind(c.req.param('id'))
+    .first();
+  if (!row) return fail(c, 404, 'No such score.');
+  return c.json({
+    role: row.role,
+    score: row.score,
+    band: scoreBand(row.score),
+    total: row.items_total,
+    correct: row.items_correct,
+    date: row.created_at,
+  });
+});
 
 /* ----------------------------------------------------------------- auth */
 

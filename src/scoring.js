@@ -33,3 +33,34 @@ export function readinessBand(hold, seen) {
   if (hold < 88) return 'close';
   return 'ready';
 }
+
+// --- SecMox Score (objective, auto-graded) ---
+
+// Is an answer to an objective item correct? For mcq/pick the choice is the
+// chosen option index; for order it is the chosen sequence of option indices,
+// right only if it matches the answer exactly.
+export function gradeObjective(type, answer, choice) {
+  if (type === 'order') {
+    if (!Array.isArray(choice) || !Array.isArray(answer) || choice.length !== answer.length) return false;
+    return choice.every((v, i) => v === answer[i]);
+  }
+  return choice === answer;
+}
+
+// Turn graded items into a 0..1000 score, weighting each by its difficulty so a
+// hard item is worth more than an easy one. graded: [{ weight, correct }].
+export function objectiveScore(graded) {
+  const possible = graded.reduce((s, g) => s + (g.weight || 1), 0);
+  if (!possible) return 0;
+  const earned = graded.reduce((s, g) => s + (g.correct ? g.weight || 1 : 0), 0);
+  return Math.round((earned / possible) * 1000);
+}
+
+// A human-readable band for a 0..1000 score, shared vocabulary with readiness.
+export function scoreBand(score) {
+  if (score >= 850) return 'ready';
+  if (score >= 700) return 'close';
+  if (score >= 500) return 'building';
+  if (score >= 300) return 'shaky';
+  return 'cold';
+}

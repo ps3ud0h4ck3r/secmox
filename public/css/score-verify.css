@@ -1,0 +1,92 @@
+/* Self-contained styles for the public SecMox Score verify page. Kept separate
+   from the app stylesheets so this lightweight public page carries only what it
+   needs. */
+
+:root {
+  --bg: #05070B;
+  --panel-2: #0C131C;
+  --text: #E6EEF7;
+  --dim: #A9B8C9;
+  --faint: #8798AC;
+  --neon: #29B6FF;
+  --neon-hi: #7FD3FF;
+  --mint: #5FE3A1;
+  --amber: #FFC24D;
+  --alarm: #FF6B5E;
+  --line: rgba(41, 182, 255, .18);
+  --line-soft: rgba(41, 182, 255, .1);
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --display: 'Chakra Petch', 'IBM Plex Sans', system-ui, sans-serif;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.verify-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 18px;
+}
+.verify-card {
+  width: 100%;
+  max-width: 440px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 34px 28px;
+  text-align: center;
+  background: linear-gradient(180deg, var(--panel-2), #070B10);
+}
+.verify-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--text);
+}
+.verify-brand svg { width: 26px; height: 26px; }
+.verify-label {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+.verify-big {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 76px;
+  line-height: 1.05;
+  margin: 8px 0;
+}
+.verify-band { margin: 0 0 4px; font-size: 15px; text-transform: capitalize; color: var(--dim); }
+.verify-sub { margin: 2px 0 0; font-size: 13px; color: var(--faint); }
+.verify-meta {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  color: var(--faint);
+  line-height: 1.6;
+}
+.verify-meta a { color: var(--neon); }
+.verify-note { margin-top: 14px; font-size: 12px; color: var(--faint); line-height: 1.55; }
+
+.band-ready { color: var(--mint); }
+.band-close { color: var(--neon); }
+.band-building { color: var(--neon-hi); }
+.band-shaky { color: var(--amber); }
+.band-cold { color: var(--alarm); }

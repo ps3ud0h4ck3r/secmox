@@ -57,6 +57,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>Tracks</button>
     <button class="side-link" type="button" data-view="readinessView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 9 9"/><path d="M12 7v5l3 2"/></svg>Readiness</button>
+    <button class="side-link" type="button" data-view="scoreView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Score</button>
     <button class="side-link" type="button" data-view="mockView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Mock</button>
     <button class="side-link" type="button" data-view="accountView">
@@ -398,6 +400,13 @@
 
     <div class="ready-list" id="readyList"></div>
     <p class="msg" id="readyMsg"></p>
+  </section>
+
+  <!-- --------------------------------------------------- score -->
+  <section id="scoreView" class="view" hidden>
+    <p class="kicker">&gt; score</p>
+    <h1>SecMox Score</h1>
+    <div id="scoreBody"></div>
   </section>
 
   <!-- --------------------------------------------------- mock (coming soon) -->
