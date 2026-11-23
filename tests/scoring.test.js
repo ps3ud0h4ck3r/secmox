@@ -7,6 +7,7 @@ import {
   gradeObjective,
   objectiveScore,
   scoreBand,
+  confidenceGapLabel,
 } from '../src/scoring.js';
 
 describe('RATING_WEIGHT', () => {
@@ -105,5 +106,21 @@ describe('scoreBand', () => {
     expect(scoreBand(700)).toBe('close');
     expect(scoreBand(850)).toBe('ready');
     expect(scoreBand(1000)).toBe('ready');
+  });
+});
+
+describe('confidenceGapLabel', () => {
+  it('flags a clear positive gap as overconfident', () => {
+    expect(confidenceGapLabel(15)).toBe('overconfident');
+    expect(confidenceGapLabel(40)).toBe('overconfident');
+  });
+  it('flags a clear negative gap as underconfident', () => {
+    expect(confidenceGapLabel(-15)).toBe('underconfident');
+    expect(confidenceGapLabel(-50)).toBe('underconfident');
+  });
+  it('treats a small gap as calibrated', () => {
+    expect(confidenceGapLabel(0)).toBe('calibrated');
+    expect(confidenceGapLabel(14)).toBe('calibrated');
+    expect(confidenceGapLabel(-14)).toBe('calibrated');
   });
 });

@@ -64,3 +64,12 @@ export function scoreBand(score) {
   if (score >= 300) return 'shaky';
   return 'cold';
 }
+
+// The confidence gap: felt readiness (self-rated hold, a percent) minus measured
+// (the objective score as a percent). A clear positive means the candidate
+// feels more ready than they tested, which is how people fail interviews.
+export function confidenceGapLabel(gap) {
+  if (gap >= 15) return 'overconfident';
+  if (gap <= -15) return 'underconfident';
+  return 'calibrated';
+}

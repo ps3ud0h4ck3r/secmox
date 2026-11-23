@@ -110,6 +110,7 @@ function card(r) {
     ),
     line('Scenarios', `${r.scenarios.done} of ${r.scenarios.total} written`, !r.scenarios.total),
     line('Labs', `${r.labs.done} of ${r.labs.total} opened`, !r.labs.total),
+    line('SecMox Score', r.score === null ? 'not taken yet' : `${r.score} / 1000`, r.score === null),
     line('Last seen', sinceLabel(r.last_practiced), true),
   );
 
@@ -117,8 +118,52 @@ function card(r) {
   move.className = 'ready-move';
   move.textContent = nextMove(r);
 
-  el.append(head, score, bar, lines, move);
+  const parts = [head, score, bar, lines];
+  const gap = gapRow(r);
+  if (gap) parts.push(gap);
+  parts.push(move);
+  el.append(...parts);
   return el;
+}
+
+// The confidence gap: felt readiness (self-rated hold) against the measured
+// SecMox Score. The one reading no other tool gives, so it leads visually.
+function gapRow(r) {
+  const box = document.createElement('div');
+  if (r.gap_label === null) {
+    // Only prompt when they have practised but not tested; nothing to say on an
+    // untouched role.
+    if (r.seen === 0 || r.score !== null) return null;
+    box.className = 'ready-gap gap-none';
+    box.textContent = 'Take a Score test for this role to see your confidence gap.';
+    return box;
+  }
+  const map = {
+    overconfident: {
+      cls: 'gap-over',
+      title: 'Overconfident',
+      text: `You feel more ready than you tested (+${r.gap}). This is the gap that fails interviews. Close it before you sit one.`,
+    },
+    underconfident: {
+      cls: 'gap-under',
+      title: 'Underconfident',
+      text: `You tested better than you feel (${r.gap}). The risk here is nerves, not knowledge.`,
+    },
+    calibrated: {
+      cls: 'gap-ok',
+      title: 'Well calibrated',
+      text: 'Your sense of how ready you are matches how you tested.',
+    },
+  }[r.gap_label];
+  box.className = `ready-gap ${map.cls}`;
+  const t = document.createElement('span');
+  t.className = 'ready-gap-title';
+  t.textContent = `Confidence gap: ${map.title}`;
+  const d = document.createElement('p');
+  d.className = 'ready-gap-text';
+  d.textContent = map.text;
+  box.append(t, d);
+  return box;
 }
 
 export async function loadReadiness() {

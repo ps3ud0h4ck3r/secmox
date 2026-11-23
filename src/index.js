@@ -34,6 +34,7 @@ import {
   gradeObjective,
   objectiveScore,
   scoreBand,
+  confidenceGapLabel,
 } from './scoring.js';
 
 const app = new Hono();
@@ -1105,6 +1106,18 @@ app.get('/api/readiness', async (c) => {
   const scByRole = new Map((scenarioRows.results ?? []).map((r) => [r.role, r]));
   const labByRole = new Map((labRows.results ?? []).map((r) => [r.role, r]));
 
+  // The trustworthy signal: the latest objective SecMox Score per role. Comparing
+  // it against the self-rated practice hold gives the confidence gap.
+  const scoreRows = await c.env.DB.prepare(
+    `SELECT role, score FROM score_results
+      WHERE user_id = ? AND created_at = (
+        SELECT MAX(created_at) FROM score_results s2 WHERE s2.user_id = ? AND s2.role = score_results.role
+      )`,
+  )
+    .bind(user.id, user.id)
+    .all();
+  const scoreByRole = new Map((scoreRows.results ?? []).map((r) => [r.role, r.score]));
+
   const roles = new Map();
   for (const row of questionRows.results ?? []) {
     if (!roles.has(row.role)) {
@@ -1147,6 +1160,19 @@ app.get('/api/readiness', async (c) => {
       const sc = scByRole.get(bucket.role);
       const lab = labByRole.get(bucket.role);
 
+      // Confidence gap: how you rate yourself (hold, from self-rated practice)
+      // versus how you actually tested (the objective score, scaled to a
+      // percent). Positive means you feel more ready than you are. Only read it
+      // when both signals exist.
+      const objScore = scoreByRole.has(bucket.role) ? scoreByRole.get(bucket.role) : null;
+      const scorePct = objScore === null ? null : Math.round(objScore / 10);
+      let gap = null;
+      let gapLabel = null;
+      if (objScore !== null && seen > 0) {
+        gap = hold - scorePct;
+        gapLabel = confidenceGapLabel(gap);
+      }
+
       const weak = [...bucket.topics.values()]
         .map((t) => ({ topic: t.topic, hold: t.total ? Math.round((t.points / t.total) * 100) : 0 }))
         .sort((a, b) => a.hold - b.hold)
@@ -1165,6 +1191,10 @@ app.get('/api/readiness', async (c) => {
         depth_pct: depthAvailable ? Math.round((depthReached / depthAvailable) * 100) : null,
         scenarios: { total: sc?.total ?? 0, done: sc?.done ?? 0 },
         labs: { total: lab?.total ?? 0, done: lab?.done ?? 0 },
+        score: objScore,
+        score_pct: scorePct,
+        gap,
+        gap_label: gapLabel,
         weak_topics: weak,
         last_practiced: lastAt,
       };

@@ -885,3 +885,17 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .score-rev-ans{margin:0 0 3px;font-size:13.5px;color:var(--mint)}
 .score-rev-why{margin:0;font-size:13px;color:var(--faint);line-height:1.5}
 .score-again{margin-top:20px}
+
+/* ------------------------------------------------ readiness confidence gap */
+.ready-gap{margin:14px 0 2px;padding:12px 14px;border-radius:10px;border:1px solid var(--line-soft);
+  background:#05080D}
+.ready-gap-title{display:block;font-family:var(--mono);font-size:11.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.ready-gap-text{margin:0;font-size:13px;color:var(--dim);line-height:1.5}
+.ready-gap.gap-over{border-color:rgba(255,194,77,.4)}
+.ready-gap.gap-over .ready-gap-title{color:var(--amber)}
+.ready-gap.gap-under{border-color:rgba(41,182,255,.4)}
+.ready-gap.gap-under .ready-gap-title{color:var(--neon)}
+.ready-gap.gap-ok{border-color:rgba(95,227,161,.4)}
+.ready-gap.gap-ok .ready-gap-title{color:var(--mint)}
+.ready-gap.gap-none{color:var(--faint);font-size:12.5px}
