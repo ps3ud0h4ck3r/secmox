@@ -88,6 +88,21 @@ export function resetEmail(link) {
   };
 }
 
+export function verifyEmail(link) {
+  return {
+    subject: 'Confirm your SecMox email',
+    text: [
+      'Welcome to SecMox, a practice space for cybersecurity and IT interviews.',
+      '',
+      'Confirm this email address by opening the link below:',
+      link,
+      '',
+      'The link works once and expires in a few days. You can keep using',
+      'SecMox in the meantime; this just verifies the address is yours.',
+    ].join('\n'),
+  };
+}
+
 export function inviteEmail(link, orgName, days) {
   const team = orgName || 'A team';
   return {

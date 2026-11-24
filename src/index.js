@@ -25,7 +25,7 @@ import {
   isContentAdmin,
   verifyPassword,
 } from './auth.js';
-import { mailConfigured, resetEmail, inviteEmail, sendMail, sendMailBatch } from './mail.js';
+import { mailConfigured, resetEmail, verifyEmail, inviteEmail, sendMail, sendMailBatch } from './mail.js';
 import { fillChain } from './vars.js';
 import {
   RATING_WEIGHT,
@@ -132,6 +132,8 @@ const OPEN_ROUTES = new Set([
   '/api/auth/login',
   '/api/auth/forgot',
   '/api/auth/reset',
+  // Clicked from a confirmation email, before the person is necessarily signed in.
+  '/api/auth/verify',
   // Reading an invite needs only the token, which is itself the secret, so the
   // invitee can see who invited them before they have an account. Accepting
   // still requires being signed in as the invited email.
@@ -146,7 +148,9 @@ app.use('/api/*', async (c, next) => {
   // behind auth.
   if (
     c.req.method === 'GET' &&
-    (pathname.startsWith('/api/score/r/') || pathname.startsWith('/api/score/v/'))
+    (pathname.startsWith('/api/score/r/') ||
+      pathname.startsWith('/api/score/v/') ||
+      pathname.startsWith('/api/profile/'))
   )
     return next();
   const user = await userForToken(c.env.DB, tokenFrom(c));
@@ -215,6 +219,30 @@ function cleanName(raw) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 60);
+}
+
+// Create a verification token and email the confirm link. Best-effort: never
+// blocks the flow it is called from, and quietly no-ops if mail is not set up.
+async function sendVerification(c, userId, email) {
+  try {
+    const token = randomHex(20);
+    const now = Date.now();
+    await c.env.DB.prepare(
+      'INSERT INTO email_verifications (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
+    )
+      .bind(token, userId, new Date(now).toISOString(), new Date(now + 3 * 86400000).toISOString())
+      .run();
+    const link = `${new URL(c.req.url).origin}/api/auth/verify?token=${token}`;
+    const { subject, text } = verifyEmail(link);
+    await sendMail(c.env, { to: email, subject, text });
+  } catch {
+    // Verification is a nudge, not a gate; a failure here must not break signup.
+  }
+}
+
+// A public profile handle: lowercase, starts alphanumeric, 3-24 chars.
+function validHandle(h) {
+  return typeof h === 'string' && /^[a-z0-9][a-z0-9-]{2,23}$/.test(h);
 }
 
 // Start a run: the scenario chains for a role, with the answer key stripped from
@@ -423,6 +451,109 @@ app.get('/api/score/r/:id', async (c) => {
   return c.json({ ...scorecard(row), ...bench });
 });
 
+/* ---------------------------------------------------- email verification */
+
+// Clicked from the confirmation email. Marks the address verified and bounces
+// back into the app, verified flag or not.
+app.get('/api/auth/verify', async (c) => {
+  const base = new URL(c.req.url).origin;
+  const token = c.req.query('token') || '';
+  if (!token) return c.redirect(`${base}/app/?verified=0`, 302);
+  const row = await c.env.DB.prepare(
+    'SELECT user_id, expires_at FROM email_verifications WHERE token = ?',
+  )
+    .bind(token)
+    .first();
+  if (!row || new Date(row.expires_at) < new Date()) {
+    if (row) await c.env.DB.prepare('DELETE FROM email_verifications WHERE token = ?').bind(token).run();
+    return c.redirect(`${base}/app/?verified=0`, 302);
+  }
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(row.user_id),
+    c.env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(row.user_id),
+  ]);
+  return c.redirect(`${base}/app/?verified=1`, 302);
+});
+
+// Re-send the confirmation email, for the nudge banner. Rate-limited per account.
+app.post('/api/auth/resend-verification', async (c) => {
+  const user = c.get('user');
+  if (user.email_verified) return c.json({ ok: true, already: true });
+  const blocked = await guardAuth(c, [[`verify-resend:${user.id}`, 3, 60]]);
+  if (blocked) return blocked;
+  await c.env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(user.id).run();
+  await sendVerification(c, user.id, user.email);
+  return c.json({ ok: true, mail: mailConfigured(c.env) });
+});
+
+/* ------------------------------------------------------- public profile */
+
+// Claim or change a public profile handle and the name it shows.
+app.post('/api/profile/claim', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  const handle = String(body?.handle || '').toLowerCase().trim();
+  if (!validHandle(handle)) {
+    return fail(
+      c,
+      400,
+      'Handle must be 3-24 characters: lowercase letters, numbers or dashes, starting with a letter or number.',
+    );
+  }
+  const display = cleanName(body?.display_name) || user.display_name || null;
+  const clash = await c.env.DB.prepare('SELECT id FROM users WHERE handle = ? AND id != ?')
+    .bind(handle, user.id)
+    .first();
+  if (clash) return fail(c, 409, 'That handle is already taken.');
+  await c.env.DB.prepare('UPDATE users SET handle = ?, display_name = ? WHERE id = ?')
+    .bind(handle, display, user.id)
+    .run();
+  return c.json({ ok: true, handle, display_name: display });
+});
+
+// Public profile by handle: the candidate's best score per role, each with a
+// verify code. Email is never shown. Rate-limited like the other public reads.
+app.get('/api/profile/:handle', async (c) => {
+  const blocked = await guardAuth(c, [[`profile:ip:${clientIp(c)}`, 60, 10]]);
+  if (blocked) return blocked;
+  const handle = String(c.req.param('handle') || '').toLowerCase();
+  const u = await c.env.DB.prepare('SELECT id, handle, display_name FROM users WHERE handle = ?')
+    .bind(handle)
+    .first();
+  if (!u) return fail(c, 404, 'No such profile.');
+  const rows = await c.env.DB.prepare(
+    'SELECT role, score, code, detail, created_at FROM score_results WHERE user_id = ? ORDER BY score DESC',
+  )
+    .bind(u.id)
+    .all();
+  const best = new Map();
+  for (const r of rows.results || []) if (!best.has(r.role)) best.set(r.role, r);
+  const roles = [];
+  for (const r of best.values()) {
+    let band = scoreBand(r.score);
+    try {
+      const d = JSON.parse(r.detail || '{}');
+      if (d.band) band = d.band;
+    } catch {
+      /* older rows carry only the headline */
+    }
+    const bench = await benchmark(c.env.DB, r.role, r.score);
+    const ageMs = Date.now() - new Date(r.created_at).getTime();
+    roles.push({
+      role: r.role,
+      position: POSITION[r.role] || r.role,
+      score: r.score,
+      band,
+      code: r.code || null,
+      date: r.created_at,
+      fresh: ageMs < 90 * 86400000,
+      percentile: bench.percentile,
+    });
+  }
+  roles.sort((a, b) => b.score - a.score);
+  return c.json({ handle: u.handle, name: u.display_name || null, roles });
+});
+
 /* ----------------------------------------------------------------- auth */
 
 app.post('/api/auth/signup', async (c) => {
@@ -461,7 +592,8 @@ app.post('/api/auth/signup', async (c) => {
 
   const { token } = await createSession(c.env.DB, id);
   signIn(c, token);
-  return c.json({ user: { id, email, track, is_admin: false } }, 201);
+  await sendVerification(c, id, email);
+  return c.json({ user: { id, email, track, is_admin: false, email_verified: false } }, 201);
 });
 
 app.post('/api/auth/login', async (c) => {
@@ -3089,15 +3221,125 @@ app.all('*', (c) => {
 const OLD_HOST = 'secmox.superakash.workers.dev';
 const NEW_ORIGIN = 'https://secmox.com';
 
+// --- Social preview (OG) injection for shareable pages -----------------------
+// Scrapers (LinkedIn, WhatsApp, Twitter) do not run the page's JS, so a per-score
+// or per-profile preview must be baked into the HTML at serve time. We fetch the
+// page's static shell and inject personalised OG/Twitter tags; the brand image is
+// reused so a clean thumbnail always shows.
+
+const ogEsc = (s) =>
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+function ogTags({ title, description, image, pageUrl }) {
+  return [
+    `<meta property="og:title" content="${ogEsc(title)}">`,
+    `<meta property="og:description" content="${ogEsc(description)}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${ogEsc(pageUrl)}">`,
+    `<meta property="og:image" content="${ogEsc(image)}">`,
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${ogEsc(title)}">`,
+    `<meta name="twitter:description" content="${ogEsc(description)}">`,
+    `<meta name="twitter:image" content="${ogEsc(image)}">`,
+    `<meta name="description" content="${ogEsc(description)}">`,
+  ].join('\n');
+}
+
+async function serveWithOg(env, assetPath, url, tags) {
+  const res = await env.ASSETS.fetch(new Request(new URL(assetPath, url.origin)));
+  if (!res.ok) return res;
+  const html = (await res.text()).replace('</head>', `${tags}\n</head>`);
+  return new Response(html, {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
+  });
+}
+
+async function ogScore(env, url) {
+  const brand = `${url.origin}/og.png`;
+  let title = 'SecMox Score';
+  let desc = 'Verify a SecMox Score for a cybersecurity or IT role.';
+  try {
+    const code = url.searchParams.get('code');
+    const id = url.searchParams.get('id');
+    let row = null;
+    if (code)
+      row = await env.DB.prepare(
+        'SELECT role, score, candidate_name FROM score_results WHERE code = ?',
+      )
+        .bind(normalizeCode(code))
+        .first();
+    else if (id)
+      row = await env.DB.prepare(
+        'SELECT role, score, candidate_name FROM score_results WHERE id = ?',
+      )
+        .bind(id)
+        .first();
+    if (row) {
+      const pos = POSITION[row.role] || row.role;
+      const who = row.candidate_name ? `${row.candidate_name} - ` : '';
+      title = `${who}${pos} SecMox Score: ${row.score}`;
+      desc = `A verified SecMox Score (${row.score}/1000) for ${pos}, from a timed, scenario-based test. Check it on SecMox.`;
+    }
+  } catch {
+    /* fall back to the generic preview */
+  }
+  return serveWithOg(env, '/score/index.html', url, ogTags({ title, description: desc, image: brand, pageUrl: url.href }));
+}
+
+async function ogProfile(env, url) {
+  const brand = `${url.origin}/og.png`;
+  let title = 'SecMox profile';
+  let desc = 'A candidate’s SecMox Scores across cybersecurity and IT roles.';
+  try {
+    const handle = url.pathname.replace(/^\/u\//, '').replace(/\/+$/, '').toLowerCase();
+    if (handle) {
+      const u = await env.DB.prepare('SELECT id, display_name FROM users WHERE handle = ?')
+        .bind(handle)
+        .first();
+      if (u) {
+        const name = u.display_name || 'A candidate';
+        const top = await env.DB.prepare(
+          'SELECT role, score FROM score_results WHERE user_id = ? ORDER BY score DESC LIMIT 1',
+        )
+          .bind(u.id)
+          .first();
+        if (top) {
+          const pos = POSITION[top.role] || top.role;
+          title = `${name} on SecMox - ${pos} Score ${top.score}`;
+          desc = `${name}'s SecMox Scores for cybersecurity and IT roles. Top: ${pos} ${top.score}/1000. Verify on SecMox.`;
+        } else {
+          title = `${name} on SecMox`;
+        }
+      }
+    }
+  } catch {
+    /* fall back to the generic preview */
+  }
+  return serveWithOg(env, '/u/index.html', url, ogTags({ title, description: desc, image: brand, pageUrl: url.href }));
+}
+
 export default {
-  fetch(request, env, ctx) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.hostname === OLD_HOST) {
       return Response.redirect(NEW_ORIGIN + url.pathname + url.search, 301);
     }
-    if (!url.pathname.startsWith('/api/') && env.ASSETS) {
-      return env.ASSETS.fetch(request);
+    if (url.pathname.startsWith('/api/')) return app.fetch(request, env, ctx);
+    if (!env.ASSETS) return app.fetch(request, env, ctx);
+    // Shareable pages get server-injected previews; profile uses clean /u/<handle>.
+    if (url.pathname === '/score/' || url.pathname === '/score/index.html') {
+      return ogScore(env, url);
     }
-    return app.fetch(request, env, ctx);
+    if (url.pathname.startsWith('/u/')) {
+      return ogProfile(env, url);
+    }
+    return env.ASSETS.fetch(request);
   },
 };

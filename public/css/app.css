@@ -964,3 +964,19 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .con-edit-input:focus{outline:none;border-color:var(--neon)}
 .inf.con-danger{color:var(--alarm);border-color:rgba(255,107,94,.35)}
 .inf.con-danger:hover{background:rgba(255,107,94,.1)}
+
+/* ------------------------------------------------ email verification banner */
+.verify-banner{position:sticky;top:0;z-index:49;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;flex-wrap:wrap;padding:10px 20px;
+  background:#07202E;border-bottom:1px solid rgba(41,182,255,.4);color:#BFE6FB;font-size:14px}
+.verify-banner .inf{border-color:rgba(41,182,255,.4);color:#BFE6FB}
+.verify-banner-actions{display:flex;gap:8px;flex:none}
+.verify-banner.is-ok{background:#06241A;border-bottom-color:rgba(95,227,161,.4);color:#BFF0D8}
+.verify-banner.is-ok .inf{border-color:rgba(95,227,161,.4);color:#BFF0D8}
+
+/* ------------------------------------------------ Score: public profile block */
+.score-profile{margin:22px 0;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+.score-profile h3{margin:0 0 8px;font-size:15px}
+.score-claim{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.score-claim .score-nameinput{flex:1;min-width:160px;margin:0}
+.score-claim-toggle{margin-top:10px}

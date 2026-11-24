@@ -12,8 +12,20 @@ CREATE TABLE IF NOT EXISTS users (
   platform_role TEXT,
   target_role   TEXT,
   onboarded_at  TEXT,
+  handle        TEXT,
+  display_name  TEXT,
+  email_verified INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle);
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_emailverif_user ON email_verifications(user_id);
 
 -- One readiness reading per user per day, written when they open the dashboard.
 -- The trend line is built from these; history accrues a point at a time.

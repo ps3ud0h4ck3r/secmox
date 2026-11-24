@@ -93,10 +93,101 @@ function renderStart() {
   }
   root.append(picker);
 
+  const prof = el('div', 'score-profile');
+  prof.id = 'scoreProfile';
+  root.append(prof);
+  loadProfileBlock();
+
   const past = el('div', 'score-past');
   past.id = 'scorePast';
   root.append(past);
   loadMine();
+}
+
+// The candidate's public profile: one shareable link carrying all their scores.
+async function loadProfileBlock() {
+  const box = $('scoreProfile');
+  if (!box) return;
+  let me;
+  try {
+    me = (await api('/api/me')).user;
+  } catch {
+    return;
+  }
+  box.replaceChildren();
+  box.append(el('h3', null, 'Your public profile'));
+  if (me.handle) {
+    const url = `https://${location.host}/u/${me.handle}`;
+    box.append(el('p', 'sub', 'One link with all your scores, for your resume or LinkedIn:'));
+    const row = el('div', 'score-link-row');
+    const field = el('input', 'score-link');
+    field.type = 'text';
+    field.readOnly = true;
+    field.value = url;
+    field.setAttribute('aria-label', 'Your public profile link');
+    const copy = el('button', 'btn-ghost', 'Copy');
+    copy.type = 'button';
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        copy.textContent = 'Copied';
+        setTimeout(() => (copy.textContent = 'Copy'), 1500);
+      } catch {
+        field.select();
+      }
+    });
+    const open = el('a', 'btn-ghost', 'Open');
+    open.href = `/u/${me.handle}`;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    row.append(field, copy, open);
+    box.append(row);
+    const change = el('button', 'btn-ghost score-claim-toggle', 'Change handle or name');
+    change.type = 'button';
+    change.addEventListener('click', () => renderClaimForm(me));
+    box.append(change);
+  } else {
+    renderClaimForm(me);
+  }
+}
+
+function renderClaimForm(me) {
+  const box = $('scoreProfile');
+  box.replaceChildren();
+  box.append(el('h3', null, 'Your public profile'));
+  box.append(
+    el('p', 'sub', 'Claim a handle for one shareable page with all your scores: secmox.com/u/your-handle'),
+  );
+  const form = el('div', 'score-claim');
+  const nameIn = el('input', 'score-nameinput');
+  nameIn.type = 'text';
+  nameIn.placeholder = 'Name to show';
+  nameIn.maxLength = 60;
+  nameIn.value = me.display_name || '';
+  const handleIn = el('input', 'score-nameinput');
+  handleIn.type = 'text';
+  handleIn.placeholder = 'handle, e.g. priya-sharma';
+  handleIn.maxLength = 24;
+  handleIn.value = me.handle || '';
+  const go = el('button', 'btn', 'Claim profile');
+  go.type = 'button';
+  const msg = el('p', 'msg');
+  msg.id = 'claimMsg';
+  go.addEventListener('click', async () => {
+    go.disabled = true;
+    try {
+      await api('/api/profile/claim', {
+        method: 'POST',
+        body: JSON.stringify({ handle: handleIn.value.trim().toLowerCase(), display_name: nameIn.value.trim() }),
+      });
+      loadProfileBlock();
+    } catch (err) {
+      say($('claimMsg'), err.message, 'err');
+      go.disabled = false;
+    }
+  });
+  form.append(nameIn, handleIn, go, msg);
+  box.append(form);
 }
 
 async function loadMine() {

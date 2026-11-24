@@ -323,6 +323,69 @@ $('signOut').addEventListener('click', async () => {
   needsAuth();
 });
 
+/* --------------------------------------------------- email verification */
+
+// A soft nudge, not a gate: unverified users keep full access and just see a
+// dismissible banner until they confirm.
+function maybeEmailBanner() {
+  const b = $('verifyBanner');
+  if (!b) return;
+  let dismissed = false;
+  try {
+    dismissed = sessionStorage.getItem('sm_verify_dismiss') === '1';
+  } catch (_) {
+    /* private mode; treat as not dismissed */
+  }
+  b.hidden = !(state.user && state.user.email_verified === false && !dismissed);
+}
+
+$('verifyDismiss')?.addEventListener('click', () => {
+  try {
+    sessionStorage.setItem('sm_verify_dismiss', '1');
+  } catch (_) {
+    /* ignore */
+  }
+  $('verifyBanner').hidden = true;
+});
+
+$('verifyResend')?.addEventListener('click', async () => {
+  const btn = $('verifyResend');
+  const prev = btn.textContent;
+  btn.disabled = true;
+  try {
+    const out = await api('/api/auth/resend-verification', { method: 'POST' });
+    btn.textContent = out.already ? 'Already verified' : out.mail === false ? 'Email not set up' : 'Sent';
+  } catch {
+    btn.textContent = 'Try later';
+  }
+  setTimeout(() => {
+    btn.textContent = prev;
+    btn.disabled = false;
+  }, 2500);
+});
+
+// The confirm link bounces back to /app/?verified=1 (or 0). Show the outcome and
+// strip the param so a refresh does not repeat it.
+function handleVerifiedParam() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('verified')) return;
+  const ok = p.get('verified') === '1';
+  const b = $('verifyBanner');
+  if (b) {
+    b.hidden = false;
+    b.classList.toggle('is-ok', ok);
+    $('verifyBannerMsg').textContent = ok
+      ? 'Email confirmed. Thanks.'
+      : 'That confirmation link has expired. Use Resend to get a new one.';
+    const actions = b.querySelector('.verify-banner-actions');
+    if (actions) actions.hidden = ok;
+    if (ok) setTimeout(() => (b.hidden = true), 4000);
+  }
+  p.delete('verified');
+  const qs = p.toString();
+  history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : ''));
+}
+
 /* ----------------------------------------------------------- account */
 
 function openAccount() {
@@ -402,6 +465,8 @@ async function enterApp() {
   await loadBookmarks();
   // Land on the dashboard, but pre-warm practice so switching there is instant.
   show('dashboardView');
+  handleVerifiedParam();
+  maybeEmailBanner();
   // None reject: each reports its own failure in place.
   await Promise.all([loadDashboard(), loadQuestion(), loadCoverage()]);
 }
