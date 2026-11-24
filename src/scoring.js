@@ -73,3 +73,30 @@ export function confidenceGapLabel(gap) {
   if (gap <= -15) return 'underconfident';
   return 'calibrated';
 }
+
+// --- Scenario-depth chains ---
+
+// How far up a chain the candidate climbed: the number of correct steps from the
+// start, stopping at the first wrong one. A pasted or guessed answer tends to
+// break the streak at the first real follow-up, so depth is hard to fake.
+export function chainDepth(stepCorrects) {
+  let depth = 0;
+  for (const ok of stepCorrects) {
+    if (!ok) break;
+    depth += 1;
+  }
+  return depth;
+}
+
+// Turn per-chain depth into a 0..1000 score. Each chain contributes the fraction
+// of its ladder climbed, weighted by its difficulty, so getting deep into a hard
+// scenario is worth more than clearing an easy one.
+export function chainsScore(chains) {
+  const possible = chains.reduce((s, c) => s + (c.weight || 1), 0);
+  if (!possible) return 0;
+  const earned = chains.reduce((s, c) => {
+    const frac = c.stepCount ? c.depth / c.stepCount : 0;
+    return s + frac * (c.weight || 1);
+  }, 0);
+  return Math.round((earned / possible) * 1000);
+}

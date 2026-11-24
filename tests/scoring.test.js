@@ -8,6 +8,8 @@ import {
   objectiveScore,
   scoreBand,
   confidenceGapLabel,
+  chainDepth,
+  chainsScore,
 } from '../src/scoring.js';
 
 describe('RATING_WEIGHT', () => {
@@ -122,5 +124,29 @@ describe('confidenceGapLabel', () => {
     expect(confidenceGapLabel(0)).toBe('calibrated');
     expect(confidenceGapLabel(14)).toBe('calibrated');
     expect(confidenceGapLabel(-14)).toBe('calibrated');
+  });
+});
+
+describe('chainDepth', () => {
+  it('counts leading correct steps and stops at the first wrong one', () => {
+    expect(chainDepth([true, true, true, true])).toBe(4);
+    expect(chainDepth([true, true, false, true])).toBe(2);
+    expect(chainDepth([false, true, true])).toBe(0);
+    expect(chainDepth([])).toBe(0);
+  });
+});
+
+describe('chainsScore', () => {
+  it('is 0 with no chains', () => {
+    expect(chainsScore([])).toBe(0);
+  });
+  it('is 1000 when every ladder is fully climbed', () => {
+    expect(chainsScore([{ stepCount: 4, depth: 4, weight: 2 }, { stepCount: 3, depth: 3, weight: 3 }])).toBe(1000);
+  });
+  it('scores the fraction climbed, weighted by difficulty', () => {
+    // One chain, climbed halfway: 500.
+    expect(chainsScore([{ stepCount: 4, depth: 2, weight: 2 }])).toBe(500);
+    // Easy chain fully (w1, frac1) + hard chain none (w3, frac0): 1/4 -> 250.
+    expect(chainsScore([{ stepCount: 2, depth: 2, weight: 1 }, { stepCount: 4, depth: 0, weight: 3 }])).toBe(250);
   });
 });

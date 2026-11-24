@@ -35,6 +35,8 @@ import {
   objectiveScore,
   scoreBand,
   confidenceGapLabel,
+  chainDepth,
+  chainsScore,
 } from './scoring.js';
 
 const app = new Hono();
@@ -165,79 +167,92 @@ function signIn(c, token) {
 
 /* -------------------------------------------------------------- score */
 
-// How many objective items a single Score run draws, at most. With a small bank
-// this takes everything available for the role; as the bank grows it samples.
-const SCORE_ITEMS_N = 12;
+// How many scenario chains a single Score run draws, at most.
+const SCORE_CHAINS_N = 4;
 
-// Start a run: objective items for a role, with the answer keys stripped out.
-app.get('/api/score/items', async (c) => {
+// Start a run: the scenario chains for a role, with the answer key stripped from
+// every step. The candidate climbs each ladder; depth is scored on submit.
+app.get('/api/score/chains', async (c) => {
   const role = c.req.query('role');
   if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
   const rows = await c.env.DB.prepare(
-    `SELECT id, topic, difficulty, type, prompt, body, options
-       FROM objective_items WHERE role = ? AND org_id IS NULL
-       ORDER BY RANDOM() LIMIT ?`,
+    `SELECT id, title, scenario, difficulty, steps FROM score_chains
+       WHERE role = ? AND org_id IS NULL ORDER BY difficulty, RANDOM() LIMIT ?`,
   )
-    .bind(role, SCORE_ITEMS_N)
+    .bind(role, SCORE_CHAINS_N)
     .all();
-  const items = (rows.results || []).map((r) => ({
+  const chains = (rows.results || []).map((r) => ({
     id: r.id,
-    topic: r.topic,
+    title: r.title,
+    scenario: r.scenario,
     difficulty: r.difficulty,
-    type: r.type,
-    prompt: r.prompt,
-    body: r.body || null,
-    options: JSON.parse(r.options),
+    steps: JSON.parse(r.steps).map((s) => ({
+      label: s.label || null,
+      prompt: s.prompt,
+      type: s.type,
+      options: s.options,
+    })),
   }));
-  return c.json({ role, count: items.length, items });
+  return c.json({ role, count: chains.length, chains });
 });
 
-// Grade a run server-side (the client never holds the answer keys), store the
-// result under a shareable id, and return the SecMox Score.
+// Grade the run server-side (the client never holds the answer keys). For each
+// chain, depth is how far the candidate climbed before the first wrong step; the
+// score weights depth by difficulty. Store under a shareable id.
 app.post('/api/score/submit', async (c) => {
   const user = c.get('user');
   const body = await c.req.json().catch(() => null);
   const role = body?.role;
   if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
-  const answers = Array.isArray(body?.answers) ? body.answers : [];
-  const ids = [...new Set(answers.map((a) => a?.id).filter((x) => typeof x === 'string'))].slice(0, 50);
+  const runs = Array.isArray(body?.runs) ? body.runs : [];
+  const ids = [...new Set(runs.map((r) => r?.id).filter((x) => typeof x === 'string'))].slice(0, 20);
   if (!ids.length) return fail(c, 400, 'No answers to grade.');
 
   const placeholders = ids.map(() => '?').join(',');
   const rows = await c.env.DB.prepare(
-    `SELECT id, difficulty, type, answer, explain FROM objective_items
+    `SELECT id, title, difficulty, steps FROM score_chains
        WHERE role = ? AND org_id IS NULL AND id IN (${placeholders})`,
   )
     .bind(role, ...ids)
     .all();
   const byId = new Map((rows.results || []).map((r) => [r.id, r]));
 
-  const graded = [];
+  const chainResults = [];
   const review = [];
-  let correct = 0;
-  for (const a of answers) {
-    const it = byId.get(a?.id);
-    if (!it) continue;
-    const ans = JSON.parse(it.answer);
-    const ok = gradeObjective(it.type, ans, a.choice);
-    if (ok) correct += 1;
-    graded.push({ weight: it.difficulty || 1, correct: ok });
-    // Safe to reveal now the answer is in: feeds the post-run review.
-    review.push({ id: it.id, correct: ok, answer: ans, explain: it.explain || '' });
+  let totalSteps = 0;
+  let totalCorrect = 0;
+  for (const run of runs) {
+    const ch = byId.get(run?.id);
+    if (!ch) continue;
+    const steps = JSON.parse(ch.steps);
+    const choices = Array.isArray(run.answers) ? run.answers : [];
+    const stepCorrects = steps.map((st, i) => gradeObjective(st.type, st.answer, choices[i]));
+    const depth = chainDepth(stepCorrects);
+    const correct = stepCorrects.filter(Boolean).length;
+    totalSteps += steps.length;
+    totalCorrect += correct;
+    chainResults.push({ stepCount: steps.length, depth, weight: ch.difficulty || 1 });
+    review.push({
+      id: ch.id,
+      title: ch.title,
+      depth,
+      step_count: steps.length,
+      steps: steps.map((st, i) => ({ correct: stepCorrects[i], answer: st.answer, explain: st.explain || '' })),
+    });
   }
-  if (!graded.length) return fail(c, 400, 'No valid items.');
+  if (!chainResults.length) return fail(c, 400, 'No valid chains.');
 
-  const score = objectiveScore(graded);
+  const score = chainsScore(chainResults);
   const band = scoreBand(score);
   const id = randomHex(16);
   await c.env.DB.prepare(
     `INSERT INTO score_results (id, user_id, role, score, items_total, items_correct, detail, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, user.id, role, score, graded.length, correct, JSON.stringify({ band }), nowIso())
+    .bind(id, user.id, role, score, totalSteps, totalCorrect, JSON.stringify({ band }), nowIso())
     .run();
 
-  return c.json({ id, role, score, band, correct, total: graded.length, review });
+  return c.json({ id, role, score, band, correct: totalCorrect, total: totalSteps, review });
 });
 
 // A learner's own recent runs, best per role first for the dashboard.

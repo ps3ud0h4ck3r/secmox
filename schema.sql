@@ -361,3 +361,20 @@ CREATE TABLE IF NOT EXISTS score_results (
   created_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scoreresults_user ON score_results(user_id, created_at);
+
+-- Scenario-depth chains for the SecMox Score: a realistic scenario and an
+-- ordered ladder of auto-scored steps that escalate in difficulty. The score
+-- rewards how far the candidate climbs correctly (depth), not flat correctness,
+-- which is what separates it from a generic quiz. steps is a JSON array of
+-- {label, prompt, type ('mcq'|'order'), options[], answer, explain}.
+CREATE TABLE IF NOT EXISTS score_chains (
+  id         TEXT PRIMARY KEY,
+  role       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  scenario   TEXT NOT NULL,
+  difficulty INTEGER NOT NULL DEFAULT 2,
+  steps      TEXT NOT NULL,
+  org_id     TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_score_chains_role ON score_chains(role);
