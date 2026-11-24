@@ -1048,6 +1048,44 @@ app.get('/api/next', async (c) => {
     if (row) mode = 'review';
   }
 
+  // Safety net: the exact combo has nothing at all (e.g. a difficulty that does
+  // not exist at this level). Rather than hand the user a blank screen, widen the
+  // search, dropping difficulty first, then level, and tell the client what was
+  // relaxed so it can show a short note. The data-driven filters should keep this
+  // from happening, but a stale picker or a race should never dead-end the user.
+  let relaxed = null;
+  if (!row) {
+    const tries = [];
+    if (diff === '1' || diff === '2' || diff === '3') tries.push({ lvl: level, note: 'difficulty' });
+    if (level) tries.push({ lvl: null, note: 'difficulty and level' });
+    for (const t of tries) {
+      const w = ['1 = 1'];
+      const a = [];
+      if (role) {
+        w.push('q.role = ?');
+        a.push(role);
+      }
+      if (t.lvl) {
+        w.push('q.level = ?');
+        a.push(t.lvl);
+      }
+      row = await c.env.DB.prepare(
+        `SELECT q.id, q.role, q.topic, q.level, q.prompt, q.difficulty
+           FROM questions q
+          WHERE ${w.join(' AND ')} AND ${vis}
+          ORDER BY (q.id NOT IN (SELECT question_id FROM attempts WHERE user_id = ?)) DESC, RANDOM()
+          LIMIT 1`,
+      )
+        .bind(...a, user.id, user.id, user.id)
+        .first();
+      if (row) {
+        relaxed = t.note;
+        mode = 'relaxed';
+        break;
+      }
+    }
+  }
+
   if (!row) return c.json({ question: null });
 
   const followUps = await c.env.DB.prepare(
@@ -1068,6 +1106,46 @@ app.get('/api/next', async (c) => {
     },
     fresh: mode === 'fresh',
     mode,
+    relaxed,
+  });
+});
+
+// Which levels and difficulties actually have questions (per role), so the client
+// only offers filter values that can return something. Prevents the dead-end
+// combo (e.g. Fresher + Hard when no such question exists).
+app.get('/api/next/facets', async (c) => {
+  const user = c.get('user');
+  const role = c.req.query('role');
+  const vis = visibleSql('q', 'question');
+  const where = ['1 = 1'];
+  const args = [];
+  if (role && ROLES.has(role)) {
+    where.push('q.role = ?');
+    args.push(role);
+  }
+  const rows = await c.env.DB.prepare(
+    `SELECT DISTINCT q.level AS level, q.difficulty AS difficulty
+       FROM questions q WHERE ${where.join(' AND ')} AND ${vis}`,
+  )
+    .bind(...args, user.id, user.id)
+    .all();
+  const levels = new Set();
+  const difficulties = new Set();
+  const diffByLevel = {};
+  for (const r of rows.results || []) {
+    if (r.level) levels.add(r.level);
+    if (r.difficulty) {
+      difficulties.add(r.difficulty);
+      (diffByLevel[r.level] ??= new Set()).add(r.difficulty);
+    }
+  }
+  const out = {};
+  for (const k of Object.keys(diffByLevel)) out[k] = [...diffByLevel[k]].sort();
+  return c.json({
+    role: role && ROLES.has(role) ? role : null,
+    levels: [...levels],
+    difficulties: [...difficulties].sort(),
+    diffByLevel: out,
   });
 });
 

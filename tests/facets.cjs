@@ -1,0 +1,23 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const token = fs.readFileSync('/tmp/tok.txt', 'utf8').trim();
+const opts = (page) => page.$$eval('#fDiff option', (os) => os.map((o) => o.textContent.trim()));
+(async () => {
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext();
+  await ctx.addCookies([{ name: 'sm_session', value: token, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' }]);
+  const page = await ctx.newPage();
+  await page.goto('http://localhost:8799/app/');
+  await page.waitForSelector('[data-view="practiceView"]', { timeout: 8000 });
+  await page.click('[data-view="practiceView"]');
+  await page.waitForSelector('#fRole', { state: 'visible', timeout: 8000 });
+  await page.selectOption('#fRole', 'pentest');
+  await page.selectOption('#fLevel', 'fresher');
+  await page.waitForTimeout(700);
+  console.log('pentest + fresher -> difficulty:', (await opts(page)).join(', '));
+  console.log('  qMeta:', (await page.textContent('#qMeta')).trim(), '| answer box visible:', await page.isVisible('#qAnswerField'));
+  await page.selectOption('#fLevel', 'mid');
+  await page.waitForTimeout(700);
+  console.log('pentest + mid     -> difficulty:', (await opts(page)).join(', '));
+  await browser.close();
+})().catch((e) => { console.error('FAIL', e.message); process.exit(1); });

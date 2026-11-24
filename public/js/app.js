@@ -550,6 +550,8 @@ function resetCard() {
   state.nudged = false;
   $('qAnswer').value = '';
   $('qAnswer').readOnly = false;
+  $('qAnswerField').hidden = false;
+  $('qActions').hidden = false;
   $('answerArea').hidden = true;
   $('answerArea').replaceChildren();
   $('rateRow').hidden = true;
@@ -617,11 +619,55 @@ function loadFromRun() {
   );
 }
 
+// Rebuild the Difficulty dropdown so it only offers difficulties that actually
+// have questions for the chosen role and level. This is what stops the user ever
+// landing on an empty combo like Fresher + Hard: they cannot pick it.
+async function syncDiffOptions() {
+  const sel = $('fDiff');
+  if (!sel) return;
+  let facets;
+  try {
+    const qs = $('fRole').value ? `?role=${encodeURIComponent($('fRole').value)}` : '';
+    facets = await api('/api/next/facets' + qs);
+  } catch (_) {
+    return; // on failure leave the options as they are
+  }
+  const level = $('fLevel').value;
+  const allowed = new Set(
+    level && facets.diffByLevel[level] ? facets.diffByLevel[level] : facets.difficulties,
+  );
+  const LABEL = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+  const cur = sel.value;
+  sel.replaceChildren();
+  const any = document.createElement('option');
+  any.value = '';
+  any.textContent = 'Any difficulty';
+  sel.append(any);
+  for (const d of [1, 2, 3]) {
+    if (!allowed.has(d)) continue;
+    const o = document.createElement('option');
+    o.value = String(d);
+    o.textContent = LABEL[d];
+    sel.append(o);
+  }
+  // Keep the current choice if it still exists; otherwise fall back to Any so no
+  // impossible difficulty is ever sent.
+  sel.value = allowed.has(Number(cur)) ? cur : '';
+}
+
 async function loadQuestion() {
   if (state.run) return loadFromRun();
   resetCard();
   $('qPrompt').textContent = 'Loading a question.';
   $('qMeta').textContent = 'loading';
+
+  // Keep the Difficulty options in step with the chosen role/level before we read
+  // them, so the request can never carry a combo that has no questions.
+  const facetKey = `${$('fRole').value}|${$('fLevel').value}`;
+  if (state.facetKey !== facetKey) {
+    await syncDiffOptions();
+    state.facetKey = facetKey;
+  }
 
   const weak = $('fWeak').getAttribute('aria-pressed') === 'true';
   const saved = $('fSaved').getAttribute('aria-pressed') === 'true';
@@ -635,33 +681,40 @@ async function loadQuestion() {
   try {
     const out = await api('/api/next?' + params.toString());
     if (!out.question) {
+      // No question to answer, so no answer box: a blank textarea with nothing to
+      // respond to is the dead-end we are removing. Show only the message.
       state.question = null;
       $('reveal').hidden = true;
+      $('qAnswerField').hidden = true;
+      $('qActions').hidden = true;
+      $('qDepth').textContent = '';
       if (out.mode === 'saved') {
         $('qMeta').textContent = 'empty';
         $('qPrompt').textContent =
-          'Nothing saved with these filters. Star a question to save it, or turn Saved off for fresh questions.';
+          'Nothing saved yet. Star a question while practising to save it here, then turn Saved on.';
       } else if (out.mode === 'weak') {
         $('qMeta').textContent = 'clear';
         $('qPrompt').textContent =
-          'No weak spots here. Nothing you have faced is sitting on a missed or shaky mark. Turn Weak spots off for fresh questions.';
+          'No weak spots right now. Nothing you have faced is on a missed or shaky mark. Turn Weak spots off for fresh questions.';
       } else {
         $('qMeta').textContent = 'empty';
         $('qPrompt').textContent =
-          'Nothing here with those filters yet. Widen them, or add questions from the admin page.';
+          'No questions here yet. The filters above only offer combinations that have questions, so this is rare; pick another role or difficulty.';
       }
       return;
     }
     const note =
-      out.mode === 'saved'
-        ? 'From your saved questions.'
-        : out.mode === 'weak'
-          ? 'A weak spot: you marked this missed or shaky last time. Hold it now.'
-          : out.mode === 'due'
-            ? 'Back on schedule. Enough time has passed to see if it stuck.'
-            : out.mode === 'review'
-              ? 'Nothing new left with these filters, so here is the weakest one to keep warm.'
-              : '';
+      out.mode === 'relaxed'
+        ? `No questions for that exact ${out.relaxed === 'difficulty' ? 'difficulty' : 'filter'}, so here is the closest match.`
+        : out.mode === 'saved'
+          ? 'From your saved questions.'
+          : out.mode === 'weak'
+            ? 'A weak spot: you marked this missed or shaky last time. Hold it now.'
+            : out.mode === 'due'
+              ? 'Back on schedule. Enough time has passed to see if it stuck.'
+              : out.mode === 'review'
+                ? 'Nothing new left with these filters, so here is the weakest one to keep warm.'
+                : '';
     renderQuestion(out.question, note);
   } catch (err) {
     if (err.status === 401) return needsAuth();
