@@ -26,6 +26,7 @@ import {
   verifyPassword,
 } from './auth.js';
 import { mailConfigured, resetEmail, inviteEmail, sendMail, sendMailBatch } from './mail.js';
+import { fillChain } from './vars.js';
 import {
   RATING_WEIGHT,
   nextReview,
@@ -177,22 +178,26 @@ app.get('/api/score/chains', async (c) => {
   if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
   const rows = await c.env.DB.prepare(
     `SELECT id, title, scenario, difficulty, steps FROM score_chains
-       WHERE role = ? AND org_id IS NULL ORDER BY difficulty, RANDOM() LIMIT ?`,
+       WHERE role = ? AND org_id IS NULL ORDER BY RANDOM() LIMIT ?`,
   )
     .bind(role, SCORE_CHAINS_N)
     .all();
-  const chains = (rows.results || []).map((r) => ({
-    id: r.id,
-    title: r.title,
-    scenario: r.scenario,
-    difficulty: r.difficulty,
-    steps: JSON.parse(r.steps).map((s) => ({
-      label: s.label || null,
-      prompt: s.prompt,
-      type: s.type,
-      options: s.options,
-    })),
-  }));
+  // Strip answer keys, then fill the scenario's placeholder variables with fresh
+  // values so no two attempts look identical.
+  const chains = (rows.results || []).map((r) =>
+    fillChain({
+      id: r.id,
+      title: r.title,
+      scenario: r.scenario,
+      difficulty: r.difficulty,
+      steps: JSON.parse(r.steps).map((s) => ({
+        label: s.label || null,
+        prompt: s.prompt,
+        type: s.type,
+        options: s.options,
+      })),
+    }),
+  );
   return c.json({ role, count: chains.length, chains });
 });
 

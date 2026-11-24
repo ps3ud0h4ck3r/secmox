@@ -1,20 +1,30 @@
-// The SecMox Score: a timed, scenario-based test per role. Each scenario is a
-// ladder of escalating steps; the score rewards how far you climb correctly
-// (depth), not flat correctness. Every step has one right answer the server
-// checks, so the score cannot be self-inflated.
+// The SecMox Score: a timed, scenario-based test per role, taken one question at
+// a time. Each scenario is a ladder of escalating steps; the score rewards how
+// far you climb correctly (depth), not flat correctness. Scenario variables and
+// option order are randomised every attempt, and every step has one right answer
+// the server checks, so the score cannot be self-inflated or memorised by rote.
 
 import { $, api, say, ROLE_LABEL } from './common.js';
 
 const ROLES = ['soc', 'pentest', 'network', 'cloud', 'grc'];
 const roleName = (r) => ROLE_LABEL[r] || r;
 
-let run = null; // { role, chains, answers: Map<chainId, number[]>, timer, endsAt }
+let run = null;
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (text != null) e.textContent = text;
   return e;
+}
+
+function shuffle(n) {
+  const a = [...Array(n).keys()];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export function openScore() {
@@ -31,8 +41,9 @@ function renderStart() {
 
   const intro = el('p', 'sub');
   intro.textContent =
-    'A timed, scenario-based test. Each scenario is a ladder that gets harder step by step, ' +
-    'and your score is how far you climb correctly, not how many you tick. Pick a role to begin.';
+    'A timed, scenario-based test, one question at a time. Each scenario is a ladder that gets ' +
+    'harder step by step, and your score is how far you climb correctly, not how many you tick. ' +
+    'The details change every attempt. Pick a role to begin.';
   root.append(intro);
 
   const picker = el('div', 'score-roles');
@@ -76,7 +87,7 @@ async function loadMine() {
   }
 }
 
-// --- The test ---
+// --- The test: one question at a time ---
 
 async function startRun(role) {
   const root = $('scoreBody');
@@ -96,89 +107,112 @@ async function startRun(role) {
     root.append(back);
     return;
   }
-  const answers = new Map();
-  for (const ch of data.chains) answers.set(ch.id, new Array(ch.steps.length).fill(null));
-  run = { role, chains: data.chains, answers };
-  renderRun();
-  startTimer(Math.max(6, data.chains.length * 3)); // ~3 minutes a scenario, 6 min floor
+
+  // Flatten chains into a single sequence of questions, each carrying its
+  // scenario context. Shuffle each question's options up front.
+  const flat = [];
+  data.chains.forEach((ch, ci) => {
+    ch.steps.forEach((step, si) => {
+      flat.push({ chainId: ch.id, chainIdx: ci, stepIdx: si, step, order: shuffle(step.options.length) });
+    });
+  });
+
+  run = { role, chains: data.chains, flat, pos: 0, answers: new Map() };
+  renderQuestion();
+  startTimer(Math.max(6, data.chains.length * 3));
 }
 
 function diffLabel(d) {
   return d >= 3 ? 'hard' : d === 2 ? 'medium' : 'easy';
 }
 
-function renderRun() {
+function renderQuestion() {
   const root = $('scoreBody');
   root.replaceChildren();
+  const q = run.flat[run.pos];
+  const chain = run.chains[q.chainIdx];
 
+  // Header: role, timer, progress.
   const head = el('div', 'score-runhead');
-  const title = el('h2', null, `${roleName(run.role)} score test`);
+  head.append(el('h2', null, `${roleName(run.role)} score test`));
   const clock = el('span', 'score-clock');
   clock.id = 'scoreClock';
-  head.append(title, clock);
+  head.append(clock);
   root.append(head);
-  root.append(
-    el('p', 'sub', `${run.chains.length} ${run.chains.length === 1 ? 'scenario' : 'scenarios'}. Work through each ladder. Climb as far as you can.`),
-  );
 
-  run.chains.forEach((ch, ci) => root.append(renderChain(ch, ci)));
+  const prog = el('div', 'score-progress');
+  prog.append(el('span', 'score-progress-n', `Question ${run.pos + 1} of ${run.flat.length}`));
+  const bar = el('div', 'score-progress-bar');
+  const fill = el('div', 'score-progress-fill');
+  fill.style.width = `${Math.round((run.pos / run.flat.length) * 100)}%`;
+  bar.append(fill);
+  prog.append(bar);
+  root.append(prog);
 
-  const foot = el('div', 'score-foot');
-  const submit = el('button', 'btn', 'Submit and get my score');
-  submit.type = 'button';
-  submit.id = 'scoreSubmit';
-  submit.addEventListener('click', () => submitRun(false));
-  foot.append(submit);
-  const msg = el('p', 'msg');
-  msg.id = 'scoreRunMsg';
-  foot.append(msg);
-  root.append(foot);
-}
-
-function renderChain(ch, ci) {
+  // Scenario context.
   const card = el('div', 'score-chain');
-
   const meta = el('div', 'score-item-meta');
-  meta.append(el('span', 'score-num', `Scenario ${ci + 1}`));
-  meta.append(el('span', 'score-topic', ch.title));
-  meta.append(el('span', `score-diff d-${diffLabel(ch.difficulty)}`, diffLabel(ch.difficulty)));
+  meta.append(el('span', 'score-num', `Scenario ${q.chainIdx + 1}`));
+  meta.append(el('span', 'score-topic', chain.title));
+  meta.append(el('span', `score-diff d-${diffLabel(chain.difficulty)}`, diffLabel(chain.difficulty)));
   card.append(meta);
-
   const scen = el('pre', 'score-scenario');
-  scen.append(el('code', null, ch.scenario));
+  scen.append(el('code', null, chain.scenario));
   card.append(scen);
 
-  ch.steps.forEach((step, si) => card.append(renderStep(ch, ci, step, si)));
-  return card;
-}
-
-function renderStep(ch, ci, step, si) {
-  const wrap = el('div', 'score-ladder-step');
-  const head = el('p', 'score-step-head');
-  if (step.label) head.append(el('span', 'score-step-label', step.label));
-  head.append(el('span', 'score-step-prompt', step.prompt));
-  wrap.append(head);
+  // The current step.
+  const stepWrap = el('div', 'score-ladder-step');
+  const sh = el('p', 'score-step-head');
+  if (q.step.label) sh.append(el('span', 'score-step-label', q.step.label));
+  sh.append(el('span', 'score-step-prompt', q.step.prompt));
+  stepWrap.append(sh);
 
   const opts = el('div', 'score-opts');
-  const name = `${ch.id}::${si}`;
-  step.options.forEach((opt, oi) => {
-    const id = `${name}-${oi}`;
+  const key = `${q.chainId}::${q.stepIdx}`;
+  const name = `q${run.pos}`;
+  const chosen = run.answers.get(key);
+  q.order.forEach((origIdx, displayPos) => {
+    const id = `${name}-${displayPos}`;
     const label = el('label', 'score-opt');
     label.htmlFor = id;
     const input = el('input');
     input.type = 'radio';
     input.name = name;
     input.id = id;
-    input.value = String(oi);
-    input.addEventListener('change', () => {
-      run.answers.get(ch.id)[si] = oi;
-    });
+    input.value = String(origIdx);
+    if (chosen === origIdx) input.checked = true;
+    input.addEventListener('change', () => run.answers.set(key, origIdx));
     label.append(input);
-    label.append(el('span', 'score-opt-text', opt));
+    label.append(el('span', 'score-opt-text', q.step.options[origIdx]));
     opts.append(label);
   });
-  wrap.append(opts);
-  return wrap;
+  stepWrap.append(opts);
+  card.append(stepWrap);
+  root.append(card);
+
+  // Navigation.
+  const foot = el('div', 'score-foot');
+  const last = run.pos === run.flat.length - 1;
+  const next = el('button', 'btn', last ? 'Submit and get my score' : 'Next question');
+  next.type = 'button';
+  next.id = 'scoreNext';
+  next.addEventListener('click', () => {
+    if (!run.answers.has(key)) {
+      say($('scoreRunMsg'), 'Pick an answer to continue.', 'err');
+      return;
+    }
+    if (last) {
+      submitRun(false);
+    } else {
+      run.pos += 1;
+      renderQuestion();
+    }
+  });
+  foot.append(next);
+  const msg = el('p', 'msg');
+  msg.id = 'scoreRunMsg';
+  foot.append(msg);
+  root.append(foot);
 }
 
 // --- Timer ---
@@ -213,23 +247,21 @@ function tick() {
 // --- Submit ---
 
 async function submitRun(auto) {
-  const msg = $('scoreRunMsg');
-  if (!auto) {
-    // Every step must be answered for a fair score; on timeout we take whatever
-    // is there.
-    let missing = 0;
-    for (const ch of run.chains) missing += run.answers.get(ch.id).filter((v) => v === null).length;
-    if (missing) {
-      say(msg, `Answer every step first (${missing} left). The clock is running.`, 'err');
-      return;
-    }
-  }
   stopTimer();
-  const btn = $('scoreSubmit');
-  if (btn) btn.disabled = true;
-  say(msg, 'Scoring.');
+  const next = $('scoreNext');
+  if (next) next.disabled = true;
+  const msg = $('scoreRunMsg');
+  if (msg) say(msg, 'Scoring.');
 
-  const runs = run.chains.map((ch) => ({ id: ch.id, answers: run.answers.get(ch.id) }));
+  // Group answers back into per-chain arrays in step order.
+  const runs = run.chains.map((ch) => ({
+    id: ch.id,
+    answers: ch.steps.map((_, si) => {
+      const v = run.answers.get(`${ch.id}::${si}`);
+      return v === undefined ? null : v;
+    }),
+  }));
+
   try {
     const out = await api('/api/score/submit', {
       method: 'POST',
@@ -237,8 +269,8 @@ async function submitRun(auto) {
     });
     renderResult(out);
   } catch (err) {
-    if (btn) btn.disabled = false;
-    say(msg, err.message, 'err');
+    if (next) next.disabled = false;
+    if (msg) say(msg, err.message, 'err');
   }
 }
 
@@ -280,7 +312,6 @@ function renderResult(out) {
   share.append(row);
   root.append(share);
 
-  // Per-scenario review: how deep you climbed, and where you fell off.
   const review = el('div', 'score-review');
   review.append(el('h3', null, 'How you climbed'));
   chains.forEach((ch, ci) => {
