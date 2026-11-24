@@ -92,7 +92,24 @@ function renderCard(data) {
   c.append(el('div', `verify-big band-${data.band}`, String(data.score)));
   c.append(el('p', 'verify-band', `${data.band} · out of 1000`));
   c.append(el('p', 'verify-sub', `${data.correct} of ${data.total} steps correct`));
+
+  // Benchmark: where this score sits against everyone who took this role's test.
+  if (typeof data.percentile === 'number') {
+    const posName = data.position || ROLE[data.role] || data.role;
+    c.append(
+      el('p', 'verify-pct', `Above ${data.percentile}% of ${posName} candidates on SecMox`),
+    );
+  }
+
   if (data.code) c.append(el('p', 'verify-code', data.code));
+
+  // Trust signals a reader can weigh: that the test was timed, how fresh the
+  // score is, and that this card came from SecMox itself.
+  const trust = el('div', 'verify-trust');
+  trust.append(el('span', 'verify-chip', 'Timed, auto-graded'));
+  trust.append(el('span', `verify-chip ${data.fresh ? 'is-fresh' : 'is-dated'}`, data.fresh ? 'Current' : 'Dated'));
+  trust.append(el('span', 'verify-chip is-seal', 'Verified by SecMox'));
+  c.append(trust);
 
   if (Array.isArray(data.scenarios) && data.scenarios.length) {
     const metrics = el('div', 'verify-metrics');

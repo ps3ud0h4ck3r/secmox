@@ -175,3 +175,12 @@ body {
 .verify-again { margin-top: 20px; text-align: left; }
 .verify-again summary { cursor: pointer; font-size: 12.5px; color: var(--dim); }
 .verify-again summary:hover { color: var(--neon); }
+
+/* ---- benchmark + trust signals ---- */
+.verify-pct{margin:8px 0 0;font-size:13px;color:var(--mint);font-weight:500}
+.verify-trust{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
+.verify-chip{font-size:11.5px;padding:4px 10px;border-radius:999px;
+  border:1px solid var(--line-soft);color:var(--dim)}
+.verify-chip.is-fresh{color:var(--mint);border-color:rgba(95,227,161,.3)}
+.verify-chip.is-dated{color:var(--amber);border-color:rgba(255,194,77,.3)}
+.verify-chip.is-seal{color:var(--neon-hi);border-color:rgba(41,182,255,.35)}

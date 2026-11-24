@@ -201,7 +201,7 @@ function codeBody(len) {
 async function uniqueCode(db, role) {
   const tag = ROLE_TAG[role] || 'GEN';
   for (let i = 0; i < 6; i++) {
-    const code = `SMX-${tag}-${codeBody(5)}`;
+    const code = `SMX-${tag}-${codeBody(6)}`;
     const hit = await db.prepare('SELECT 1 FROM score_results WHERE code = ?').bind(code).first();
     if (!hit) return code;
   }
@@ -354,6 +354,10 @@ function scorecard(row) {
     // An older row without a breakdown still yields the headline numbers.
   }
   const { strengths, weaknesses } = strengthsWeaknesses(chains);
+  // Freshness is a trust signal: a score goes stale, so a reader should see
+  // whether it is recent. Ninety days is the line between current and dated.
+  const ageMs = Date.now() - new Date(row.created_at).getTime();
+  const fresh = Number.isFinite(ageMs) ? ageMs < 90 * 86400000 : true;
   return {
     code: row.code || null,
     name: row.candidate_name || null,
@@ -367,7 +371,25 @@ function scorecard(row) {
     strengths,
     weaknesses,
     date: row.created_at,
+    timed: true, // the Score test is always timed and auto-graded
+    fresh,
   };
+}
+
+// Where a score sits against everyone else who took that role's test. Only
+// meaningful once enough people have taken it, so it is withheld below a floor.
+const BENCH_MIN = 20;
+async function benchmark(db, role, score) {
+  const r = await db
+    .prepare(
+      `SELECT COUNT(*) AS total, SUM(CASE WHEN score <= ? THEN 1 ELSE 0 END) AS below
+         FROM score_results WHERE role = ?`,
+    )
+    .bind(score, role)
+    .first();
+  const total = r?.total || 0;
+  if (total < BENCH_MIN) return { percentile: null, sample_size: total };
+  return { percentile: Math.round(((r.below || 0) / total) * 100), sample_size: total };
 }
 
 const SCORECARD_COLS =
@@ -375,22 +397,30 @@ const SCORECARD_COLS =
 
 // Verify by the memorable code: what an HR reader types into the portal.
 app.get('/api/score/v/:code', async (c) => {
+  // Public and unauthenticated, so rate-limit by IP: a code is short, and the
+  // card shows a name, so mass guessing must be made impractical.
+  const blocked = await guardAuth(c, [[`verify:ip:${clientIp(c)}`, 40, 10]]);
+  if (blocked) return blocked;
   const code = normalizeCode(c.req.param('code'));
   if (!code) return fail(c, 400, 'Enter a code.');
   const row = await c.env.DB.prepare(`SELECT ${SCORECARD_COLS} FROM score_results WHERE code = ?`)
     .bind(code)
     .first();
   if (!row) return fail(c, 404, 'No score matches that code.');
-  return c.json(scorecard(row));
+  const bench = await benchmark(c.env.DB, row.role, row.score);
+  return c.json({ ...scorecard(row), ...bench });
 });
 
 // Verify by the share link's id (back-compatible with older links).
 app.get('/api/score/r/:id', async (c) => {
+  const blocked = await guardAuth(c, [[`verify:ip:${clientIp(c)}`, 40, 10]]);
+  if (blocked) return blocked;
   const row = await c.env.DB.prepare(`SELECT ${SCORECARD_COLS} FROM score_results WHERE id = ?`)
     .bind(c.req.param('id'))
     .first();
   if (!row) return fail(c, 404, 'No such score.');
-  return c.json(scorecard(row));
+  const bench = await benchmark(c.env.DB, row.role, row.score);
+  return c.json({ ...scorecard(row), ...bench });
 });
 
 /* ----------------------------------------------------------------- auth */
