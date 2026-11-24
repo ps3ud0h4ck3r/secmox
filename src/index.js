@@ -2779,6 +2779,76 @@ app.post('/api/console/users/:id/reset', async (c) => {
   return c.json({ ok: true, id, scope });
 });
 
+// Change a user's login email. Owner only.
+app.post('/api/console/users/:id/email', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner can change accounts.');
+  const id = c.req.param('id');
+  const email = normalizeEmail((await c.req.json().catch(() => null))?.email);
+  if (!emailLooksValid(email)) return fail(c, 400, 'That email does not look right.');
+  const target = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+  if (!target) return fail(c, 404, 'No such account.');
+  const clash = await c.env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?')
+    .bind(email, id)
+    .first();
+  if (clash) return fail(c, 409, 'That email is already registered.');
+  await c.env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(email, id).run();
+  return c.json({ ok: true, id, email });
+});
+
+// Set a user's password. Owner only. Revokes their existing sessions so the old
+// password cannot keep a session alive.
+app.post('/api/console/users/:id/password', async (c) => {
+  if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner can change accounts.');
+  const id = c.req.param('id');
+  const password = (await c.req.json().catch(() => null))?.password;
+  const problem = passwordProblem(password);
+  if (problem) return fail(c, 400, problem);
+  const target = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+  if (!target) return fail(c, 404, 'No such account.');
+  const { salt, hash, iterations } = await hashNewPassword(password);
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      'UPDATE users SET password_hash = ?, password_salt = ?, iterations = ? WHERE id = ?',
+    ).bind(hash, salt, iterations, id),
+    c.env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
+  ]);
+  return c.json({ ok: true, id });
+});
+
+// Delete a user and all their data. Owner only; you cannot delete yourself here,
+// so the console can never lock out its own owner.
+app.delete('/api/console/users/:id', async (c) => {
+  const me = c.get('user');
+  if (me.platform_role !== 'owner') return fail(c, 403, 'Only the owner can delete accounts.');
+  const id = c.req.param('id');
+  if (id === me.id) return fail(c, 400, 'You cannot delete your own account from here.');
+  const target = await c.env.DB.prepare('SELECT id, email FROM users WHERE id = ?').bind(id).first();
+  if (!target) return fail(c, 404, 'No such account.');
+  const stmts = [];
+  for (const t of [
+    'attempts',
+    'bookmarks',
+    'cohort_members',
+    'lab_attempts',
+    'org_members',
+    'password_resets',
+    'question_reports',
+    'readiness_snapshots',
+    'review_schedule',
+    'scenario_attempts',
+    'score_results',
+    'sessions',
+  ]) {
+    stmts.push(c.env.DB.prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(id));
+  }
+  stmts.push(
+    c.env.DB.prepare('DELETE FROM impersonation_log WHERE actor_id = ? OR target_id = ?').bind(id, id),
+  );
+  stmts.push(c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id));
+  await c.env.DB.batch(stmts);
+  return c.json({ ok: true, id, email: target.email, deleted: true });
+});
+
 /* --------------------------------------------------------- companies */
 
 const ORG_ROLES = new Set(['org_admin', 'trainer', 'learner']);

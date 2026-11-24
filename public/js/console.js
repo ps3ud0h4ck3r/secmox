@@ -265,8 +265,120 @@ function userRow(u) {
   view.textContent = 'View as';
   view.addEventListener('click', () => viewAs(u.id, u.email));
 
-  actions.append(roleSel, view);
-  row.append(who, actions);
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'inf ghost small';
+  edit.textContent = 'Edit';
+
+  actions.append(roleSel, view, edit);
+
+  // Inline manage panel: rename email, set a new password, delete the account.
+  // Hidden until Edit is pressed.
+  const panel = document.createElement('div');
+  panel.className = 'con-person-edit';
+  panel.hidden = true;
+  edit.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+  });
+
+  // Rename (change login email).
+  const r1 = document.createElement('div');
+  r1.className = 'con-edit-row';
+  const emailIn = document.createElement('input');
+  emailIn.type = 'email';
+  emailIn.className = 'con-edit-input';
+  emailIn.value = u.email;
+  emailIn.setAttribute('aria-label', `New email for ${u.email}`);
+  const rename = document.createElement('button');
+  rename.type = 'button';
+  rename.className = 'inf ghost small';
+  rename.textContent = 'Rename';
+  rename.addEventListener('click', async () => {
+    const v = emailIn.value.trim();
+    if (!v) return;
+    rename.disabled = true;
+    try {
+      await api(`/api/console/users/${u.id}/email`, {
+        method: 'POST',
+        body: JSON.stringify({ email: v }),
+      });
+      u.email = v;
+      email.textContent = v;
+      say($('userMsg'), `Renamed to ${v}.`, 'ok');
+    } catch (err) {
+      say($('userMsg'), err.message, 'err');
+    }
+    rename.disabled = false;
+  });
+  r1.append(emailIn, rename);
+
+  // Set a new password (revokes their sessions server-side).
+  const r2 = document.createElement('div');
+  r2.className = 'con-edit-row';
+  const passIn = document.createElement('input');
+  passIn.type = 'password';
+  passIn.className = 'con-edit-input';
+  passIn.placeholder = 'new password (min 10)';
+  passIn.autocomplete = 'new-password';
+  passIn.setAttribute('aria-label', `New password for ${u.email}`);
+  const setPass = document.createElement('button');
+  setPass.type = 'button';
+  setPass.className = 'inf ghost small';
+  setPass.textContent = 'Set password';
+  setPass.addEventListener('click', async () => {
+    const v = passIn.value;
+    if (v.length < 10) return say($('userMsg'), 'Password needs at least 10 characters.', 'err');
+    setPass.disabled = true;
+    try {
+      await api(`/api/console/users/${u.id}/password`, {
+        method: 'POST',
+        body: JSON.stringify({ password: v }),
+      });
+      passIn.value = '';
+      say($('userMsg'), `Password updated for ${u.email}; their existing sessions were signed out.`, 'ok');
+    } catch (err) {
+      say($('userMsg'), err.message, 'err');
+    }
+    setPass.disabled = false;
+  });
+  r2.append(passIn, setPass);
+
+  // Delete the account (two clicks to confirm, so it is never a single misclick).
+  const r3 = document.createElement('div');
+  r3.className = 'con-edit-row';
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'inf ghost small con-danger';
+  del.textContent = 'Delete account';
+  let armed = false;
+  let armTimer = null;
+  del.addEventListener('click', async () => {
+    if (!armed) {
+      armed = true;
+      del.textContent = 'Click again to confirm';
+      armTimer = setTimeout(() => {
+        armed = false;
+        del.textContent = 'Delete account';
+      }, 4000);
+      return;
+    }
+    clearTimeout(armTimer);
+    armed = false;
+    del.disabled = true;
+    try {
+      await api(`/api/console/users/${u.id}`, { method: 'DELETE' });
+      say($('userMsg'), `Deleted ${u.email}.`, 'ok');
+      row.remove();
+    } catch (err) {
+      say($('userMsg'), err.message, 'err');
+      del.disabled = false;
+      del.textContent = 'Delete account';
+    }
+  });
+  r3.append(del);
+
+  panel.append(r1, r2, r3);
+  row.append(who, actions, panel);
   return row;
 }
 
