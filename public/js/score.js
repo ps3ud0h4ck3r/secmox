@@ -27,6 +27,27 @@ function shuffle(n) {
   return a;
 }
 
+// Slide the current question card out, then run fn (which draws the next one
+// with its own enter animation). Falls through instantly if motion is reduced.
+function leaveThen(fn) {
+  const card = $('scoreBody').querySelector('.score-chain');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!card || reduce) {
+    fn();
+    return;
+  }
+  card.classList.remove('q-enter');
+  card.classList.add('q-leave');
+  let done = false;
+  const go = () => {
+    if (done) return;
+    done = true;
+    fn();
+  };
+  card.addEventListener('animationend', go, { once: true });
+  setTimeout(go, 220); // fallback if animationend does not fire
+}
+
 export function openScore() {
   stopTimer();
   renderStart();
@@ -150,7 +171,7 @@ function renderQuestion() {
   root.append(prog);
 
   // Scenario context.
-  const card = el('div', 'score-chain');
+  const card = el('div', 'score-chain q-enter');
   const meta = el('div', 'score-item-meta');
   meta.append(el('span', 'score-num', `Scenario ${q.chainIdx + 1}`));
   meta.append(el('span', 'score-topic', chain.title));
@@ -201,11 +222,14 @@ function renderQuestion() {
       say($('scoreRunMsg'), 'Pick an answer to continue.', 'err');
       return;
     }
+    next.disabled = true; // guard against a double-click during the transition
     if (last) {
-      submitRun(false);
+      leaveThen(() => submitRun(false));
     } else {
-      run.pos += 1;
-      renderQuestion();
+      leaveThen(() => {
+        run.pos += 1;
+        renderQuestion();
+      });
     }
   });
   foot.append(next);

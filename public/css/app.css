@@ -931,3 +931,12 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .score-progress-bar{flex:1;height:6px;border-radius:999px;background:var(--panel-2);
   border:1px solid var(--line-soft);overflow:hidden}
 .score-progress-fill{height:100%;background:var(--neon);transition:width .25s ease}
+
+/* ------------------------------------------------ Score: question transition */
+@keyframes q-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@keyframes q-out{from{opacity:1;transform:none}to{opacity:0;transform:translateX(-16px)}}
+.score-chain.q-enter{animation:q-in .24s cubic-bezier(.22,.61,.36,1) both}
+.score-chain.q-leave{animation:q-out .16s ease-in both}
+@media (prefers-reduced-motion: reduce){
+  .score-chain.q-enter,.score-chain.q-leave{animation:none}
+}
