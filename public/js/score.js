@@ -110,7 +110,7 @@ async function loadMine() {
     const list = el('div', 'score-history');
     for (const s of runs.slice(0, 8)) {
       const row = el('a', 'score-hist');
-      row.href = `/score/?code=${s.code || ''}`;
+      row.href = s.code ? `/score/?code=${s.code}` : `/score/?id=${s.id}`;
       row.target = '_blank';
       row.rel = 'noopener';
       row.append(el('span', 'score-hist-role', roleName(s.role)));
@@ -365,7 +365,9 @@ function renderResult(out) {
   }
 
   const share = el('div', 'score-share');
-  const link = `${location.origin}/score/?code=${out.code || ''}`;
+  const link = out.code
+    ? `${location.origin}/score/?code=${out.code}`
+    : `${location.origin}/score/?id=${out.id}`;
   const field = el('input', 'score-link');
   field.type = 'text';
   field.readOnly = true;
