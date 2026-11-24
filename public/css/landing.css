@@ -161,3 +161,17 @@ main > .sec:not(.hero-sec){position:relative;z-index:1}
 .band h2{max-width:none}
 .band .intro{margin:0 auto 26px}
 .band .cta-row{justify-content:center}
+
+/* ---- verify portal (HR checks a candidate's score code) ---- */
+.verify-portal{border:1px solid var(--line, rgba(41,182,255,.18));border-radius:16px;
+  padding:40px 32px;text-align:center;background:linear-gradient(180deg,#0C131C,#070B10)}
+.verify-portal h2{max-width:none;margin:0 0 10px}
+.verify-portal .intro{margin:0 auto 22px;max-width:560px}
+.verify-portal .intro code{font-family:var(--mono,'JetBrains Mono',monospace);
+  color:var(--neon-hi,#7FD3FF);font-size:.92em}
+.verify-portal-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:460px;margin:0 auto}
+.verify-portal-form input{flex:1;min-width:220px;background:#0A1017;
+  border:1px solid rgba(41,182,255,.3);border-radius:10px;padding:13px 14px;color:#E6EEF7;
+  font-family:var(--mono,'JetBrains Mono',monospace);font-size:15px;letter-spacing:.04em}
+.verify-portal-form input:focus{outline:none;border-color:#29B6FF}
+.verify-portal-form .inf{flex:none}

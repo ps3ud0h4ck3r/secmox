@@ -150,3 +150,25 @@ describe('chainsScore', () => {
     expect(chainsScore([{ stepCount: 2, depth: 2, weight: 1 }, { stepCount: 4, depth: 0, weight: 3 }])).toBe(250);
   });
 });
+
+import { normalizeCode, strengthsWeaknesses, POSITION } from '../src/scoring.js';
+
+describe('credential helpers', () => {
+  it('normalizeCode uppercases and strips noise', () => {
+    expect(normalizeCode(' smx-soc-k7q2m ')).toBe('SMX-SOC-K7Q2M');
+    expect(normalizeCode('smx soc k7q2m')).toBe('SMXSOCK7Q2M');
+  });
+  it('strengthsWeaknesses splits by climb ratio', () => {
+    const { strengths, weaknesses } = strengthsWeaknesses([
+      { title: 'A', depth: 4, step_count: 4 },
+      { title: 'B', depth: 0, step_count: 4 },
+      { title: 'C', depth: 2, step_count: 4 },
+    ]);
+    expect(strengths).toEqual(['A']);
+    expect(weaknesses).toEqual(['B']);
+  });
+  it('POSITION maps roles to titles', () => {
+    expect(POSITION.soc).toBe('SOC Analyst');
+    expect(POSITION.grc).toBe('GRC / Security Risk');
+  });
+});

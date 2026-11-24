@@ -64,8 +64,24 @@ function renderStart() {
   intro.textContent =
     'A timed, scenario-based test, one question at a time. Each scenario is a ladder that gets ' +
     'harder step by step, and your score is how far you climb correctly, not how many you tick. ' +
-    'The details change every attempt. Pick a role to begin.';
+    'The details and the length change every attempt. Enter your name, then pick a role to begin.';
   root.append(intro);
+
+  const nameWrap = el('div', 'score-namewrap');
+  const nameLabel = el('label', 'score-namelabel', 'Your name (shown on your scorecard)');
+  nameLabel.htmlFor = 'scoreName';
+  const nameInput = el('input', 'score-nameinput');
+  nameInput.id = 'scoreName';
+  nameInput.type = 'text';
+  nameInput.maxLength = 60;
+  nameInput.placeholder = 'e.g. Priya Sharma';
+  nameInput.autocomplete = 'name';
+  if (run && run.name) nameInput.value = run.name;
+  nameWrap.append(nameLabel, nameInput);
+  const nameMsg = el('p', 'msg');
+  nameMsg.id = 'scoreNameMsg';
+  nameWrap.append(nameMsg);
+  root.append(nameWrap);
 
   const picker = el('div', 'score-roles');
   for (const r of ROLES) {
@@ -94,11 +110,12 @@ async function loadMine() {
     const list = el('div', 'score-history');
     for (const s of runs.slice(0, 8)) {
       const row = el('a', 'score-hist');
-      row.href = `/score/?id=${s.id}`;
+      row.href = `/score/?code=${s.code || ''}`;
       row.target = '_blank';
       row.rel = 'noopener';
       row.append(el('span', 'score-hist-role', roleName(s.role)));
       row.append(el('span', `score-hist-num band-${s.band}`, String(s.score)));
+      if (s.code) row.append(el('span', 'score-hist-code', s.code));
       row.append(el('span', 'score-hist-date', new Date(s.date).toLocaleDateString()));
       list.append(row);
     }
@@ -111,6 +128,12 @@ async function loadMine() {
 // --- The test: one question at a time ---
 
 async function startRun(role) {
+  const name = ($('scoreName')?.value || '').trim();
+  if (name.length < 2) {
+    say($('scoreNameMsg'), 'Enter your name first, it goes on your scorecard.', 'err');
+    $('scoreName')?.focus();
+    return;
+  }
   const root = $('scoreBody');
   root.replaceChildren(el('p', 'sub', 'Loading the test.'));
   let data;
@@ -138,7 +161,7 @@ async function startRun(role) {
     });
   });
 
-  run = { role, chains: data.chains, flat, pos: 0, answers: new Map() };
+  run = { role, name, chains: data.chains, flat, pos: 0, answers: new Map() };
   renderQuestion();
   startTimer(Math.max(6, data.chains.length * 3));
 }
@@ -289,7 +312,7 @@ async function submitRun(auto) {
   try {
     const out = await api('/api/score/submit', {
       method: 'POST',
-      body: JSON.stringify({ role: run.role, runs }),
+      body: JSON.stringify({ role: run.role, name: run.name, runs }),
     });
     renderResult(out);
   } catch (err) {
@@ -312,8 +335,37 @@ function renderResult(out) {
   card.append(el('p', 'score-band', `${out.band} · ${out.correct}/${out.total} steps`));
   root.append(card);
 
+  // The credential code is the thing to flaunt: short, memorable, verifiable.
+  if (out.code) {
+    const cred = el('div', 'score-cred');
+    cred.append(el('p', 'score-cred-label', 'Your verification code'));
+    const codeRow = el('div', 'score-code-row');
+    codeRow.append(el('span', 'score-code', out.code));
+    const copyC = el('button', 'btn-ghost', 'Copy');
+    copyC.type = 'button';
+    copyC.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(out.code);
+        copyC.textContent = 'Copied';
+        setTimeout(() => (copyC.textContent = 'Copy'), 1500);
+      } catch {
+        /* clipboard may be blocked; the code is visible to copy by hand */
+      }
+    });
+    codeRow.append(copyC);
+    cred.append(codeRow);
+    cred.append(
+      el(
+        'p',
+        'score-cred-hint',
+        `Put this on your resume. Anyone can verify it at ${location.host} without signing in.`,
+      ),
+    );
+    root.append(cred);
+  }
+
   const share = el('div', 'score-share');
-  const link = `${location.origin}/score/?id=${out.id}`;
+  const link = `${location.origin}/score/?code=${out.code || ''}`;
   const field = el('input', 'score-link');
   field.type = 'text';
   field.readOnly = true;
@@ -330,7 +382,7 @@ function renderResult(out) {
       field.select();
     }
   });
-  share.append(el('p', 'sub', 'Share or verify this score:'));
+  share.append(el('p', 'sub', 'Or share the direct link:'));
   const row = el('div', 'score-link-row');
   row.append(field, copy);
   share.append(row);

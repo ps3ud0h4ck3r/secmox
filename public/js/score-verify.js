@@ -1,12 +1,15 @@
-// Public SecMox Score verify page. Reads ?id=, fetches the result, renders it.
-// No login: the holder shares the link deliberately.
+// Public SecMox Score verify portal. Reads ?code= (or an older ?id=), fetches the
+// scorecard and renders it: who the candidate is, the role they tested for, the
+// score, and where they were strong and weak. With no code it shows an entry box,
+// so an HR reader can land here and type the code from a resume. No login: the
+// holder shares the code deliberately.
 
 const ROLE = {
   soc: 'SOC Analyst',
   pentest: 'Penetration Tester',
   network: 'Network Security',
   cloud: 'Cloud Security',
-  grc: 'GRC',
+  grc: 'GRC / Security Risk',
 };
 
 const el = (tag, cls, text) => {
@@ -26,49 +29,126 @@ function brand() {
   return b;
 }
 
-function message(text) {
-  const card = document.getElementById('card');
-  card.replaceChildren(brand(), el('p', 'verify-sub', text));
+const card = () => document.getElementById('card');
+
+function message(text, keepForm) {
+  const c = card();
+  c.replaceChildren(brand(), el('p', 'verify-sub', text));
+  if (keepForm) c.append(form());
 }
 
-async function load() {
-  const id = new URLSearchParams(location.search).get('id');
-  if (!id) return message('No score specified.');
+// The code-entry portal.
+function form() {
+  const wrap = el('form', 'verify-form');
+  wrap.append(el('label', 'verify-form-label', 'Enter a SecMox Score code to verify'));
+  const row = el('div', 'verify-form-row');
+  const input = el('input', 'verify-input');
+  input.type = 'text';
+  input.placeholder = 'e.g. SMX-SOC-K7Q2M';
+  input.setAttribute('aria-label', 'SecMox Score code');
+  input.autocapitalize = 'characters';
+  input.spellcheck = false;
+  const btn = el('button', 'btn', 'Verify');
+  btn.type = 'submit';
+  row.append(input, btn);
+  wrap.append(row);
+  wrap.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = input.value.trim();
+    if (code) location.search = `?code=${encodeURIComponent(code)}`;
+  });
+  return wrap;
+}
 
-  let data;
-  try {
-    const res = await fetch(`/api/score/r/${encodeURIComponent(id)}`);
-    if (res.status === 404) return message('That score could not be found.');
-    if (!res.ok) return message('Could not load this score right now.');
-    data = await res.json();
-  } catch {
-    return message('Could not load this score right now.');
+function depthRow(s) {
+  const row = el('div', 'verify-sc');
+  row.append(el('span', 'verify-sc-title', s.title));
+  const bar = el('div', 'verify-sc-bar');
+  const fill = el('div', 'verify-sc-fill');
+  const pct = s.step_count ? Math.round((s.depth / s.step_count) * 100) : 0;
+  fill.style.width = `${pct}%`;
+  bar.append(fill);
+  row.append(bar);
+  row.append(el('span', 'verify-sc-num', `${s.depth}/${s.step_count}`));
+  return row;
+}
+
+function tagList(cls, label, items) {
+  const box = el('div', `verify-tags ${cls}`);
+  box.append(el('p', 'verify-tags-label', label));
+  const list = el('div', 'verify-tag-row');
+  for (const t of items) list.append(el('span', 'verify-tag', t));
+  box.append(list);
+  return box;
+}
+
+function renderCard(data) {
+  const c = card();
+  c.replaceChildren();
+  c.append(brand());
+
+  if (data.name) c.append(el('p', 'verify-name', data.name));
+  c.append(el('p', 'verify-label', `${data.position || ROLE[data.role] || data.role} · SecMox Score`));
+  c.append(el('div', `verify-big band-${data.band}`, String(data.score)));
+  c.append(el('p', 'verify-band', `${data.band} · out of 1000`));
+  c.append(el('p', 'verify-sub', `${data.correct} of ${data.total} steps correct`));
+  if (data.code) c.append(el('p', 'verify-code', data.code));
+
+  if (Array.isArray(data.scenarios) && data.scenarios.length) {
+    const metrics = el('div', 'verify-metrics');
+    metrics.append(el('p', 'verify-section', 'How far they climbed each scenario'));
+    for (const s of data.scenarios) metrics.append(depthRow(s));
+    c.append(metrics);
   }
 
-  const card = document.getElementById('card');
-  card.replaceChildren();
-  card.append(brand());
-  card.append(el('p', 'verify-label', `${ROLE[data.role] || data.role} readiness`));
-  card.append(el('div', `verify-big band-${data.band}`, String(data.score)));
-  card.append(el('p', 'verify-band', `${data.band} · out of 1000`));
-  card.append(el('p', 'verify-sub', `${data.correct} of ${data.total} correct`));
+  if (data.strengths?.length) c.append(tagList('is-strong', 'Strengths', data.strengths));
+  if (data.weaknesses?.length) c.append(tagList('is-weak', 'Weak spots', data.weaknesses));
 
   const meta = el('div', 'verify-meta');
-  const when = new Date(data.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const when = new Date(data.date).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
   meta.append(document.createTextNode(`Taken ${when} · `));
   const link = el('a', null, 'secmox.com');
   link.href = '/';
   meta.append(link);
-  card.append(meta);
+  c.append(meta);
 
-  card.append(
+  c.append(
     el(
       'p',
       'verify-note',
-      'A SecMox Score comes from a timed test of objective, auto-graded questions ' +
-        'for this role. It measures interview readiness, not certified competence.',
+      'A SecMox Score comes from a timed, scenario-based test for this role, auto-graded on how ' +
+        'far the candidate reasons through each incident. It measures interview readiness, not ' +
+        'certified competence. The name is self-declared by the candidate.',
     ),
   );
+
+  const again = el('details', 'verify-again');
+  again.append(el('summary', null, 'Verify another code'));
+  again.append(form());
+  c.append(again);
+}
+
+async function load() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  const id = params.get('id');
+  if (!code && !id) return message('Verify a SecMox Score a candidate shared with you.', true);
+
+  const url = code ? `/api/score/v/${encodeURIComponent(code)}` : `/api/score/r/${encodeURIComponent(id)}`;
+  let data;
+  try {
+    const res = await fetch(url);
+    if (res.status === 404) return message('No score matches that code. Check it and try again.', true);
+    if (!res.ok) return message('Could not load this score right now.', true);
+    data = await res.json();
+  } catch {
+    return message('Could not load this score right now.', true);
+  }
+  renderCard(data);
 }
 
 load();

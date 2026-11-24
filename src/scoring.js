@@ -100,3 +100,43 @@ export function chainsScore(chains) {
   }, 0);
   return Math.round((earned / possible) * 1000);
 }
+
+// ---- SecMox Score as a shareable credential --------------------------------
+
+// The position a role maps to on a scorecard HR reads.
+export const POSITION = {
+  soc: 'SOC Analyst',
+  pentest: 'Penetration Tester',
+  network: 'Network Security',
+  cloud: 'Cloud Security',
+  grc: 'GRC / Security Risk',
+};
+
+// Short tag used inside a score code (SMX-<tag>-xxxxx).
+export const ROLE_TAG = { soc: 'SOC', pentest: 'PEN', network: 'NET', cloud: 'CLD', grc: 'GRC' };
+
+// Crockford base32, minus look-alikes, so a code reads cleanly off a resume.
+export const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+// Normalise a code a reader types in (case, spaces, common separators).
+export function normalizeCode(raw) {
+  return String(raw || '')
+    .toUpperCase()
+    .replace(/[\s–—]/g, '')
+    .replace(/[^A-Z0-9-]/g, '')
+    .trim();
+}
+
+// Derive strengths and weaknesses from how far the candidate climbed each
+// scenario. A ladder mostly climbed is a strength; one that stalled early is a
+// gap. Middling ones are left out rather than forced into either bucket.
+export function strengthsWeaknesses(chains) {
+  const strengths = [];
+  const weaknesses = [];
+  for (const ch of chains || []) {
+    const ratio = ch.step_count ? ch.depth / ch.step_count : 0;
+    if (ratio >= 0.75) strengths.push(ch.title);
+    else if (ratio <= 0.25) weaknesses.push(ch.title);
+  }
+  return { strengths, weaknesses };
+}

@@ -351,16 +351,19 @@ CREATE INDEX IF NOT EXISTS idx_objitems_role ON objective_items(role);
 -- A completed SecMox Score run. id is the public token used by the verify page,
 -- so it is shown to anyone the holder shares the link with.
 CREATE TABLE IF NOT EXISTS score_results (
-  id            TEXT PRIMARY KEY,
-  user_id       TEXT NOT NULL,
-  role          TEXT NOT NULL,
-  score         INTEGER NOT NULL,
-  items_total   INTEGER NOT NULL,
-  items_correct INTEGER NOT NULL,
-  detail        TEXT,
-  created_at    TEXT NOT NULL
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL,
+  role           TEXT NOT NULL,
+  score          INTEGER NOT NULL,
+  items_total    INTEGER NOT NULL,
+  items_correct  INTEGER NOT NULL,
+  detail         TEXT,
+  code           TEXT,
+  candidate_name TEXT,
+  created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scoreresults_user ON score_results(user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scoreresults_code ON score_results(code);
 
 -- Scenario-depth chains for the SecMox Score: a realistic scenario and an
 -- ordered ladder of auto-scored steps that escalate in difficulty. The score

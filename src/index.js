@@ -38,6 +38,11 @@ import {
   confidenceGapLabel,
   chainDepth,
   chainsScore,
+  POSITION,
+  ROLE_TAG,
+  CODE_ALPHABET,
+  normalizeCode,
+  strengthsWeaknesses,
 } from './scoring.js';
 
 const app = new Hono();
@@ -139,7 +144,11 @@ app.use('/api/*', async (c, next) => {
   // A published SecMox Score is meant to be shared, so its verify endpoint is
   // public. Only the GET under this prefix; starting and submitting a run stay
   // behind auth.
-  if (c.req.method === 'GET' && pathname.startsWith('/api/score/r/')) return next();
+  if (
+    c.req.method === 'GET' &&
+    (pathname.startsWith('/api/score/r/') || pathname.startsWith('/api/score/v/'))
+  )
+    return next();
   const user = await userForToken(c.env.DB, tokenFrom(c));
   if (!user) return fail(c, 401, 'Sign in to continue.');
   c.set('user', user);
@@ -168,19 +177,62 @@ function signIn(c, token) {
 
 /* -------------------------------------------------------------- score */
 
-// How many scenario chains a single Score run draws, at most.
-const SCORE_CHAINS_N = 4;
+// How many scenario chains a run draws. Not a fixed number: each run picks a
+// random count in this range (capped by how many scenarios the role has), so the
+// length of the test varies, and because scenarios differ in depth the total
+// question count lands anywhere from a short set to a long one.
+const SCORE_CHAINS_MIN = 2;
+const SCORE_CHAINS_MAX = 4;
+
+function pickChainCount(available) {
+  const hi = Math.min(SCORE_CHAINS_MAX, available);
+  const lo = Math.min(SCORE_CHAINS_MIN, hi);
+  if (hi <= lo) return hi;
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+// A short, resume-friendly credential code, unique across all scores.
+function codeBody(len) {
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  let s = '';
+  for (const b of bytes) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
+  return s;
+}
+async function uniqueCode(db, role) {
+  const tag = ROLE_TAG[role] || 'GEN';
+  for (let i = 0; i < 6; i++) {
+    const code = `SMX-${tag}-${codeBody(5)}`;
+    const hit = await db.prepare('SELECT 1 FROM score_results WHERE code = ?').bind(code).first();
+    if (!hit) return code;
+  }
+  return `SMX-${tag}-${codeBody(8)}`; // vanishingly unlikely fallback
+}
+
+// Trim a self-declared candidate name to something safe to print on a card.
+function cleanName(raw) {
+  return String(raw || '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+}
 
 // Start a run: the scenario chains for a role, with the answer key stripped from
 // every step. The candidate climbs each ladder; depth is scored on submit.
 app.get('/api/score/chains', async (c) => {
   const role = c.req.query('role');
   if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  const avail = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM score_chains WHERE role = ? AND org_id IS NULL`,
+  )
+    .bind(role)
+    .first();
+  const n = pickChainCount(avail?.n || 0);
   const rows = await c.env.DB.prepare(
     `SELECT id, title, scenario, difficulty, steps FROM score_chains
        WHERE role = ? AND org_id IS NULL ORDER BY RANDOM() LIMIT ?`,
   )
-    .bind(role, SCORE_CHAINS_N)
+    .bind(role, n)
     .all();
   // Strip answer keys, then fill the scenario's placeholder variables with fresh
   // values so no two attempts look identical.
@@ -209,6 +261,7 @@ app.post('/api/score/submit', async (c) => {
   const body = await c.req.json().catch(() => null);
   const role = body?.role;
   if (!ROLES.has(role)) return fail(c, 400, 'Unknown role.');
+  const name = cleanName(body?.name);
   const runs = Array.isArray(body?.runs) ? body.runs : [];
   const ids = [...new Set(runs.map((r) => r?.id).filter((x) => typeof x === 'string'))].slice(0, 20);
   if (!ids.length) return fail(c, 400, 'No answers to grade.');
@@ -250,27 +303,33 @@ app.post('/api/score/submit', async (c) => {
   const score = chainsScore(chainResults);
   const band = scoreBand(score);
   const id = randomHex(16);
+  const code = await uniqueCode(c.env.DB, role);
+  // Store a compact per-scenario breakdown so the verify page can show metrics
+  // and derive strengths and weaknesses without re-grading.
+  const summary = review.map((r) => ({ title: r.title, depth: r.depth, step_count: r.step_count }));
+  const detail = JSON.stringify({ band, chains: summary });
   await c.env.DB.prepare(
-    `INSERT INTO score_results (id, user_id, role, score, items_total, items_correct, detail, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO score_results (id, user_id, role, score, items_total, items_correct, detail, code, candidate_name, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, user.id, role, score, totalSteps, totalCorrect, JSON.stringify({ band }), nowIso())
+    .bind(id, user.id, role, score, totalSteps, totalCorrect, detail, code, name || null, nowIso())
     .run();
 
-  return c.json({ id, role, score, band, correct: totalCorrect, total: totalSteps, review });
+  return c.json({ id, code, role, score, band, correct: totalCorrect, total: totalSteps, review });
 });
 
 // A learner's own recent runs, best per role first for the dashboard.
 app.get('/api/score/mine', async (c) => {
   const user = c.get('user');
   const rows = await c.env.DB.prepare(
-    `SELECT id, role, score, items_total, items_correct, created_at
+    `SELECT id, code, role, score, items_total, items_correct, created_at
        FROM score_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
   )
     .bind(user.id)
     .all();
   const runs = (rows.results || []).map((r) => ({
     id: r.id,
+    code: r.code || null,
     role: r.role,
     score: r.score,
     band: scoreBand(r.score),
@@ -281,25 +340,57 @@ app.get('/api/score/mine', async (c) => {
   return c.json({ runs });
 });
 
-// Public verify page data. The holder shares the link deliberately. No name is
-// shown yet: accounts carry only an email, which must not appear on a public
-// page, so a display identity waits for user profiles.
+// Build the public scorecard from a stored result. The holder shares the code or
+// link deliberately, so the self-declared name and the per-scenario breakdown are
+// shown. The email never is.
+function scorecard(row) {
+  let band = scoreBand(row.score);
+  let chains = [];
+  try {
+    const d = JSON.parse(row.detail || '{}');
+    if (d.band) band = d.band;
+    if (Array.isArray(d.chains)) chains = d.chains;
+  } catch {
+    // An older row without a breakdown still yields the headline numbers.
+  }
+  const { strengths, weaknesses } = strengthsWeaknesses(chains);
+  return {
+    code: row.code || null,
+    name: row.candidate_name || null,
+    role: row.role,
+    position: POSITION[row.role] || row.role,
+    score: row.score,
+    band,
+    total: row.items_total,
+    correct: row.items_correct,
+    scenarios: chains.map((ch) => ({ title: ch.title, depth: ch.depth, step_count: ch.step_count })),
+    strengths,
+    weaknesses,
+    date: row.created_at,
+  };
+}
+
+const SCORECARD_COLS =
+  'role, score, items_total, items_correct, detail, code, candidate_name, created_at';
+
+// Verify by the memorable code: what an HR reader types into the portal.
+app.get('/api/score/v/:code', async (c) => {
+  const code = normalizeCode(c.req.param('code'));
+  if (!code) return fail(c, 400, 'Enter a code.');
+  const row = await c.env.DB.prepare(`SELECT ${SCORECARD_COLS} FROM score_results WHERE code = ?`)
+    .bind(code)
+    .first();
+  if (!row) return fail(c, 404, 'No score matches that code.');
+  return c.json(scorecard(row));
+});
+
+// Verify by the share link's id (back-compatible with older links).
 app.get('/api/score/r/:id', async (c) => {
-  const row = await c.env.DB.prepare(
-    `SELECT role, score, items_total, items_correct, created_at
-       FROM score_results WHERE id = ?`,
-  )
+  const row = await c.env.DB.prepare(`SELECT ${SCORECARD_COLS} FROM score_results WHERE id = ?`)
     .bind(c.req.param('id'))
     .first();
   if (!row) return fail(c, 404, 'No such score.');
-  return c.json({
-    role: row.role,
-    score: row.score,
-    band: scoreBand(row.score),
-    total: row.items_total,
-    correct: row.items_correct,
-    date: row.created_at,
-  });
+  return c.json(scorecard(row));
 });
 
 /* ----------------------------------------------------------------- auth */
@@ -2571,6 +2662,43 @@ app.post('/api/console/users/:id/role', async (c) => {
     .run();
 
   return c.json({ ok: true, id: target.id, platform_role: role });
+});
+
+// Reset a user's data. scope 'scores' wipes their SecMox Scores and codes;
+// 'progress' wipes practice, labs, scenarios, review schedule and onboarding;
+// 'all' does both. The account, its login and its memberships stay; this is a
+// reset, not a deletion.
+app.post('/api/console/users/:id/reset', async (c) => {
+  if (c.get('user').platform_role !== 'owner') {
+    return fail(c, 403, 'Only the owner can reset accounts.');
+  }
+  const id = c.req.param('id');
+  const scope = ((await c.req.json().catch(() => null))?.scope || 'all').toString();
+  if (!['scores', 'progress', 'all'].includes(scope)) return fail(c, 400, 'Unknown reset scope.');
+
+  const target = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+  if (!target) return fail(c, 404, 'No such account.');
+
+  const stmts = [];
+  if (scope === 'scores' || scope === 'all') {
+    stmts.push(c.env.DB.prepare('DELETE FROM score_results WHERE user_id = ?').bind(id));
+  }
+  if (scope === 'progress' || scope === 'all') {
+    for (const t of [
+      'attempts',
+      'lab_attempts',
+      'scenario_attempts',
+      'review_schedule',
+      'readiness_snapshots',
+      'bookmarks',
+      'question_reports',
+    ]) {
+      stmts.push(c.env.DB.prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(id));
+    }
+    stmts.push(c.env.DB.prepare('UPDATE users SET onboarded_at = NULL WHERE id = ?').bind(id));
+  }
+  await c.env.DB.batch(stmts);
+  return c.json({ ok: true, id, scope });
 });
 
 /* --------------------------------------------------------- companies */
