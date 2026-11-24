@@ -4,6 +4,7 @@ import { splash } from './splash.js';
 import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
 import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
+import { loadPacks } from './packs.js';
 import { loadDashboard, setDashboardHandlers } from './dashboard.js';
 import { loadTracks, openTrack, setTrackHandlers } from './tracks.js';
 import { openScore } from './score.js';
@@ -39,7 +40,7 @@ wirePasswordToggles();
 
 const VIEWS = ['authView', 'forgotView', 'resetView', 'onboardView', 'dashboardView', 'practiceView',
   'labsView', 'labView', 'scenariosView', 'scenarioView', 'tracksView', 'trackView', 'readinessView',
-  'scoreView', 'mockView', 'accountView'];
+  'scoreView', 'packsView', 'mockView', 'accountView'];
 const SIGNED_OUT = new Set(['authView', 'forgotView', 'resetView']);
 
 function show(view) {
@@ -91,6 +92,9 @@ $('tabsNav').addEventListener('click', (e) => {
     openScore();
   } else if (tab.dataset.view === 'mockView') {
     show('mockView');
+  } else if (tab.dataset.view === 'packsView') {
+    show('packsView');
+    loadPacks();
   } else if (tab.dataset.view === 'labsView') {
     show('labsView');
     loadLabs();

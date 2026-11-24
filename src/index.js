@@ -554,6 +554,107 @@ app.get('/api/profile/:handle', async (c) => {
   return c.json({ handle: u.handle, name: u.display_name || null, roles });
 });
 
+/* ------------------------------------------- company post-mortem packs */
+
+const cleanText = (raw, max) =>
+  String(raw || '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+
+// A candidate logs a question they were actually asked. Starts pending; an admin
+// approves it into the shared pack. Rate-limited so the queue cannot be flooded.
+app.post('/api/reports', async (c) => {
+  const user = c.get('user');
+  const blocked = await guardAuth(c, [[`report:${user.id}`, 20, 60]]);
+  if (blocked) return blocked;
+  const body = await c.req.json().catch(() => null);
+  const company = cleanText(body?.company, 60);
+  const role = body?.role;
+  const question = cleanText(body?.question, 1000);
+  const askedOn = cleanText(body?.asked_on, 24) || null;
+  if (!company) return fail(c, 400, 'Which company asked it?');
+  if (!ROLES.has(role)) return fail(c, 400, 'Pick a role.');
+  if (question.length < 10) return fail(c, 400, 'Add the question (at least 10 characters).');
+  await c.env.DB.prepare(
+    `INSERT INTO interview_reports (id, user_id, company, role, question, asked_on, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+  )
+    .bind(newId('rep'), user.id, company, role, question, askedOn, nowIso())
+    .run();
+  return c.json({ ok: true, status: 'pending' });
+});
+
+// Companies that have approved questions, with counts, for the browse picker.
+app.get('/api/reports/companies', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT company, COUNT(*) AS n FROM interview_reports
+      WHERE status = 'approved' GROUP BY company ORDER BY n DESC, company LIMIT 100`,
+  ).all();
+  return c.json({ companies: results ?? [] });
+});
+
+// The candidate's own submissions, any status, so they can see what they added.
+app.get('/api/reports/mine', async (c) => {
+  const user = c.get('user');
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, company, role, question, asked_on, status, created_at
+       FROM interview_reports WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`,
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ reports: results ?? [] });
+});
+
+// Browse the approved pack, optionally by company and role.
+app.get('/api/reports', async (c) => {
+  const where = ["status = 'approved'"];
+  const args = [];
+  const company = cleanText(c.req.query('company'), 60);
+  const role = c.req.query('role');
+  if (company) {
+    where.push('company = ?');
+    args.push(company);
+  }
+  if (ROLES.has(role)) {
+    where.push('role = ?');
+    args.push(role);
+  }
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, company, role, question, asked_on, created_at
+       FROM interview_reports WHERE ${where.join(' AND ')}
+      ORDER BY created_at DESC LIMIT 200`,
+  )
+    .bind(...args)
+    .all();
+  return c.json({ reports: results ?? [] });
+});
+
+// Admin moderation: the pending queue (or any status), and approve/hide.
+app.get('/api/admin/reports', async (c) => {
+  const status = c.req.query('status') || 'pending';
+  const { results } = await c.env.DB.prepare(
+    `SELECT r.id, r.company, r.role, r.question, r.asked_on, r.status, r.created_at, u.email
+       FROM interview_reports r JOIN users u ON u.id = r.user_id
+      WHERE r.status = ? ORDER BY r.created_at DESC LIMIT 200`,
+  )
+    .bind(status)
+    .all();
+  return c.json({ reports: results ?? [] });
+});
+
+app.post('/api/admin/reports/:id', async (c) => {
+  const id = c.req.param('id');
+  const status = (await c.req.json().catch(() => null))?.status;
+  if (!['approved', 'hidden', 'pending'].includes(status)) return fail(c, 400, 'Unknown status.');
+  const r = await c.env.DB.prepare('UPDATE interview_reports SET status = ? WHERE id = ?')
+    .bind(status, id)
+    .run();
+  if (!r.meta.changes) return fail(c, 404, 'No such report.');
+  return c.json({ ok: true, id, status });
+});
+
 /* ----------------------------------------------------------------- auth */
 
 app.post('/api/auth/signup', async (c) => {
@@ -1010,6 +1111,19 @@ app.get('/api/dashboard', async (c) => {
     .bind(user.id)
     .all();
 
+  // Journey signals: has the candidate practised at all, taken any Score, and
+  // claimed a public profile. Cheap, and they drive the "you are here" strip.
+  const scoresTaken = await c.env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM score_results WHERE user_id = ?',
+  )
+    .bind(user.id)
+    .first();
+  const practiced = await c.env.DB.prepare(
+    'SELECT 1 FROM attempts WHERE user_id = ? LIMIT 1',
+  )
+    .bind(user.id)
+    .first();
+
   return c.json({
     target_role: user.target_role ?? null,
     due: due?.n ?? 0,
@@ -1018,6 +1132,9 @@ app.get('/api/dashboard', async (c) => {
     activity,
     overall,
     trend: (snaps.results ?? []).slice(-60),
+    scores_taken: scoresTaken?.n ?? 0,
+    has_practiced: Boolean(practiced),
+    has_profile: Boolean(user.handle),
   });
 });
 

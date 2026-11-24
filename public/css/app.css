@@ -980,3 +980,41 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .score-claim{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
 .score-claim .score-nameinput{flex:1;min-width:160px;margin:0}
 .score-claim-toggle{margin-top:10px}
+
+/* ------------------------------------------------ Interview question packs */
+.pack-card{margin:0 0 20px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+.pack-card h3{margin:0 0 6px;font-size:15px}
+.pack-form{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.pack-form-row{display:flex;gap:8px;flex-wrap:wrap}
+.pack-input,.pack-select{flex:1;min-width:150px;background:var(--bg);border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;color:var(--text);font-family:var(--sans);font-size:14px}
+.pack-input:focus,.pack-select:focus,.pack-textarea:focus{outline:none;border-color:var(--neon)}
+.pack-textarea{width:100%;min-height:80px;background:var(--bg);border:1px solid var(--line);
+  border-radius:9px;padding:10px 12px;color:var(--text);font-family:var(--sans);font-size:14px;resize:vertical}
+.pack-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.pack-q{padding:12px 14px;border:1px solid var(--line-soft);border-radius:10px;background:var(--bg)}
+.pack-q-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.pack-q-co{font-weight:600;font-size:13px}
+.pack-q-role{font-family:var(--mono);font-size:11px;color:var(--neon-hi);border:1px solid var(--line-soft);border-radius:999px;padding:2px 8px}
+.pack-q-when{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.pack-q-status{font-family:var(--mono);font-size:11px;margin-left:auto;padding:2px 8px;border-radius:999px;border:1px solid var(--line-soft)}
+.pack-q-status.s-approved{color:var(--mint)}
+.pack-q-status.s-pending{color:var(--amber)}
+.pack-q-status.s-hidden{color:var(--faint)}
+.pack-q-text{margin:0;font-size:14px;line-height:1.5}
+.pack-q-act{display:flex;gap:8px;margin-top:10px}
+.pack-mod{border-color:rgba(255,194,77,.3)}
+
+/* ------------------------------------------------ Dashboard journey strip */
+.journey{margin:0 0 20px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+.journey-steps{display:flex;gap:10px;flex-wrap:wrap}
+.journey-step{display:flex;align-items:center;gap:8px;flex:1;min-width:130px;padding:9px 12px;
+  border:1px solid var(--line-soft);border-radius:10px;font-size:13px;color:var(--dim)}
+.journey-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:999px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);flex:none}
+.journey-step.is-done{color:var(--mint);border-color:rgba(95,227,161,.3)}
+.journey-step.is-done .journey-mark{color:var(--mint);border-color:rgba(95,227,161,.4)}
+.journey-step.is-current{color:var(--text);border-color:var(--neon)}
+.journey-step.is-current .journey-mark{color:var(--neon-ink);background:var(--neon);border-color:var(--neon)}
+.journey-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--dim)}

@@ -67,6 +67,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 9 9"/><path d="M12 7v5l3 2"/></svg>Readiness</button>
     <button class="side-link" type="button" data-view="scoreView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Score</button>
+    <button class="side-link" type="button" data-view="packsView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 5v14"/></svg>Interview Qs</button>
     <button class="side-link" type="button" data-view="mockView">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Mock</button>
     <button class="side-link" type="button" data-view="accountView">
@@ -218,6 +220,7 @@
     <p class="kicker">&gt; home</p>
     <h1>Your dashboard</h1>
     <p class="sub" id="dashHello">Where you stand, and the fastest next move.</p>
+    <div id="dashJourney"></div>
     <div id="dashTarget"></div>
     <div class="dash-stats" id="dashStats"></div>
     <div class="dash-grid2" id="dashMid"></div>
@@ -415,6 +418,13 @@
     <p class="kicker">&gt; score</p>
     <h1>SecMox Score</h1>
     <div id="scoreBody"></div>
+  </section>
+
+  <section id="packsView" class="view" hidden>
+    <p class="kicker">&gt; interview questions</p>
+    <h1>Company question packs</h1>
+    <p class="sub">Real questions candidates were actually asked, by company and role. Add what you were asked, and browse what others shared.</p>
+    <div id="packsBody"></div>
   </section>
 
   <!-- --------------------------------------------------- mock (coming soon) -->

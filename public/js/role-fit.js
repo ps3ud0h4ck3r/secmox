@@ -59,18 +59,31 @@ export function scoreRole(r) {
     wPrac = 0;
     prac = 0;
   }
-  const fit = Math.round(wHold * r.hold + wDepth * depth + wPrac * prac);
+  let fit = wHold * r.hold + wDepth * depth + wPrac * prac;
 
-  // Confidence is volume of evidence, not quality of it.
-  const evidence = r.seen + r.scenarios.done + r.labs.done;
+  // The objective SecMox Score, when taken for this role, is the trustworthy
+  // signal (it cannot be self-inflated), so it takes a firm share and the
+  // self-rated blend is scaled down to make room.
+  const hasScore = r.score_pct != null;
+  if (hasScore) {
+    const wScore = 0.45;
+    fit = wScore * r.score_pct + (1 - wScore) * fit;
+  }
+  fit = Math.round(fit);
+
+  // Confidence is volume of evidence, not quality of it; an objective score is
+  // real evidence, so it lifts a role out of "thin".
+  const engaged = r.seen + r.scenarios.done + r.labs.done;
+  const evidence = engaged + (hasScore ? 1 : 0);
   const pool = r.total + r.scenarios.total + r.labs.total;
-  const coverage = pool ? evidence / pool : 0;
+  const coverage = pool ? engaged / pool : 0;
   let confidence = 'thin';
   if (evidence >= 12 && coverage >= 0.5) confidence = 'solid';
   else if (evidence >= 5 && coverage >= 0.25) confidence = 'some';
+  if (hasScore && confidence === 'thin') confidence = 'some';
 
   const band = cap(rawBand(fit, evidence), confidence);
-  return { fit, confidence, practical_pct, evidence, band };
+  return { fit, confidence, practical_pct, evidence, band, has_score: hasScore };
 }
 
 // The single move that would lift this role's fit the most, said plainly.
@@ -82,6 +95,7 @@ function leadGap(r, f) {
   if (r.unseen > 0) return `${r.unseen} question${r.unseen === 1 ? '' : 's'} still unseen. A blind spot is a blind spot.`;
   if (r.depth_pct !== null && r.depth_pct < 60) return 'You hold the opener but fold on the follow-ups. Push the depth.';
   if (f.practical_pct !== null && f.practical_pct < 60) return 'Recall is there; the applied side is not. Do the scenarios and labs.';
+  if (!f.has_score) return 'Looking solid. Take the SecMox Score for this role to turn it into a verifiable number.';
   return 'Nothing glaring. Keep it warm so it does not fade before the interview.';
 }
 
@@ -94,9 +108,10 @@ function verdict(ranked) {
     return `Most of your work so far is in ${ROLE_LABEL[top.r.role] || top.r.role}, but it is too thin to call a fit. Keep going.`;
   }
   const name = ROLE_LABEL[top.r.role] || top.r.role;
-  if (top.f.band === 'ready') return `Your strongest fit is ${name}. On your own practice, you could walk into that room.`;
-  if (top.f.band === 'close') return `Your strongest fit is ${name}. Close, not quite room-ready.`;
-  return `Your strongest fit right now is ${name}, and it is still a work in progress.`;
+  const backed = top.f.has_score ? ', backed by your SecMox Score' : '';
+  if (top.f.band === 'ready') return `Your strongest fit is ${name}${backed}. On your own practice, you could walk into that room.`;
+  if (top.f.band === 'close') return `Your strongest fit is ${name}${backed}. Close, not quite room-ready.`;
+  return `Your strongest fit right now is ${name}${backed}, and it is still a work in progress.`;
 }
 
 function chip(text, cls) {
@@ -138,6 +153,7 @@ function fitRow(entry, gapText, isLead, onDrill) {
     chip(band.label, 'fit-band'),
     chip(`${f.confidence} evidence`, `fit-conf c-${f.confidence}`),
   );
+  if (f.has_score) chips.append(chip('score-backed', 'fit-conf c-solid'));
 
   const gap = document.createElement('p');
   gap.className = 'fit-gap';

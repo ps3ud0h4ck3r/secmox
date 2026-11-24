@@ -303,6 +303,66 @@ function renderActions(agg) {
 
 /* --------------------------------------------------------------- load */
 
+// The journey: where the candidate is on the path to interview-ready, and the
+// single next move. Built from the dashboard signals plus the top role's fit.
+function navTo(view) {
+  const t = document.querySelector(`#tabsNav [data-view="${view}"]`);
+  if (t) t.click();
+}
+
+function renderJourney(dash, agg) {
+  const host = $('dashJourney');
+  if (!host) return;
+  const topReady =
+    agg.top && agg.top.f.has_score && ['close', 'ready'].includes(agg.top.f.band);
+  const steps = [
+    { label: 'Practise', done: Boolean(dash.has_practiced), action: { label: 'Start practising', view: 'practiceView' } },
+    { label: 'Take a Score', done: (dash.scores_taken || 0) > 0, action: { label: 'Take a Score', view: 'scoreView' } },
+    { label: 'Build profile', done: Boolean(dash.has_profile), action: { label: 'Claim your profile', view: 'scoreView' } },
+    { label: 'Interview-ready', done: Boolean(topReady), action: { label: 'See your readiness', view: 'readinessView' } },
+  ];
+  const current = steps.findIndex((s) => !s.done);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'journey';
+  const strip = document.createElement('div');
+  strip.className = 'journey-steps';
+  steps.forEach((s, i) => {
+    const node = document.createElement('div');
+    const state = s.done ? 'done' : i === current ? 'current' : 'todo';
+    node.className = `journey-step is-${state}`;
+    const mark = document.createElement('span');
+    mark.className = 'journey-mark';
+    mark.textContent = s.done ? '✓' : String(i + 1);
+    node.append(mark, document.createTextNode(s.label));
+    strip.append(node);
+  });
+  wrap.append(strip);
+
+  const foot = document.createElement('div');
+  foot.className = 'journey-foot';
+  if (current === -1) {
+    foot.append(document.createTextNode('You are interview-ready. Keep it sharp, and share your profile.'));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'inf ghost small';
+    btn.textContent = 'Share your profile';
+    btn.addEventListener('click', () => navTo('scoreView'));
+    foot.append(btn);
+  } else {
+    const s = steps[current];
+    foot.append(document.createTextNode(`Next: ${s.label.toLowerCase()}.`));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'inf';
+    btn.textContent = s.action.label;
+    btn.addEventListener('click', () => navTo(s.action.view));
+    foot.append(btn);
+  }
+  wrap.append(foot);
+  host.replaceChildren(wrap);
+}
+
 export async function loadDashboard() {
   $('dashMsg').textContent = '';
   try {
@@ -339,6 +399,7 @@ export async function loadDashboard() {
       ? 'Where you stand, and the fastest next move.'
       : 'Nothing practised yet. Each move below fills this in with where you stand.';
 
+    renderJourney(dash, agg);
     renderTarget(rows, dash.target_role);
     renderStats(agg);
     $('dashMid').replaceChildren(renderCoverage(rows), renderTrend(dash.trend));
