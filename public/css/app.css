@@ -31,8 +31,13 @@
   .side{position:sticky;top:0;height:100vh;max-width:264px}
 }
 @media(max-width:899px){
-  .side{flex-basis:100%;border-right:0;border-bottom:1px solid var(--line);gap:14px;padding:14px 16px}
-  .side-links{flex-direction:row;flex-wrap:wrap}
+  .side{flex-basis:100%;border-right:0;border-bottom:1px solid var(--line);gap:12px;padding:12px 14px}
+  /* One compact, horizontally scrollable strip instead of a tall wrapped block,
+     so the first screen is content, not navigation. */
+  .side-links{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:4px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .side-links::-webkit-scrollbar{display:none}
+  .side-link{flex:0 0 auto;min-height:40px}
   .side-foot{margin-top:0;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px}
   .main{padding:24px 18px 0}
 }

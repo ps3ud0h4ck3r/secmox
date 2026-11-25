@@ -5,6 +5,12 @@ import { loadScenarios, openScenario, setScenarioHandlers, wireScenario }
   from './scenarios.js';
 import { loadReadiness, wireReadiness, setReadinessHandlers } from './readiness.js';
 import { loadPacks } from './packs.js';
+
+// Register the service worker so the app is installable and loads fast / offline.
+// Best-effort: a failure here never affects the app.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 import { loadDashboard, setDashboardHandlers } from './dashboard.js';
 import { loadTracks, openTrack, setTrackHandlers } from './tracks.js';
 import { openScore } from './score.js';
@@ -74,6 +80,8 @@ function show(view) {
 $('tabsNav').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-view]');
   if (!tab) return;
+  // On a narrow screen the nav is a horizontal strip; keep the tapped item in view.
+  tab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   // Navigating away from a first run counts as skipping onboarding, so it does
   // not nag on the next login. Fire and forget; the navigation proceeds.
   if (state.user && !state.user.onboarded_at) saveOnboard({});

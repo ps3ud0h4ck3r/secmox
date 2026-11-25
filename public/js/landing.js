@@ -118,3 +118,8 @@ if (heroInner && !calm && typeof heroInner.animate === 'function') {
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll, { passive: true });
 }
+
+// Register the service worker (installable PWA, fast repeat loads). Best-effort.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
