@@ -93,6 +93,7 @@ app.use('*', async (c, next) => {
   h.set('X-Frame-Options', 'DENY');
   h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
+  h.set('Permissions-Policy', PERMISSIONS_POLICY);
   // API responses are never a page and never cached.
   if (new URL(c.req.url).pathname.startsWith('/api/')) {
     h.set('Cache-Control', 'no-store');
@@ -142,6 +143,11 @@ const OPEN_ROUTES = new Set([
 
 app.use('/api/*', async (c, next) => {
   const pathname = new URL(c.req.url).pathname;
+  // Reject oversized bodies early (DoS guard). Nothing legitimate comes close;
+  // the biggest is a pasted email list for bulk invite.
+  if (Number(c.req.header('content-length') || 0) > 512 * 1024) {
+    return fail(c, 413, 'That request is too large.');
+  }
   if (OPEN_ROUTES.has(pathname)) return next();
   // A published SecMox Score is meant to be shared, so its verify endpoint is
   // public. Only the GET under this prefix; starting and submitting a run stay
@@ -3156,7 +3162,7 @@ app.get('/api/console/orgs', async (c) => {
 app.post('/api/console/orgs', async (c) => {
   if (c.get('user').platform_role !== 'owner') return fail(c, 403, 'Only the owner manages companies.');
   const body = await c.req.json().catch(() => null);
-  const name = (body?.name ?? '').toString().trim();
+  const name = (body?.name ?? '').toString().trim().slice(0, 80);
   if (name.length < 2) return fail(c, 400, 'Give the company a name.');
 
   let slug = slugify(name);
@@ -3442,6 +3448,30 @@ async function ogProfile(env, url) {
   return serveWithOg(env, '/u/index.html', url, ogTags({ title, description: desc, image: brand, pageUrl: url.href }));
 }
 
+// Security headers for every page and asset response. API responses get their
+// set from the Hono middleware. The CSP matches public/_headers so fonts and
+// styles keep working, and critically it now also covers the server-rendered
+// preview pages (/score/, /u/) and every static response uniformly, instead of
+// relying on the _headers file alone.
+const PAGE_CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
+  "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; " +
+  "form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'";
+const PERMISSIONS_POLICY =
+  'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()';
+
+function withSecurity(res) {
+  const h = new Headers(res.headers);
+  h.set('Content-Security-Policy', PAGE_CSP);
+  h.set('X-Content-Type-Options', 'nosniff');
+  h.set('X-Frame-Options', 'DENY');
+  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  h.set('Cross-Origin-Opener-Policy', 'same-origin');
+  h.set('Permissions-Policy', PERMISSIONS_POLICY);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -3451,12 +3481,15 @@ export default {
     if (url.pathname.startsWith('/api/')) return app.fetch(request, env, ctx);
     if (!env.ASSETS) return app.fetch(request, env, ctx);
     // Shareable pages get server-injected previews; profile uses clean /u/<handle>.
+    // Every page/asset response is wrapped with the security headers above.
+    let res;
     if (url.pathname === '/score/' || url.pathname === '/score/index.html') {
-      return ogScore(env, url);
+      res = await ogScore(env, url);
+    } else if (url.pathname.startsWith('/u/')) {
+      res = await ogProfile(env, url);
+    } else {
+      res = await env.ASSETS.fetch(request);
     }
-    if (url.pathname.startsWith('/u/')) {
-      return ogProfile(env, url);
-    }
-    return env.ASSETS.fetch(request);
+    return withSecurity(res);
   },
 };
