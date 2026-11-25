@@ -70,7 +70,8 @@ export function fill(text, map) {
 // Fill a served chain's visible text (scenario, step prompts, options). Answers
 // and explanations are concept-based and left untouched.
 export function fillChain(chain, rng = Math.random) {
-  const texts = [chain.scenario, ...chain.steps.flatMap((s) => [s.prompt, ...s.options])];
+  // Some steps (type 'exact') have no options, so guard the spread/map.
+  const texts = [chain.scenario, ...chain.steps.flatMap((s) => [s.prompt, ...(s.options || [])])];
   const map = buildVarMap(texts, rng);
   return {
     ...chain,
@@ -78,7 +79,7 @@ export function fillChain(chain, rng = Math.random) {
     steps: chain.steps.map((s) => ({
       ...s,
       prompt: fill(s.prompt, map),
-      options: s.options.map((o) => fill(o, map)),
+      options: s.options ? s.options.map((o) => fill(o, map)) : s.options,
     })),
   };
 }

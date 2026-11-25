@@ -248,7 +248,13 @@ async function startRun(role) {
   const flat = [];
   data.chains.forEach((ch, ci) => {
     ch.steps.forEach((step, si) => {
-      flat.push({ chainId: ch.id, chainIdx: ci, stepIdx: si, step, order: shuffle(step.options.length) });
+      flat.push({
+        chainId: ch.id,
+        chainIdx: ci,
+        stepIdx: si,
+        step,
+        order: step.options ? shuffle(step.options.length) : [],
+      });
     });
   });
 
@@ -302,26 +308,46 @@ function renderQuestion() {
   sh.append(el('span', 'score-step-prompt', q.step.prompt));
   stepWrap.append(sh);
 
-  const opts = el('div', 'score-opts');
   const key = `${q.chainId}::${q.stepIdx}`;
-  const name = `q${run.pos}`;
   const chosen = run.answers.get(key);
-  q.order.forEach((origIdx, displayPos) => {
-    const id = `${name}-${displayPos}`;
-    const label = el('label', 'score-opt');
-    label.htmlFor = id;
-    const input = el('input');
-    input.type = 'radio';
-    input.name = name;
-    input.id = id;
-    input.value = String(origIdx);
-    if (chosen === origIdx) input.checked = true;
-    input.addEventListener('change', () => run.answers.set(key, origIdx));
-    label.append(input);
-    label.append(el('span', 'score-opt-text', q.step.options[origIdx]));
-    opts.append(label);
-  });
-  stepWrap.append(opts);
+  if (q.step.type === 'exact') {
+    // Read the artifact above, type the answer (an IOC, a value). Graded by an
+    // exact, case/space-insensitive match on the server.
+    const wrap = el('div', 'score-exact');
+    const input = el('input', 'score-exact-input');
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = 'Type your answer';
+    input.setAttribute('aria-label', 'Your answer');
+    if (typeof chosen === 'string') input.value = chosen;
+    input.addEventListener('input', () => {
+      const v = input.value.trim();
+      if (v) run.answers.set(key, v);
+      else run.answers.delete(key);
+    });
+    wrap.append(input);
+    stepWrap.append(wrap);
+  } else {
+    const opts = el('div', 'score-opts');
+    const name = `q${run.pos}`;
+    q.order.forEach((origIdx, displayPos) => {
+      const id = `${name}-${displayPos}`;
+      const label = el('label', 'score-opt');
+      label.htmlFor = id;
+      const input = el('input');
+      input.type = 'radio';
+      input.name = name;
+      input.id = id;
+      input.value = String(origIdx);
+      if (chosen === origIdx) input.checked = true;
+      input.addEventListener('change', () => run.answers.set(key, origIdx));
+      label.append(input);
+      label.append(el('span', 'score-opt-text', q.step.options[origIdx]));
+      opts.append(label);
+    });
+    stepWrap.append(opts);
+  }
   card.append(stepWrap);
   root.append(card);
 
@@ -498,7 +524,15 @@ function renderResult(out) {
       line.append(el('span', 'score-rev-mark', sr.correct ? '✓' : '✗'));
       const b = el('div', 'score-rev-body');
       b.append(el('p', 'score-rev-q', `${step.label ? step.label + ': ' : ''}${step.prompt}`));
-      if (!sr.correct) b.append(el('p', 'score-rev-ans', `Correct: ${step.options[sr.answer]}`));
+      if (!sr.correct) {
+        const correct =
+          step.type === 'exact'
+            ? Array.isArray(sr.answer)
+              ? sr.answer.join(' / ')
+              : sr.answer
+            : step.options[sr.answer];
+        b.append(el('p', 'score-rev-ans', `Correct: ${correct}`));
+      }
       if (sr.explain) b.append(el('p', 'score-rev-why', sr.explain));
       line.append(b);
       block.append(line);

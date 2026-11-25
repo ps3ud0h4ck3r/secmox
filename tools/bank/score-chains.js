@@ -952,4 +952,94 @@ export const SCORE_CHAINS = [
       },
     ],
   },
+
+  // ---- hands-on: read a real artifact, type the IOC (literal values, no
+  // templating, so the typed answer grades consistently) ----
+  {
+    slug: 'read-auth-log',
+    role: 'soc',
+    title: 'Read the auth log',
+    difficulty: 2,
+    scenario:
+      'Linux /var/log/auth.log on web01, last few minutes:\n\n' +
+      'Failed password for root from 203.0.113.44 port 50122 ssh2\n' +
+      'Failed password for root from 203.0.113.44 port 50140 ssh2\n' +
+      'Failed password for admin from 203.0.113.44 port 50155 ssh2\n' +
+      '... (hundreds more failures from the same source) ...\n' +
+      'Accepted password for deploy from 203.0.113.44 port 51022 ssh2\n' +
+      'session opened for user deploy',
+    steps: [
+      {
+        label: 'Identify',
+        prompt: 'Type the source IP address behind this activity.',
+        type: 'exact',
+        answer: ['203.0.113.44'],
+        explain: 'Every failed and the successful login come from the one source address.',
+      },
+      {
+        label: 'Read it',
+        prompt: 'Which account did the attacker finally log in as?',
+        type: 'mcq',
+        options: ['root', 'admin', 'deploy', 'web01'],
+        answer: 2,
+        explain: 'The brute force failed on root and admin but succeeded on deploy, which then opened a session.',
+      },
+      {
+        label: 'Act',
+        prompt: 'First containment action?',
+        type: 'mcq',
+        options: [
+          'Block the source IP and disable/reset the deploy account',
+          'Reboot web01',
+          'Delete auth.log to stop the noise',
+          'Email the deploy user and wait',
+        ],
+        answer: 0,
+        explain: 'Cut the attacker off and lock the account they got into; never destroy the evidence.',
+      },
+    ],
+  },
+  {
+    slug: 'spot-the-c2',
+    role: 'network',
+    title: 'Spot the C2 in the proxy log',
+    difficulty: 3,
+    scenario:
+      'Web proxy log for one workstation (10.0.5.23), last two minutes:\n\n' +
+      '-> cdn.jquery.com        GET /jquery.min.js     200\n' +
+      '-> fonts.googleapis.com  GET /css               200\n' +
+      '-> update-check.live     POST /a9f3   (every 30s)  200\n' +
+      '-> cdn.jsdelivr.net      GET /npm/chart.js      200\n' +
+      '-> update-check.live     POST /a9f3   (every 30s)  200',
+    steps: [
+      {
+        label: 'Orient',
+        prompt: 'Which destination looks like command-and-control?',
+        type: 'mcq',
+        options: ['cdn.jquery.com', 'fonts.googleapis.com', 'update-check.live', 'cdn.jsdelivr.net'],
+        answer: 2,
+        explain: 'Steady POSTs on a fixed interval to an unknown domain is beaconing; the others are normal CDNs.',
+      },
+      {
+        label: 'Extract',
+        prompt: 'Type the C2 domain exactly as it appears.',
+        type: 'exact',
+        answer: ['update-check.live'],
+        explain: 'The beaconing destination is the C2 domain to pull out as an IOC.',
+      },
+      {
+        label: 'Act',
+        prompt: 'Immediate action?',
+        type: 'mcq',
+        options: [
+          'Isolate the host and block the C2 domain',
+          'Reboot the proxy',
+          'Clear the browser cache',
+          'Nothing, CDNs are normal',
+        ],
+        answer: 0,
+        explain: 'Contain the host and stop resolution/egress to the C2.',
+      },
+    ],
+  },
 ];

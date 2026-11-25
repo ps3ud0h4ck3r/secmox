@@ -44,6 +44,14 @@ export function gradeObjective(type, answer, choice) {
     if (!Array.isArray(choice) || !Array.isArray(answer) || choice.length !== answer.length) return false;
     return choice.every((v, i) => v === answer[i]);
   }
+  // Typed answer (read an artifact, type the IOC). Deterministic: normalise
+  // case/whitespace and accept any of the allowed answers. No AI, no cost.
+  if (type === 'exact') {
+    const norm = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, '');
+    const want = Array.isArray(answer) ? answer : [answer];
+    const got = norm(choice);
+    return got.length > 0 && want.some((a) => norm(a) === got);
+  }
   return choice === answer;
 }
 

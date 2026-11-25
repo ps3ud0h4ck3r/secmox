@@ -1023,3 +1023,9 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
 .journey-step.is-current .journey-mark{color:var(--neon-ink);background:var(--neon);border-color:var(--neon)}
 .journey-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
   margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--dim)}
+
+/* ------------------------------------------------ Score: typed (exact) answer */
+.score-exact{margin-top:4px}
+.score-exact-input{width:100%;max-width:360px;background:var(--bg);border:1px solid var(--line);
+  border-radius:9px;padding:11px 13px;color:var(--text);font-family:var(--mono);font-size:15px;letter-spacing:.02em}
+.score-exact-input:focus{outline:none;border-color:var(--neon)}

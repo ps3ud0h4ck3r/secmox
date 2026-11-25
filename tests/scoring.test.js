@@ -172,3 +172,13 @@ describe('credential helpers', () => {
     expect(POSITION.grc).toBe('GRC / Security Risk');
   });
 });
+
+describe('gradeObjective exact', () => {
+  it('matches case/space-insensitively against accepted answers', () => {
+    expect(gradeObjective('exact', ['203.0.113.44'], '203.0.113.44')).toBe(true);
+    expect(gradeObjective('exact', ['update-check.live'], '  Update-Check.Live ')).toBe(true);
+    expect(gradeObjective('exact', ['a.com', 'b.com'], 'b.com')).toBe(true);
+    expect(gradeObjective('exact', ['203.0.113.44'], '203.0.113.45')).toBe(false);
+    expect(gradeObjective('exact', ['x'], '')).toBe(false);
+  });
+});

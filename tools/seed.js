@@ -196,6 +196,14 @@ const chainBlocks = SCORE_CHAINS.map((ch) => {
   }
   ch.steps.forEach((st, i) => {
     if (!st.prompt?.toString().trim()) throw new Error(`chain ${ch.slug} step ${i}: empty prompt`);
+    if (st.type === 'exact') {
+      // Typed answer: one or more accepted strings, no options.
+      const accepted = Array.isArray(st.answer) ? st.answer : [st.answer];
+      if (!accepted.length || accepted.some((a) => !a?.toString().trim())) {
+        throw new Error(`chain ${ch.slug} step ${i}: exact step needs a non-empty accepted answer`);
+      }
+      return;
+    }
     if (!Array.isArray(st.options) || st.options.length < 2) {
       throw new Error(`chain ${ch.slug} step ${i}: needs at least two options`);
     }
