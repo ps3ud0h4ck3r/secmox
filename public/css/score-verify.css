@@ -186,6 +186,11 @@ body {
 .verify-chip.is-seal{color:var(--neon-hi);border-color:rgba(41,182,255,.35)}
 
 /* ---- public profile (/u/<handle>) ---- */
+.profile-topfit{display:flex;flex-direction:column;gap:3px;margin-top:22px;padding:14px 16px;
+  border:1px solid var(--line);border-left:3px solid var(--neon);border-radius:10px;background:var(--panel-2)}
+.profile-topfit-label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.profile-topfit-role{font-family:var(--display,var(--sans));font-size:20px;font-weight:700;color:var(--text)}
+.profile-topfit-sub{font-size:13px;color:var(--dim)}
 .profile-roles{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .profile-role{display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:14px 16px;border:1px solid var(--line-soft);border-radius:12px;text-decoration:none;

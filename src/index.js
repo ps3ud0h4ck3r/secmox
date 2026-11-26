@@ -655,7 +655,22 @@ app.get('/api/profile/:handle', async (c) => {
     });
   }
   roles.sort((a, b) => b.score - a.score);
-  return c.json({ handle: u.handle, name: u.display_name || null, roles });
+  // The demonstrated best-fit across every Score on this profile: the top-scoring
+  // role, named for a recruiter reading the card. Only meaningful once more than
+  // one role has a Score; with one, the single row already says it.
+  const top = roles[0] || null;
+  const top_fit =
+    top && roles.length > 1
+      ? {
+          role: top.role,
+          position: top.position,
+          score: top.score,
+          band: top.band,
+          percentile: top.percentile,
+          fresh: top.fresh,
+        }
+      : null;
+  return c.json({ handle: u.handle, name: u.display_name || null, roles, top_fit });
 });
 
 /* ------------------------------------------- company post-mortem packs */

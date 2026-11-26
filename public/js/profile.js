@@ -61,6 +61,17 @@ function render(data) {
   if (!data.roles || !data.roles.length) {
     c.append(el('p', 'verify-sub', 'No scores to show yet.'));
   } else {
+    if (data.top_fit) {
+      const tf = data.top_fit;
+      const banner = el('div', 'profile-topfit');
+      banner.append(el('span', 'profile-topfit-label', 'Strongest demonstrated fit'));
+      banner.append(el('span', 'profile-topfit-role', tf.position || ROLE[tf.role] || tf.role));
+      const sub =
+        `SecMox Score ${tf.score}, ${tf.band}` +
+        (typeof tf.percentile === 'number' ? `, top ${100 - tf.percentile}%` : '');
+      banner.append(el('span', 'profile-topfit-sub', sub));
+      c.append(banner);
+    }
     const list = el('div', 'profile-roles');
     for (const r of data.roles) list.append(roleRow(r));
     c.append(list);
