@@ -182,3 +182,79 @@ describe('gradeObjective exact', () => {
     expect(gradeObjective('exact', ['x'], '')).toBe(false);
   });
 });
+
+import { roleFit, rankRoleFit, bestFitLine } from '../src/scoring.js';
+
+describe('roleFit', () => {
+  const base = (over) => ({
+    role: 'soc', total: 10, seen: 0, hold: 0, depth_pct: null,
+    scenarios: { total: 0, done: 0 }, labs: { total: 0, done: 0 }, score_pct: null, ...over,
+  });
+
+  it('untouched role gets zero fit and untouched band', () => {
+    const f = roleFit(base());
+    expect(f.fit).toBe(0);
+    expect(f.band).toBe('untouched');
+    expect(f.confidence).toBe('thin');
+    expect(f.has_score).toBe(false);
+  });
+
+  it('folds missing depth and practical weight back into hold', () => {
+    // No scenarios/labs/follow-ups: fit should equal the hold percent.
+    const f = roleFit(base({ seen: 10, hold: 80 }));
+    expect(f.fit).toBe(80);
+  });
+
+  it('an objective score takes a firm 45% share of the blend', () => {
+    // hold 40, no depth/practical -> self blend = 40; score_pct 100 -> 0.45*100 + 0.55*40 = 67
+    const f = roleFit(base({ seen: 10, hold: 40, score_pct: 100 }));
+    expect(f.fit).toBe(67);
+    expect(f.has_score).toBe(true);
+  });
+
+  it('caps a thin-evidence role at building however high the fit', () => {
+    const f = roleFit(base({ seen: 2, hold: 100 }));
+    expect(f.confidence).toBe('thin');
+    expect(f.band).toBe('building');
+  });
+
+  it('a score lifts a thin role out of thin confidence', () => {
+    const f = roleFit(base({ seen: 1, hold: 90, score_pct: 90 }));
+    expect(f.confidence).toBe('some');
+  });
+
+  it('solid evidence with high fit can reach ready', () => {
+    const f = roleFit(base({
+      total: 10, seen: 10, hold: 95, depth_pct: 95,
+      scenarios: { total: 3, done: 3 }, labs: { total: 3, done: 3 }, score_pct: 95,
+    }));
+    expect(f.confidence).toBe('solid');
+    expect(f.band).toBe('ready');
+  });
+});
+
+describe('rankRoleFit', () => {
+  it('ranks strongest fit first and breaks ties by evidence', () => {
+    const rows = [
+      { role: 'soc', total: 10, seen: 2, hold: 50, depth_pct: null, scenarios: { total: 0, done: 0 }, labs: { total: 0, done: 0 }, score_pct: null },
+      { role: 'grc', total: 10, seen: 10, hold: 50, depth_pct: null, scenarios: { total: 0, done: 0 }, labs: { total: 0, done: 0 }, score_pct: null },
+    ];
+    const ranked = rankRoleFit(rows);
+    // equal fit (50), grc has more evidence so it leads
+    expect(ranked[0].role).toBe('grc');
+    expect(ranked[0].fit).toBe(50);
+  });
+});
+
+describe('bestFitLine', () => {
+  it('returns null when nothing is backed', () => {
+    expect(bestFitLine([{ role: 'soc', evidence: 0 }])).toBeNull();
+    expect(bestFitLine([])).toBeNull();
+  });
+  it('names the position and hedges on thin evidence', () => {
+    expect(bestFitLine([{ role: 'soc', evidence: 3, confidence: 'thin', band: 'building' }]))
+      .toBe('Leaning SOC Analyst, on limited evidence so far.');
+    expect(bestFitLine([{ role: 'grc', evidence: 20, confidence: 'solid', band: 'ready' }]))
+      .toBe('Strongest demonstrated fit: GRC / Security Risk.');
+  });
+});

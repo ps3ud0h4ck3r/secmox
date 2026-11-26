@@ -148,3 +148,103 @@ export function strengthsWeaknesses(chains) {
   }
   return { strengths, weaknesses };
 }
+
+// ---- Role fit: which role to walk into interviews for ----------------------
+
+// Computed on the server so the number exists in exactly one place: it backs the
+// in-app ranking and the HR-facing scorecard from the same engine, and the
+// client only renders it (no second, divergent copy of the maths in the browser,
+// and nothing a candidate can self-inflate before HR reads it).
+//
+// A fit blends recall (hold), depth under follow-ups, and applied practice, with
+// the objective SecMox Score taking a firm share when it exists because it
+// cannot be faked. Confidence is a separate axis measuring how much evidence
+// backs the number, and a thin role is never crowned ready.
+
+export const ROLE_FIT_BANDS = ['untouched', 'cold', 'shaky', 'building', 'close', 'ready'];
+
+function rawFitBand(fit, evidence) {
+  if (!evidence) return 'untouched';
+  if (fit < 25) return 'cold';
+  if (fit < 50) return 'shaky';
+  if (fit < 72) return 'building';
+  if (fit < 88) return 'close';
+  return 'ready';
+}
+
+// Thin evidence cannot earn the top bands: three-of-three is not readiness.
+function capFitBand(band, confidence) {
+  const ceiling = confidence === 'thin' ? 'building' : confidence === 'some' ? 'close' : 'ready';
+  return ROLE_FIT_BANDS.indexOf(band) > ROLE_FIT_BANDS.indexOf(ceiling) ? ceiling : band;
+}
+
+// r: one readiness row (role, total, seen, hold, depth_pct, scenarios, labs,
+// score_pct). Returns the fit verdict for that role.
+export function roleFit(r) {
+  const pracTotal = (r.scenarios?.total ?? 0) + (r.labs?.total ?? 0);
+  const pracDone = (r.scenarios?.done ?? 0) + (r.labs?.done ?? 0);
+  const practical_pct = pracTotal ? Math.round((pracDone / pracTotal) * 100) : null;
+
+  // A dimension with no content available folds its weight back into hold, so a
+  // role is never punished for scenarios or follow-ups that do not exist for it.
+  let wHold = 0.55;
+  let wDepth = 0.2;
+  let wPrac = 0.25;
+  let depth = r.depth_pct;
+  let prac = practical_pct;
+  if (depth === null || depth === undefined) {
+    wHold += wDepth;
+    wDepth = 0;
+    depth = 0;
+  }
+  if (prac === null) {
+    wHold += wPrac;
+    wPrac = 0;
+    prac = 0;
+  }
+  let fit = wHold * (r.hold ?? 0) + wDepth * depth + wPrac * prac;
+
+  // The objective Score, taken for this role, is the trustworthy signal (it
+  // cannot be self-inflated), so it takes a firm share and the self-rated blend
+  // is scaled down to make room.
+  const hasScore = r.score_pct != null;
+  if (hasScore) {
+    const wScore = 0.45;
+    fit = wScore * r.score_pct + (1 - wScore) * fit;
+  }
+  fit = Math.round(fit);
+
+  // Confidence is volume of evidence, not quality of it; an objective score is
+  // real evidence, so it lifts a role out of "thin".
+  const engaged = (r.seen ?? 0) + (r.scenarios?.done ?? 0) + (r.labs?.done ?? 0);
+  const evidence = engaged + (hasScore ? 1 : 0);
+  const pool = (r.total ?? 0) + (r.scenarios?.total ?? 0) + (r.labs?.total ?? 0);
+  const coverage = pool ? engaged / pool : 0;
+  let confidence = 'thin';
+  if (evidence >= 12 && coverage >= 0.5) confidence = 'solid';
+  else if (evidence >= 5 && coverage >= 0.25) confidence = 'some';
+  if (hasScore && confidence === 'thin') confidence = 'some';
+
+  const band = capFitBand(rawFitBand(fit, evidence), confidence);
+  return { fit, confidence, practical_pct, evidence, band, has_score: hasScore };
+}
+
+// Rank readiness rows by fit, strongest first, each row carrying its fit verdict.
+// evidence breaks a tie so a better-backed role wins over a thinly-backed equal.
+export function rankRoleFit(rows) {
+  return (rows || [])
+    .map((r) => ({ ...r, ...roleFit(r) }))
+    .sort((a, b) => b.fit - a.fit || b.evidence - a.evidence);
+}
+
+// One HR-facing line naming the demonstrated best-fit role from a ranked list.
+// Honest about thin evidence; never crowns a role it cannot back.
+export function bestFitLine(ranked) {
+  const top = (ranked || [])[0];
+  if (!top || !top.evidence) return null;
+  const name = POSITION[top.role] || top.role;
+  if (top.confidence === 'thin') return `Leaning ${name}, on limited evidence so far.`;
+  if (top.band === 'ready') return `Strongest demonstrated fit: ${name}.`;
+  if (top.band === 'close') return `Strongest demonstrated fit: ${name} (close to room-ready).`;
+  return `Strongest demonstrated fit so far: ${name} (still building).`;
+}

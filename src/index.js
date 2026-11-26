@@ -43,6 +43,9 @@ import {
   CODE_ALPHABET,
   normalizeCode,
   strengthsWeaknesses,
+  roleFit,
+  rankRoleFit,
+  bestFitLine,
 } from './scoring.js';
 
 const app = new Hono();
@@ -1652,7 +1655,7 @@ app.get('/api/readiness', async (c) => {
         .sort((a, b) => a.hold - b.hold)
         .slice(0, 3);
 
-      return {
+      const row = {
         role: bucket.role,
         total,
         seen,
@@ -1672,6 +1675,17 @@ app.get('/api/readiness', async (c) => {
         weak_topics: weak,
         last_practiced: lastAt,
       };
+      // Attach the role-fit verdict computed server-side, so the browser renders
+      // one authoritative number instead of recomputing its own. `band` above is
+      // the raw readiness band; `fit`, `fit_band`, `confidence` are the fit axis.
+      const f = roleFit(row);
+      row.fit = f.fit;
+      row.fit_band = f.band;
+      row.confidence = f.confidence;
+      row.practical_pct = f.practical_pct;
+      row.evidence = f.evidence;
+      row.has_score = f.has_score;
+      return row;
     })
     .sort((a, b) => a.hold - b.hold);
 

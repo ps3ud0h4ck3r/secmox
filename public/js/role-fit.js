@@ -1,13 +1,13 @@
 import { $, ROLE_LABEL } from './common.js';
 
-// Which role fits you. A ranking built on top of the readiness reading: it takes
-// the same per-role signals the cards already show and turns them into one
-// honest answer to "which role should I be walking into interviews for?".
+// Which role fits you. A ranking that answers "which role should I be walking
+// into interviews for?".
 //
-// Everything here is derived on the client from the readiness payload, so there
-// is no hidden server verdict: the number is yours to check. A fit is a blend of
-// recall, depth under follow-ups, and applied practice; confidence is a separate
-// axis for how much evidence backs it, and a thin role is never crowned ready.
+// The fit number itself is computed on the server (src/scoring.js roleFit) and
+// arrives on each readiness row as fit / fit_band / confidence / evidence /
+// practical_pct / has_score. This file only reads those fields and renders them,
+// so the browser and the HR scorecard show one and the same number, and there is
+// no second copy of the maths here to drift from the server's.
 
 const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -19,71 +19,18 @@ const BAND = {
   close: { label: 'Close', cls: 'b-close' },
   ready: { label: 'Room-ready', cls: 'b-ready' },
 };
-const BAND_ORDER = ['untouched', 'cold', 'shaky', 'building', 'close', 'ready'];
 
-function rawBand(fit, evidence) {
-  if (!evidence) return 'untouched';
-  if (fit < 25) return 'cold';
-  if (fit < 50) return 'shaky';
-  if (fit < 72) return 'building';
-  if (fit < 88) return 'close';
-  return 'ready';
-}
-
-// Thin evidence cannot earn the top bands: three-of-three is not readiness.
-function cap(band, confidence) {
-  const ceiling = confidence === 'thin' ? 'building' : confidence === 'some' ? 'close' : 'ready';
-  return BAND_ORDER.indexOf(band) > BAND_ORDER.indexOf(ceiling) ? ceiling : band;
-}
-
-export function scoreRole(r) {
-  const pracTotal = r.scenarios.total + r.labs.total;
-  const pracDone = r.scenarios.done + r.labs.done;
-  const practical_pct = pracTotal ? Math.round((pracDone / pracTotal) * 100) : null;
-
-  // Blend. A dimension with no content available folds its weight back into
-  // hold, so a role is never punished for scenarios or follow-ups that do not
-  // exist for it.
-  let wHold = 0.55;
-  let wDepth = 0.2;
-  let wPrac = 0.25;
-  let depth = r.depth_pct;
-  let prac = practical_pct;
-  if (depth === null) {
-    wHold += wDepth;
-    wDepth = 0;
-    depth = 0;
-  }
-  if (prac === null) {
-    wHold += wPrac;
-    wPrac = 0;
-    prac = 0;
-  }
-  let fit = wHold * r.hold + wDepth * depth + wPrac * prac;
-
-  // The objective SecMox Score, when taken for this role, is the trustworthy
-  // signal (it cannot be self-inflated), so it takes a firm share and the
-  // self-rated blend is scaled down to make room.
-  const hasScore = r.score_pct != null;
-  if (hasScore) {
-    const wScore = 0.45;
-    fit = wScore * r.score_pct + (1 - wScore) * fit;
-  }
-  fit = Math.round(fit);
-
-  // Confidence is volume of evidence, not quality of it; an objective score is
-  // real evidence, so it lifts a role out of "thin".
-  const engaged = r.seen + r.scenarios.done + r.labs.done;
-  const evidence = engaged + (hasScore ? 1 : 0);
-  const pool = r.total + r.scenarios.total + r.labs.total;
-  const coverage = pool ? engaged / pool : 0;
-  let confidence = 'thin';
-  if (evidence >= 12 && coverage >= 0.5) confidence = 'solid';
-  else if (evidence >= 5 && coverage >= 0.25) confidence = 'some';
-  if (hasScore && confidence === 'thin') confidence = 'some';
-
-  const band = cap(rawBand(fit, evidence), confidence);
-  return { fit, confidence, practical_pct, evidence, band, has_score: hasScore };
+// Lift the server-computed fit fields off a readiness row into the shape the
+// renderer below expects. No maths: the number is the server's.
+export function fitOf(r) {
+  return {
+    fit: r.fit ?? 0,
+    confidence: r.confidence ?? 'thin',
+    practical_pct: r.practical_pct ?? null,
+    evidence: r.evidence ?? 0,
+    band: r.fit_band ?? 'untouched',
+    has_score: !!r.has_score,
+  };
 }
 
 // The single move that would lift this role's fit the most, said plainly.
@@ -188,7 +135,7 @@ export function renderRoleFit(rows, onDrill) {
     return;
   }
   const ranked = rows
-    .map((r) => ({ r, f: scoreRole(r) }))
+    .map((r) => ({ r, f: fitOf(r) }))
     .sort((a, b) => b.f.fit - a.f.fit || b.f.evidence - a.f.evidence);
 
   const head = document.createElement('div');

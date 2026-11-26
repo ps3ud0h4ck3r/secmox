@@ -1,5 +1,5 @@
 import { $, api, ROLE_LABEL } from './common.js';
-import { scoreRole } from './role-fit.js';
+import { fitOf } from './role-fit.js';
 
 // The home base. Most of it is a lens on the readiness read the user already
 // has; /api/dashboard adds only what readiness does not carry (reviews due,
@@ -90,8 +90,8 @@ function renderTarget(rows, targetRole) {
   const prog = el('div', 'dt-prog');
   if (targetRole) {
     const row = rows.find((r) => r.role === targetRole);
-    const fit = row ? scoreRole(row).fit : 0;
-    const band = row ? BAND_WORD[scoreRole(row).band] || '' : '';
+    const fit = row ? fitOf(row).fit : 0;
+    const band = row ? BAND_WORD[fitOf(row).band] || '' : '';
     const bar = el('div', 'dt-bar');
     const fill = el('div', 'dt-fill');
     bar.append(fill);
@@ -379,7 +379,7 @@ export async function loadDashboard() {
     const total = sum((r) => r.total);
     const weak = sum((r) => r.missed + r.shaky);
     const ranked = rows
-      .map((r) => ({ r, f: scoreRole(r) }))
+      .map((r) => ({ r, f: fitOf(r) }))
       .sort((a, b) => b.f.fit - a.f.fit || b.f.evidence - a.f.evidence);
     const agg = {
       top: ranked[0],
