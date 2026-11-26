@@ -46,6 +46,7 @@ import {
   roleFit,
   rankRoleFit,
   bestFitLine,
+  diagnosticRank,
 } from './scoring.js';
 
 const app = new Hono();
@@ -375,6 +376,100 @@ app.get('/api/score/mine', async (c) => {
     date: r.created_at,
   }));
   return c.json({ runs });
+});
+
+/* ------------------------------------------------ find-your-role diagnostic */
+
+// Start a diagnostic: one random scenario chain per role, answer keys stripped
+// and surface variables freshly filled. A short cross-role run that tells a
+// brand-new user which role to walk into interviews for.
+app.get('/api/rolefit/diagnostic', async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT id, role, title, scenario, difficulty, steps FROM (
+       SELECT *, ROW_NUMBER() OVER (PARTITION BY role ORDER BY RANDOM()) AS rn
+         FROM score_chains WHERE org_id IS NULL
+     ) WHERE rn = 1`,
+  ).all();
+  const chains = (rows.results || []).map((r) =>
+    fillChain({
+      id: r.id,
+      // The role rides along so the grader can bucket by role; the client does
+      // not surface it, so a candidate is not nudged toward an answer.
+      role: r.role,
+      title: r.title,
+      scenario: r.scenario,
+      difficulty: r.difficulty,
+      steps: JSON.parse(r.steps).map((s) => ({
+        label: s.label || null,
+        prompt: s.prompt,
+        type: s.type,
+        options: s.options,
+      })),
+    }),
+  );
+  if (!chains.length) return fail(c, 503, 'The diagnostic is not ready yet.');
+  return c.json({ count: chains.length, chains });
+});
+
+// Grade a diagnostic run across roles and rank which role fits best. Graded
+// server-side (the client never holds the answer keys). Stored apart from the
+// credential scores so the verify pool stays clean.
+app.post('/api/rolefit/diagnostic/submit', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  const runs = Array.isArray(body?.runs) ? body.runs : [];
+  const ids = [...new Set(runs.map((r) => r?.id).filter((x) => typeof x === 'string'))].slice(0, 12);
+  if (!ids.length) return fail(c, 400, 'No answers to grade.');
+
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await c.env.DB.prepare(
+    `SELECT id, role, title, difficulty, steps FROM score_chains
+       WHERE org_id IS NULL AND id IN (${placeholders})`,
+  )
+    .bind(...ids)
+    .all();
+  const byId = new Map((rows.results || []).map((r) => [r.id, r]));
+
+  // Aggregate depth and ladder length per role (one chain each today, but summed
+  // so a deeper pool later needs no change here).
+  const perRole = new Map();
+  const scenarios = [];
+  for (const run of runs) {
+    const ch = byId.get(run?.id);
+    if (!ch) continue;
+    const steps = JSON.parse(ch.steps);
+    const choices = Array.isArray(run.answers) ? run.answers : [];
+    const stepCorrects = steps.map((st, i) => gradeObjective(st.type, st.answer, choices[i]));
+    const depth = chainDepth(stepCorrects);
+    const agg = perRole.get(ch.role) || { role: ch.role, depth: 0, steps: 0 };
+    agg.depth += depth;
+    agg.steps += steps.length;
+    perRole.set(ch.role, agg);
+    scenarios.push({ role: ch.role, title: ch.title, depth, step_count: steps.length });
+  }
+  if (!perRole.size) return fail(c, 400, 'No valid scenarios.');
+
+  const { ranked, top_role, verdict } = diagnosticRank([...perRole.values()]);
+
+  const id = randomHex(16);
+  await c.env.DB.prepare(
+    `INSERT INTO rolefit_runs (id, user_id, created_at, top_role, detail) VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(id, user.id, nowIso(), top_role, JSON.stringify({ ranked, scenarios }))
+    .run();
+
+  return c.json({ id, top_role, verdict, ranked, scenarios });
+});
+
+// A user's most recent diagnostic, for the dashboard nudge. Null when none.
+app.get('/api/rolefit/mine', async (c) => {
+  const user = c.get('user');
+  const row = await c.env.DB.prepare(
+    `SELECT top_role, created_at FROM rolefit_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+  )
+    .bind(user.id)
+    .first();
+  return c.json({ run: row ? { top_role: row.top_role, date: row.created_at } : null });
 });
 
 // Build the public scorecard from a stored result. The holder shares the code or

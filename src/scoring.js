@@ -248,3 +248,37 @@ export function bestFitLine(ranked) {
   if (top.band === 'close') return `Strongest demonstrated fit: ${name} (close to room-ready).`;
   return `Strongest demonstrated fit so far: ${name} (still building).`;
 }
+
+// ---- Find-your-role diagnostic --------------------------------------------
+
+// Rank the roles a brand-new user just sat one short scenario in each. perRole:
+// [{ role, depth, steps }]. The read is deliberately shallow (one ladder each),
+// so it is framed as a first read that points at the full Score, never a verdict.
+export function diagnosticRank(perRole) {
+  const ranked = (perRole || [])
+    .map((r) => ({
+      role: r.role,
+      depth: r.depth || 0,
+      steps: r.steps || 0,
+      pct: r.steps ? Math.round((r.depth / r.steps) * 100) : 0,
+    }))
+    .sort((a, b) => b.pct - a.pct || b.depth - a.depth);
+
+  const top = ranked[0];
+  if (!top || top.depth <= 0) {
+    return {
+      ranked,
+      top_role: null,
+      verdict:
+        'This quick run did not get far into any role yet. Try a little role practice, then take it again.',
+    };
+  }
+  const name = POSITION[top.role] || top.role;
+  return {
+    ranked,
+    top_role: top.role,
+    verdict:
+      `On this quick diagnostic your strongest fit is ${name}. It is a first read from one scenario ` +
+      `each, not a final verdict. Take the full ${name} Score to confirm it and earn a verifiable code.`,
+  };
+}

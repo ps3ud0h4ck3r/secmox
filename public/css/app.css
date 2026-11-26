@@ -812,6 +812,15 @@ tr.row-hidden td.q,tr.row-hidden td.meta{opacity:.45}
   transition:border-color .15s ease,color .15s ease}
 .score-role:hover{border-color:var(--neon);color:var(--neon)}
 
+.score-find{margin:16px 0 22px;padding:16px 18px;border:1px solid var(--line);
+  border-left:3px solid var(--neon);border-radius:10px;background:var(--panel-2)}
+.score-find-h{margin:0 0 6px;font-size:16px}
+.score-find-sub{margin:0 0 14px;font-size:13px;color:var(--dim);line-height:1.5;max-width:60ch}
+.score-find-btn{margin:0}
+.score-find-result{margin:4px 0 18px}
+.score-find-result h2{margin:0 0 8px;font-size:20px}
+.score-find-verdict{margin:0;font-size:14px;color:var(--text);line-height:1.55;max-width:62ch}
+
 .score-past{margin-top:28px}
 .score-past h3{margin:0 0 10px;font-size:14px;color:var(--dim)}
 .score-history{display:flex;flex-direction:column;gap:6px}

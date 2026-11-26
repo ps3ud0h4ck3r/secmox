@@ -258,3 +258,35 @@ describe('bestFitLine', () => {
       .toBe('Strongest demonstrated fit: GRC / Security Risk.');
   });
 });
+
+import { diagnosticRank } from '../src/scoring.js';
+
+describe('diagnosticRank', () => {
+  it('ranks by depth fraction and names the top role', () => {
+    const out = diagnosticRank([
+      { role: 'soc', depth: 4, steps: 5 },
+      { role: 'pentest', depth: 1, steps: 5 },
+      { role: 'grc', depth: 3, steps: 4 },
+    ]);
+    expect(out.ranked.map((r) => r.role)).toEqual(['soc', 'grc', 'pentest']);
+    expect(out.ranked[0].pct).toBe(80);
+    expect(out.top_role).toBe('soc');
+    expect(out.verdict).toContain('SOC Analyst');
+  });
+  it('breaks a pct tie by raw depth', () => {
+    const out = diagnosticRank([
+      { role: 'soc', depth: 2, steps: 4 },
+      { role: 'grc', depth: 3, steps: 6 },
+    ]);
+    // both 50%, soc has fewer absolute steps climbed -> grc leads on depth
+    expect(out.ranked[0].role).toBe('grc');
+  });
+  it('declines to crown anyone when nothing was climbed', () => {
+    const out = diagnosticRank([
+      { role: 'soc', depth: 0, steps: 5 },
+      { role: 'grc', depth: 0, steps: 4 },
+    ]);
+    expect(out.top_role).toBeNull();
+    expect(out.verdict).toContain('did not get far');
+  });
+});

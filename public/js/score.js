@@ -53,6 +53,13 @@ export function openScore() {
   renderStart();
 }
 
+// Deep-link straight into the find-your-role diagnostic (from the landing hook
+// or the dashboard nudge). The caller has already shown the Score view.
+export function openDiagnostic() {
+  stopTimer();
+  startDiagnostic();
+}
+
 // --- Start: pick a role, see past scores ---
 
 function renderStart() {
@@ -66,6 +73,24 @@ function renderStart() {
     'harder step by step, and your score is how far you climb correctly, not how many you tick. ' +
     'The details and the length change every attempt. Enter your name, then pick a role to begin.';
   root.append(intro);
+
+  // Find-your-role: the low-commitment door for someone who has not chosen a
+  // role yet. One short scenario per role, then a ranked read of where they fit.
+  const find = el('div', 'score-find');
+  find.append(el('h3', 'score-find-h', 'Not sure which role fits you?'));
+  find.append(
+    el(
+      'p',
+      'score-find-sub',
+      'Take a short cross-role diagnostic: one scenario from each role, about ten minutes. ' +
+        'It points you at the role to target, then you take that full Score.',
+    ),
+  );
+  const findBtn = el('button', 'btn score-find-btn', 'Find my role');
+  findBtn.type = 'button';
+  findBtn.addEventListener('click', startDiagnostic);
+  find.append(findBtn);
+  root.append(find);
 
   const nameWrap = el('div', 'score-namewrap');
   const nameLabel = el('label', 'score-namelabel', 'Your name (shown on your scorecard)');
@@ -275,7 +300,9 @@ function renderQuestion() {
 
   // Header: role, timer, progress.
   const head = el('div', 'score-runhead');
-  head.append(el('h2', null, `${roleName(run.role)} score test`));
+  head.append(
+    el('h2', null, run.mode === 'diagnostic' ? 'Find your role' : `${roleName(run.role)} score test`),
+  );
   const clock = el('span', 'score-clock');
   clock.id = 'scoreClock';
   head.append(clock);
@@ -427,6 +454,14 @@ async function submitRun(auto) {
   }));
 
   try {
+    if (run.mode === 'diagnostic') {
+      const out = await api('/api/rolefit/diagnostic/submit', {
+        method: 'POST',
+        body: JSON.stringify({ runs }),
+      });
+      renderDiagnosticResult(out);
+      return;
+    }
     const out = await api('/api/score/submit', {
       method: 'POST',
       body: JSON.stringify({ role: run.role, name: run.name, runs }),
@@ -436,6 +471,111 @@ async function submitRun(auto) {
     if (next) next.disabled = false;
     if (msg) say(msg, err.message, 'err');
   }
+}
+
+// --- Diagnostic: start and result ---
+
+async function startDiagnostic() {
+  const root = $('scoreBody');
+  root.replaceChildren(el('p', 'sub', 'Loading your diagnostic.'));
+  let data;
+  try {
+    data = await api('/api/rolefit/diagnostic');
+  } catch (err) {
+    root.replaceChildren(el('p', 'msg err', err.message));
+    return;
+  }
+  if (!data.chains || !data.chains.length) {
+    root.replaceChildren(el('p', 'sub', 'The diagnostic is not ready yet. Try a role test instead.'));
+    const back = el('button', 'btn-ghost', 'Back');
+    back.type = 'button';
+    back.addEventListener('click', renderStart);
+    root.append(back);
+    return;
+  }
+  const flat = [];
+  data.chains.forEach((ch, ci) => {
+    ch.steps.forEach((step, si) => {
+      flat.push({
+        chainId: ch.id,
+        chainIdx: ci,
+        stepIdx: si,
+        step,
+        order: step.options ? shuffle(step.options.length) : [],
+      });
+    });
+  });
+  run = { mode: 'diagnostic', chains: data.chains, flat, pos: 0, answers: new Map() };
+  renderQuestion();
+  startTimer(Math.max(6, data.chains.length * 2));
+}
+
+function renderDiagnosticResult(out) {
+  const root = $('scoreBody');
+  root.replaceChildren();
+
+  const card = el('div', 'score-find-result');
+  card.append(el('h2', null, 'Where you fit'));
+  card.append(el('p', 'score-find-verdict', out.verdict || ''));
+  root.append(card);
+
+  const list = el('div', 'fit-list');
+  (out.ranked || []).forEach((r, i) => {
+    const row = el('article', `fit-row${i === 0 && out.top_role ? ' fit-lead' : ''}`);
+    const headr = el('div', 'fit-head');
+    headr.append(el('h3', null, roleName(r.role)));
+    headr.append(el('span', 'fit-num', `${r.pct}%`));
+    row.append(headr);
+    const bar = el('div', 'fit-bar');
+    const fill = el('div', 'fit-fill');
+    bar.append(fill);
+    row.append(bar);
+    fill.animate([{ width: '0%' }, { width: `${r.pct}%` }], {
+      duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 650,
+      fill: 'both',
+      easing: 'ease-out',
+    });
+    list.append(row);
+  });
+  root.append(list);
+
+  root.append(
+    el(
+      'p',
+      'sub',
+      'A first read from one scenario each. The full role Score is longer, timed, and gives you a verifiable code.',
+    ),
+  );
+
+  const foot = el('div', 'score-foot');
+  if (out.top_role) {
+    // The full Score needs a name for the scorecard, so capture it here and let
+    // startRun read the same #scoreName field it reads on the start screen.
+    const nameWrap = el('div', 'score-namewrap');
+    const nameLabel = el('label', 'score-namelabel', 'Your name (shown on your scorecard)');
+    nameLabel.htmlFor = 'scoreName';
+    const nameInput = el('input', 'score-nameinput');
+    nameInput.id = 'scoreName';
+    nameInput.type = 'text';
+    nameInput.maxLength = 60;
+    nameInput.placeholder = 'e.g. Priya Sharma';
+    nameInput.autocomplete = 'name';
+    nameWrap.append(nameLabel, nameInput);
+    const nameMsg = el('p', 'msg');
+    nameMsg.id = 'scoreNameMsg';
+    nameWrap.append(nameMsg);
+    foot.append(nameWrap);
+
+    const go = el('button', 'btn', `Take the full ${roleName(out.top_role)} Score`);
+    go.type = 'button';
+    go.addEventListener('click', () => startRun(out.top_role));
+    foot.append(go);
+  }
+  const again = el('button', 'btn-ghost score-again', 'Back to all tests');
+  again.type = 'button';
+  again.addEventListener('click', openScore);
+  foot.append(again);
+  root.append(foot);
 }
 
 // --- Result ---

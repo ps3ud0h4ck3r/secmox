@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
 }
 import { loadDashboard, setDashboardHandlers } from './dashboard.js';
 import { loadTracks, openTrack, setTrackHandlers } from './tracks.js';
-import { openScore } from './score.js';
+import { openScore, openDiagnostic } from './score.js';
 
 // phase walks a question: 'hidden' (answer not shown yet), 'answered' (main
 // answer shown, a follow-up prompt is the next click), 'prompt' (a follow-up is
@@ -1251,6 +1251,10 @@ async function loadCoverage() {
   if (wantsNew) window.history.replaceState({}, '', window.location.pathname);
   setMode(wantsNew ? 'up' : 'in');
 
+  // The landing's find-your-role hook lands here as ?find=role; after the
+  // session restores, drop straight into the diagnostic.
+  const wantsFind = params.get('find') === 'role';
+
   // ?onboard=1 brings the first-run screen back for an already-onboarded user.
   if (params.get('onboard') === '1') {
     forceOnboard = true;
@@ -1279,6 +1283,10 @@ async function loadCoverage() {
         openAccount();
       } else {
         await enterApp();
+        if (wantsFind) {
+          show('scoreView');
+          openDiagnostic();
+        }
       }
     })(),
   });
